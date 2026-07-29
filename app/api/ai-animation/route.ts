@@ -1,103 +1,168 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-
-import { authOptions } from "@/auth";
-import prisma from "@/lib/prisma";
-
-import { generateAnimation } from "@/lib/gemini-animation";
 
 
-export async function POST(req: Request) {
+
+export async function POST(request: Request) {
+
+
   try {
-    const session = await getServerSession(authOptions);
 
 
-    if (!session?.user?.email) {
+    const formData = await request.formData();
+
+
+
+
+
+    const file = formData.get("file") as File | null;
+
+
+    const prompt = formData.get("prompt") as string | null;
+
+
+
+
+
+
+    if (!file) {
+
+
+
       return NextResponse.json(
+
+
         {
-          error: "Unauthorized",
+
+
+          success: false,
+
+
+          message: "File is required",
+
+
         },
+
+
         {
-          status: 401,
-        }
-      );
-    }
 
 
-    const user = await prisma.user.findUnique({
-      where: {
-        email: session.user.email,
-      },
-    });
-
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "User not found",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
-
-
-    const body = await req.json();
-
-    const prompt = body.prompt ?? "";
-
-
-    if (!prompt) {
-      return NextResponse.json(
-        {
-          error: "Prompt is required",
-        },
-        {
           status: 400,
+
+
         }
+
+
       );
+
+
     }
 
 
-    const result = await generateAnimation(prompt);
 
 
-    await prisma.history.create({
-      data: {
-        userId: user.id,
-        title: "AI Animation",
-        feature: "AI Animation",
-        prompt,
-        result:
-          typeof result === "string"
-            ? result
-            : JSON.stringify(result),
-      },
-    });
 
 
-    return NextResponse.json({
-      success: true,
-      result,
-    });
 
 
-  } catch (error: any) {
+    return NextResponse.json(
+
+
+
+      {
+
+
+        success: true,
+
+
+
+        message: "Animation request received",
+
+
+
+
+
+
+        animation: {
+
+
+
+          fileName: file.name,
+
+
+
+          fileType: file.type,
+
+
+
+          prompt,
+
+
+
+          status: "waiting",
+
+
+
+        },
+
+
+
+      }
+
+
+
+    );
+
+
+
+
+
+
+
+  } catch (error) {
+
+
 
     console.error(error);
 
 
+
+
+
+
     return NextResponse.json(
+
+
+
       {
+
+
         success: false,
-        error:
-          error?.message ??
-          "Failed to generate animation",
+
+
+
+        message: "Animation generation failed",
+
+
+
       },
+
+
+
       {
+
+
         status: 500,
+
+
       }
+
+
     );
+
+
+
   }
+
+
+
 }

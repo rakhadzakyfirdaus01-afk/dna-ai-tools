@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-
     const history = await prisma.history.findMany();
 
     const totalRequests = history.length;
@@ -24,6 +23,17 @@ export async function GET() {
       (item) => item.feature.includes("Animation")
     ).length;
 
+    const aiDocuments = history.filter(
+      (item) => item.feature.includes("Document")
+    ).length;
+
+    const aiOCR = history.filter(
+      (item) => item.feature.includes("OCR")
+    ).length;
+
+    const aiTranslator = history.filter(
+      (item) => item.feature.includes("Translator")
+    ).length;
 
     return NextResponse.json({
       totalRequests,
@@ -31,11 +41,12 @@ export async function GET() {
       generatedImages,
       aiDesigns,
       aiAnimations,
+      aiDocuments,
+      aiOCR,
+      aiTranslator,
     });
 
-
   } catch (error) {
-
     console.error("Dashboard stats error:", error);
 
     return NextResponse.json(
@@ -46,6 +57,5 @@ export async function GET() {
         status: 500,
       }
     );
-
   }
 }

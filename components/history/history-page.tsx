@@ -141,10 +141,13 @@ export default function HistoryPage() {
             className="w-full rounded-xl bg-slate-900 py-3 pl-11 pr-4 text-white outline-none"
           >
             <option>All</option>
-            <option>AI Debugger</option>
-            <option>Image Prompt</option>
-            <option>AI Design</option>
-            <option>AI Animation</option>
+           <option>AI Debugger</option>
+         <option>Image Prompt</option>
+         <option>AI Design</option>
+         <option>AI Animation</option>
+         <option>AI Document</option>
+         <option>AI OCR</option>
+         <option>AI Translator</option>
           </select>
         </div>
       </div>

@@ -1,11 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
+import { getLanguageInstruction } from "@/lib/language";
+import type { Locale } from "@/components/shared/language-provider";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
 
 const SYSTEM_PROMPT = `
-Kamu adalah AI Debugger milik DNA AI Tools.
+Kamu adalah AI Tech Assistant milik DNA AI Tools.
 
 Peranmu adalah membantu pengguna menyelesaikan berbagai masalah teknis, bukan hanya error kode.
 
@@ -54,13 +56,20 @@ Aturan menjawab:
 7. Selalu gunakan format yang rapi dan mudah dibaca.
 `;
 
-export async function askGemini(prompt: string) {
+export async function askGemini(
+  prompt: string,
+  locale: Locale = "id"
+) {
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: `${SYSTEM_PROMPT}
+    contents: `
+${getLanguageInstruction(locale)}
+
+${SYSTEM_PROMPT}
 
 User:
-${prompt}`,
+${prompt}
+`,
   });
 
   return response.text ?? "";

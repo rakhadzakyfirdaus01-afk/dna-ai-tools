@@ -1,0 +1,12 @@
+{
+  "dashboard": "Dashboard",
+  "debugger": "AI Debugger",
+  "imagePrompt": "Image Prompt",
+  "design": "AI Design",
+  "animation": "AI Animation",
+  "document": "AI Document",
+  "ocr": "AI OCR",
+  "translator": "Language",
+  "history": "History",
+  "search": "Search..."
+}

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLanguage } from "@/components/shared/language-provider";
+
 import {
   LayoutDashboard,
   Bug,
@@ -15,61 +17,62 @@ import {
   Settings,
 } from "lucide-react";
 
-const menus = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "AI Debugger",
-    href: "/ai-debugger",
-    icon: Bug,
-  },
-  {
-    title: "Image Prompt",
-    href: "/image-prompt",
-    icon: ImageIcon,
-  },
-  {
-    title: "AI Design",
-    href: "/ai-design",
-    icon: Palette,
-  },
-  {
-    title: "AI Animation",
-    href: "/ai-animation",
-    icon: Clapperboard,
-  },
-  {
-    title: "AI Document",
-    href: "/ai-document",
-    icon: FileText,
-  },
-  {
-    title: "AI OCR",
-    href: "/ai-ocr",
-    icon: ScanText,
-  },
-  {
-    title: "AI Translator",
-    href: "/ai-translator",
-    icon: Languages,
-  },
-  {
-    title: "History",
-    href: "/history",
-    icon: History,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-];
-
 export default function Sidebar() {
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const menus = [
+    {
+      title: t.dashboard,
+      href: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: t.debugger,
+      href: "/ai-debugger",
+      icon: Bug,
+    },
+    {
+      title: t.imagePrompt,
+      href: "/image-prompt",
+      icon: ImageIcon,
+    },
+    {
+      title: t.design,
+      href: "/ai-design",
+      icon: Palette,
+    },
+    {
+      title: t.animation,
+      href: "/ai-animation",
+      icon: Clapperboard,
+    },
+    {
+      title: t.document,
+      href: "/ai-document",
+      icon: FileText,
+    },
+    {
+      title: t.ocr,
+      href: "/ai-ocr",
+      icon: ScanText,
+    },
+    {
+      title: t.translator,
+      href: "/ai-translator",
+      icon: Languages,
+    },
+    {
+      title: t.history,
+      href: "/history",
+      icon: History,
+    },
+    {
+      title: t.settings,
+      href: "/settings",
+      icon: Settings,
+    },
+  ];
 
   return (
     <aside className="flex h-screen w-72 flex-col border-r border-slate-800 bg-[#0B1120]">
@@ -87,7 +90,7 @@ export default function Sidebar() {
             </h1>
 
             <p className="text-sm text-slate-400">
-              Advertising Platform
+              {t.advertisingPlatform}
             </p>
           </div>
         </div>
@@ -128,12 +131,11 @@ export default function Sidebar() {
           </h3>
 
           <p className="mt-2 text-sm text-cyan-100">
-            Ready to generate text, prompts, UI designs, AI animations,
-            document analysis, OCR, and translation.
+            {t.geminiDescription}
           </p>
 
           <button className="mt-5 w-full rounded-xl bg-white py-3 font-semibold text-slate-900 transition hover:scale-105">
-            Connected
+            {t.connected}
           </button>
         </div>
       </div>

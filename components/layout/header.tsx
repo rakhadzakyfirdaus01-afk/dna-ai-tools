@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
+import LanguageSwitcher from "@/components/shared/language-switcher";
+import { useLanguage } from "@/components/shared/language-provider";
 
 import {
   Search,
@@ -18,6 +20,8 @@ export default function Header() {
 
 
   const router = useRouter();
+
+  const { t } = useLanguage();
 
 
   const { data: session } = useSession();
@@ -144,14 +148,14 @@ export default function Header() {
 
 
 
-        <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4">
+
+             <LanguageSwitcher />
+
+              <div className="relative">
 
 
-
-          <div className="relative">
-
-
-            <div className="flex h-11 w-80 items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4">
+             <div className="flex h-11 w-80 items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4">
 
 
               <Search
@@ -175,7 +179,7 @@ export default function Header() {
 
                 onFocus={() => setOpen(true)}
 
-                placeholder="Search..."
+               placeholder={t.search}
 
                 className="w-full bg-transparent text-white outline-none"
 
@@ -273,7 +277,7 @@ export default function Header() {
             <Sparkles size={18}/>
 
 
-            Gemini Ready
+           {t.geminiReady}
 
 
           </button>
@@ -307,7 +311,7 @@ export default function Header() {
               <p className="text-xs text-cyan-400">
 
 
-               USER
+               {t.user}
 
 
               </p>
@@ -329,7 +333,7 @@ export default function Header() {
 
               >
 
-                Logout
+               {t.logout}
 
               </button>
 
@@ -399,4 +403,4 @@ export default function Header() {
 
   );
 
-}
+} 

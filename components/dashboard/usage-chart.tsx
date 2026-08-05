@@ -31,21 +31,20 @@ export default function UsageChart() {
 
 
     async function getUsage() {
+  try {
+    const response = await fetch("/api/dashboard/usage", {
+      cache: "no-store",
+    });
 
+    const result = await response.json();
 
-      const response = await fetch(
-        "/api/dashboard/usage"
-      );
+    console.log("USAGE:", result);
 
-
-      const result = await response.json();
-
-
-      setData(result);
-
-
-    }
-
+    setData(result);
+  } catch (err) {
+    console.error(err);
+  }
+}
 
 
     getUsage();
@@ -127,8 +126,8 @@ export default function UsageChart() {
             strokeWidth={3}
 
             dot={{
-              r:5
-            }}
+  r: 4,
+}}
 
           />
 

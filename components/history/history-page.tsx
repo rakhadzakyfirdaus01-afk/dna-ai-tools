@@ -92,26 +92,33 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="space-y-5 lg:space-y-6">
+
+      <div className="flex items-start gap-3 lg:items-center">
 
         <History
-          size={30}
-          className="text-cyan-400"
+          size={26}
+          className="text-cyan-400 lg:h-[30px] lg:w-[30px]"
         />
 
         <div>
-          <h1 className="text-3xl font-bold text-white">
+
+          <h1 className="text-2xl font-bold text-white lg:text-3xl">
             History
           </h1>
 
-          <p className="text-slate-400">
+          <p className="text-sm text-slate-400 lg:text-base">
             View every AI activity.
           </p>
+
         </div>
+
       </div>
-            <div className="grid gap-4 md:grid-cols-2">
+
+      <div className="grid gap-3 md:grid-cols-2 lg:gap-4">
+
         <div className="relative">
+
           <Search
             size={18}
             className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
@@ -125,9 +132,11 @@ export default function HistoryPage() {
             placeholder="Search history..."
             className="w-full rounded-xl bg-slate-900 py-3 pl-11 pr-4 text-white outline-none"
           />
+
         </div>
 
         <div className="relative">
+
           <Filter
             size={18}
             className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
@@ -140,54 +149,67 @@ export default function HistoryPage() {
             }
             className="w-full rounded-xl bg-slate-900 py-3 pl-11 pr-4 text-white outline-none"
           >
-            <option>All</option>
-           <option>AI Debugger</option>
-         <option>Image Prompt</option>
-         <option>AI Design</option>
-         <option>AI Animation</option>
-         <option>AI Document</option>
-         <option>AI OCR</option>
-         <option>AI Translator</option>
+                        <option>All</option>
+            <option>AI Debugger</option>
+            <option>Image Prompt</option>
+            <option>AI Design</option>
+            <option>AI Animation</option>
+            <option>AI Document</option>
+            <option>AI OCR</option>
+            <option>AI Translator</option>
           </select>
+
         </div>
+
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3 lg:space-y-4">
+
         {loading ? (
-          <div className="rounded-xl bg-slate-900 p-8 text-center text-slate-400">
+
+          <div className="rounded-xl bg-slate-900 p-6 text-center text-slate-400 lg:p-8">
             Loading...
           </div>
+
         ) : filtered.length === 0 ? (
-          <div className="rounded-xl bg-slate-900 p-8 text-center text-slate-500">
+
+          <div className="rounded-xl bg-slate-900 p-6 text-center text-slate-500 lg:p-8">
             No history found.
           </div>
+
         ) : (
+
           filtered.map((item) => (
+
             <div
               key={item.id}
-              className="rounded-2xl border border-slate-800 bg-slate-900 p-5"
+              className="rounded-2xl border border-slate-800 bg-slate-900 p-4 lg:p-5"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3">
 
-                <div>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+                <div className="min-w-0 flex-1">
+
                   <h3 className="font-semibold text-white">
                     {item.feature}
                   </h3>
 
                   <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+
                     <Calendar size={15} />
+
                     {new Date(
                       item.createdAt
                     ).toLocaleString()}
+
                   </div>
+
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex justify-end gap-2">
 
                   <button
-                    onClick={() =>
-                      setSelected(item)
-                    }
+                    onClick={() => setSelected(item)}
                     className="rounded-lg bg-cyan-600 p-2 text-white"
                   >
                     <Eye size={18} />
@@ -212,25 +234,31 @@ export default function HistoryPage() {
                   </button>
 
                 </div>
+
               </div>
 
-              <p className="mt-4 line-clamp-2 text-slate-300">
+              <p className="mt-4 line-clamp-2 break-words text-sm text-slate-300 lg:text-base">
                 {item.prompt}
               </p>
+
             </div>
+
           ))
+
         )}
+
       </div>
             {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
 
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-slate-950 p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 lg:p-6">
 
-            <div className="mb-6 flex items-center justify-between">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-slate-950 p-4 lg:p-6">
+
+            <div className="mb-5 flex flex-col gap-4 lg:mb-6 lg:flex-row lg:items-center lg:justify-between">
 
               <div>
 
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-xl font-bold text-white lg:text-2xl">
                   {selected.feature}
                 </h2>
 
@@ -244,22 +272,22 @@ export default function HistoryPage() {
 
               <button
                 onClick={() => setSelected(null)}
-                className="rounded-lg bg-red-600 px-4 py-2 text-white"
+                className="w-full rounded-lg bg-red-600 px-4 py-2 text-white lg:w-auto"
               >
                 Close
               </button>
 
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-5 lg:space-y-6">
 
               <div>
 
-                <h3 className="mb-2 text-lg font-semibold text-cyan-400">
+                <h3 className="mb-2 text-base font-semibold text-cyan-400 lg:text-lg">
                   Prompt
                 </h3>
 
-                <div className="whitespace-pre-wrap rounded-xl bg-slate-900 p-4 text-slate-300">
+                <div className="whitespace-pre-wrap break-words rounded-xl bg-slate-900 p-4 text-sm text-slate-300 lg:text-base">
                   {selected.prompt}
                 </div>
 
@@ -267,11 +295,11 @@ export default function HistoryPage() {
 
               <div>
 
-                <h3 className="mb-2 text-lg font-semibold text-cyan-400">
+                <h3 className="mb-2 text-base font-semibold text-cyan-400 lg:text-lg">
                   Result
                 </h3>
 
-                <div className="whitespace-pre-wrap rounded-xl bg-slate-900 p-4 text-slate-300">
+                <div className="whitespace-pre-wrap break-words rounded-xl bg-slate-900 p-4 text-sm text-slate-300 lg:text-base">
                   {selected.result}
                 </div>
 
@@ -282,7 +310,9 @@ export default function HistoryPage() {
           </div>
 
         </div>
+
       )}
+
     </div>
   );
 }

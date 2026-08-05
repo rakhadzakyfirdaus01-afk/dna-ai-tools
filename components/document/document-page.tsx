@@ -70,16 +70,16 @@ export default function DocumentPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 lg:space-y-8">
 
-      <div className="rounded-3xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-8 shadow-xl">
+      <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-start gap-3 lg:items-center lg:gap-4">
 
-          <div className="rounded-2xl bg-white/10 p-3 backdrop-blur">
+          <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur lg:rounded-2xl lg:p-3">
 
             <FileText
-              size={32}
+              size={26}
               className="text-white"
             />
 
@@ -87,11 +87,11 @@ export default function DocumentPage() {
 
           <div>
 
-            <h1 className="text-4xl font-bold text-white">
+            <h1 className="text-2xl font-bold text-white lg:text-4xl">
               AI Document
             </h1>
 
-            <p className="mt-2 text-white/80">
+            <p className="mt-2 text-sm text-white/80 lg:text-base">
               Upload PDF, DOCX, or TXT files and let AI summarize,
               explain, or answer questions about the document.
             </p>
@@ -102,14 +102,14 @@ export default function DocumentPage() {
 
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
 
-        <div className="rounded-3xl border border-slate-800 bg-[#111827] p-6 shadow-xl">
+        <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
-          <label className="mb-5 flex h-44 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-700 bg-slate-900 transition hover:border-cyan-500">
+          <label className="mb-4 flex h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-900 transition hover:border-cyan-500 lg:mb-5 lg:h-44 lg:rounded-2xl">
 
             <Upload
-              size={42}
+              size={34}
               className="mb-3 text-cyan-400"
             />
 
@@ -142,14 +142,14 @@ export default function DocumentPage() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Ask AI about your document..."
-            className="h-52 w-full resize-none rounded-2xl border border-slate-700 bg-slate-900 p-5 text-white outline-none focus:border-cyan-500"
+className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
-                    <div className="mt-5 flex gap-3">
+                    <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
 
             <button
               onClick={analyze}
               disabled={loading}
-              className="flex items-center gap-2 rounded-2xl bg-cyan-500 px-6 py-3 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 lg:w-auto lg:rounded-2xl lg:px-6 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Play size={18} />
               {loading ? "Analyzing..." : "Analyze"}
@@ -158,7 +158,7 @@ export default function DocumentPage() {
             <button
               onClick={clearAll}
               disabled={!file && !prompt && !result}
-              className="flex items-center gap-2 rounded-2xl bg-red-500 px-6 py-3 font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 lg:w-auto lg:rounded-2xl lg:px-6 font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Trash2 size={18} />
               Clear
@@ -168,14 +168,14 @@ export default function DocumentPage() {
 
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-[#111827] p-6 shadow-xl">
+        <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
           <div className="mb-5 flex justify-end">
 
             <button
               onClick={copyResult}
               disabled={!result}
-              className="rounded-2xl border border-slate-700 bg-slate-900 p-3 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 lg:rounded-2xl lg:p-3 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Copy size={18} />
             </button>
@@ -184,7 +184,7 @@ export default function DocumentPage() {
 
           {result ? (
 
-            <div className="h-[500px] overflow-auto rounded-2xl border border-slate-700 bg-slate-900 p-5">
+            <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4 lg:h-[500px] lg:rounded-2xl lg:p-5 border border-slate-700 bg-slate-900 p-5">
 
               <pre className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-300">
                 {result}
@@ -194,7 +194,7 @@ export default function DocumentPage() {
 
           ) : (
 
-            <div className="flex h-[500px] items-center justify-center rounded-2xl border-2 border-dashed border-slate-700 bg-slate-900">
+            <div className="flex h-[320px] items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-900 lg:h-[500px] lg:rounded-2xl border-2 border-dashed border-slate-700 bg-slate-900">
 
               <div className="text-center">
 

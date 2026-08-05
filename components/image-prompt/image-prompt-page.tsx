@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Sparkles,
   Copy,
@@ -14,6 +14,20 @@ export default function ImagePromptPage() {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  useEffect(() => {
+    if (!image) {
+      setPreviewUrl("");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(image);
+
+    setPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [image]);
 
   function handleFileChange(
     e: React.ChangeEvent<HTMLInputElement>
@@ -23,6 +37,7 @@ export default function ImagePromptPage() {
     if (!file) return;
 
     setImage(file);
+
     toast.success(`Selected: ${file.name}`);
   }
 
@@ -56,8 +71,7 @@ export default function ImagePromptPage() {
       setResult(data.result);
 
       toast.success("Prompt generated!");
-
-          } catch (error) {
+    } catch (error) {
       console.error(error);
       toast.error("Failed to generate prompt!");
     } finally {
@@ -69,6 +83,7 @@ export default function ImagePromptPage() {
     setPrompt("");
     setResult("");
     setImage(null);
+    setPreviewUrl("");
 
     toast.success("Cleared!");
   }
@@ -77,35 +92,44 @@ export default function ImagePromptPage() {
     if (!result) return;
 
     navigator.clipboard.writeText(result);
+
     toast.success("Copied!");
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+
+      {/* Header */}
+
+      <div className="flex items-start gap-3 lg:items-center">
+
         <Sparkles
-          className="text-purple-500"
-          size={30}
+          className="mt-1 text-purple-500 lg:mt-0"
+          size={24}
         />
 
         <div>
-          <h1 className="text-3xl font-bold text-white">
+
+          <h1 className="text-2xl font-bold text-white lg:text-3xl">
             Image Prompt Generator
           </h1>
 
-          <p className="text-slate-400">
+          <p className="mt-1 text-sm text-slate-400 lg:text-base">
             Generate professional prompts for AI image models.
           </p>
+
         </div>
+
       </div>
+            {/* Upload */}
 
       <div className="space-y-4">
 
-        <div className="rounded-xl border-2 border-dashed border-slate-700 bg-slate-900 p-6">
+        <div className="rounded-2xl border-2 border-dashed border-slate-700 bg-slate-900 p-4 transition-all duration-300 lg:p-6">
 
           <label
             htmlFor="image-upload"
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition hover:bg-purple-700"
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-white transition hover:bg-purple-700 lg:w-auto"
           >
             <ImagePlus size={18} />
             Choose Image
@@ -119,29 +143,41 @@ export default function ImagePromptPage() {
             onChange={handleFileChange}
           />
 
-          {image && (
-            <p className="mt-3 text-sm text-green-400">
-              Selected File: {image.name}
-            </p>
+          {previewUrl && (
+            <>
+              <div className="mt-5 overflow-hidden rounded-2xl border border-slate-700">
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="h-56 w-full object-cover"
+                />
+              </div>
+
+              <p className="mt-4 break-all text-sm text-green-400">
+                Selected File: {image?.name}
+              </p>
+            </>
           )}
 
         </div>
 
-                <textarea
+        <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Additional instructions (optional)..."
-          className="h-40 w-full rounded-xl bg-slate-900 p-4 text-white outline-none"
+          className="h-32 w-full rounded-2xl border border-slate-700 bg-slate-900 p-4 text-sm text-white outline-none transition focus:border-purple-500 lg:h-40 lg:text-base"
         />
 
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      {/* Buttons */}
+
+      <div className="grid grid-cols-1 gap-3 lg:flex lg:flex-wrap">
 
         <button
           onClick={generate}
           disabled={loading}
-          className="rounded-xl bg-purple-600 px-5 py-3 text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl bg-purple-600 px-5 py-3 font-medium text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
         >
           {loading ? "Generating..." : "Generate"}
         </button>
@@ -149,36 +185,66 @@ export default function ImagePromptPage() {
         <button
           onClick={clearAll}
           disabled={!prompt && !result && !image}
-          className="rounded-xl bg-slate-700 px-5 py-3 text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 px-5 py-3 text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
         >
           <Trash2 size={18} />
+
+          <span className="lg:hidden">
+            Clear
+          </span>
+
         </button>
 
         <button
           onClick={copyResult}
           disabled={!result}
-          className="rounded-xl bg-slate-700 px-5 py-3 text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 px-5 py-3 text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
         >
           <Copy size={18} />
+
+          <span className="lg:hidden">
+            Copy
+          </span>
+
         </button>
 
       </div>
+            {/* Result */}
 
-      <div className="min-h-[300px] whitespace-pre-wrap rounded-xl bg-slate-900 p-5 text-white">
+      <div className="rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-lg">
 
-        {loading ? (
-          <p className="text-slate-400 animate-pulse">
-            Generating prompt...
-          </p>
-        ) : result ? (
-          result
-        ) : (
-          <p className="text-slate-500">
-            Generated prompt will appear here...
-          </p>
-        )}
+        <div className="mb-4 flex items-center justify-between">
+
+          <h2 className="text-lg font-semibold text-white">
+            Generated Prompt
+          </h2>
+
+        </div>
+
+        <div className="min-h-[220px] whitespace-pre-wrap rounded-xl bg-[#111827] p-4 text-sm leading-7 text-slate-200 lg:min-h-[300px] lg:text-base">
+
+          {loading ? (
+
+            <p className="animate-pulse text-slate-400">
+              ✨ AI is generating your prompt...
+            </p>
+
+          ) : result ? (
+
+            result
+
+          ) : (
+
+            <p className="text-slate-500">
+              Your generated prompt will appear here.
+            </p>
+
+          )}
+
+        </div>
 
       </div>
-          </div>
+
+    </div>
   );
 }

@@ -78,19 +78,22 @@ export default function DebuggerPage() {
   }
 
   return (
-    <div className="space-y-8">
-  <div className="rounded-3xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-8 shadow-xl">
-    <div className="flex items-center gap-4">
-      <div className="rounded-2xl bg-white/10 p-3 backdrop-blur">
-        <Bug className="text-white" size={32} />
+<div className="space-y-5 lg:space-y-8">
+  <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
+    <div className="flex items-start gap-3 lg:items-center lg:gap-4">
+      <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur lg:rounded-2xl lg:p-3">
+       <Bug
+  className="text-white"
+  size={26}
+/>
       </div>
 
       <div>
-        <h1 className="text-4xl font-bold text-white">
+        <h1 className="text-2xl font-bold text-white lg:text-4xl">
           {t.debugger}
         </h1>
 
-        <p className="mt-2 text-white/80">
+        <p className="mt-2 text-sm text-white/80 lg:text-base">
           {locale === "id"
             ? "Tanyakan apa saja tentang pemrograman, software, Windows, hardware, jaringan, database, API, atau tempel kode untuk diperbaiki."
             : "Ask anything about programming, software, Windows, hardware, networking, databases, APIs, or paste code to debug."}
@@ -99,8 +102,8 @@ export default function DebuggerPage() {
     </div>
   </div>
 
-  <div className="grid gap-6 xl:grid-cols-2">
-    <div className="rounded-3xl border border-slate-800 bg-[#111827] p-6 shadow-xl">
+  <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
+    <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
       <textarea
         value={prompt}
@@ -111,14 +114,14 @@ export default function DebuggerPage() {
             ? "Masukkan pertanyaan atau tempel kode di sini..."
             : "Ask a question or paste your code here..."
         }
-        className="h-[500px] w-full resize-none rounded-2xl border border-slate-700 bg-slate-900 p-5 font-mono text-sm text-white outline-none transition-all duration-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+        className="h-[320px] w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 font-mono text-sm text-white outline-none transition-all duration-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 lg:h-[500px] lg:rounded-2xl lg:p-5"
       />
 
-      <div className="mt-5 flex gap-3">
+      <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
         <button
   onClick={analyze}
   disabled={loading}
-  className="flex items-center gap-2 rounded-2xl bg-cyan-500 px-6 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+  className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
 >
   <Play size={18} />
 
@@ -130,7 +133,7 @@ export default function DebuggerPage() {
 <button
   onClick={clearAll}
   disabled={!prompt && !result}
-  className="flex items-center gap-2 rounded-2xl bg-red-500 px-6 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+  className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
 >
   <Trash2 size={18} />
 
@@ -141,40 +144,40 @@ export default function DebuggerPage() {
 
 </div>
 
-<div className="rounded-3xl border border-slate-800 bg-[#111827] p-6 shadow-xl">
+<div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
-  <div className="mb-4 flex justify-end">
+  <div className="mb-3 flex justify-end lg:mb-4">
 
     <button
       onClick={copyResult}
       disabled={!result}
-      className="rounded-2xl border border-slate-700 bg-slate-900 p-3 transition-all duration-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+     className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition-all duration-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
     >
       <Copy size={18} />
     </button>
 
   </div>
   {result ? (
-  <div className="h-[500px] overflow-auto rounded-2xl border border-slate-700 bg-slate-900 p-5">
+  <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4 lg:h-[500px] lg:rounded-2xl lg:p-5">
     <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-7 text-slate-300">
       {result}
     </pre>
   </div>
 ) : (
-  <div className="flex h-[500px] items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-900">
+  <div className="flex h-[320px] items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-900 lg:h-[500px] lg:rounded-2xl">
     <div className="text-center">
       <Bug
-        size={60}
-        className="mx-auto mb-5 text-slate-600"
-      />
+  size={48}
+  className="mx-auto mb-5 text-slate-600"
+/>
 
-      <h3 className="text-lg font-semibold text-slate-300">
+      <h3 className="text-base font-semibold text-slate-300 lg:text-lg">
         {locale === "id"
           ? "Mulai Bertanya ke AI"
           : "Start Asking AI"}
       </h3>
 
-      <p className="mt-2 text-sm text-slate-500">
+      <p className="mt-2 text-xs text-slate-500 lg:text-sm">
         {locale === "id"
           ? "Jawaban AI akan muncul di sini."
           : "Your AI response will appear here."}

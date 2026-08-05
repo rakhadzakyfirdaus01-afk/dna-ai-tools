@@ -150,16 +150,16 @@ export default function ActivityCard() {
 
   return (
 
-    <div className="rounded-2xl border border-slate-800 bg-[#111827] p-6 transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 transition duration-300 hover:-translate-y-1 hover:shadow-xl lg:p-6">
 
 
-      <h2 className="mb-6 text-xl font-semibold text-white">
+      <h2 className="mb-4 text-lg font-semibold text-white lg:mb-6 lg:text-xl">
         Recent Activity
       </h2>
 
 
 
-      <div className="space-y-5">
+      <div className="space-y-3 lg:space-y-5">
 
 
         {activities.map((item, index) => {
@@ -175,21 +175,18 @@ export default function ActivityCard() {
 
               key={index}
 
-              className="flex items-start gap-4 rounded-xl p-2 transition duration-300 hover:bg-slate-900"
+              className="flex items-start gap-3 rounded-xl p-2 transition duration-300 hover:bg-slate-900 lg:gap-4"
 
             >
 
 
-              <div className="rounded-xl bg-slate-900 p-3">
+              <div className="rounded-lg bg-slate-900 p-2.5 lg:rounded-xl lg:p-3">
 
 
                 <Icon
-
-                  size={20}
-
-                  className={item.color}
-
-                />
+  size={18}
+  className={item.color}
+/>
 
 
               </div>
@@ -201,7 +198,7 @@ export default function ActivityCard() {
               <div className="flex-1 border-b border-slate-800 pb-4">
 
 
-                <h3 className="font-medium text-white">
+                <h3 className="text-sm font-medium text-white lg:text-base">
 
                   {item.title}
 
@@ -209,7 +206,7 @@ export default function ActivityCard() {
 
 
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-xs text-slate-500 lg:text-sm">
 
                   {item.time}
 

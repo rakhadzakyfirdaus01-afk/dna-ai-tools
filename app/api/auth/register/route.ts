@@ -85,7 +85,7 @@ export async function POST(request: Request) {
 
           password: hashedPassword,
 
-          role: "USER",
+          
 
         },
 

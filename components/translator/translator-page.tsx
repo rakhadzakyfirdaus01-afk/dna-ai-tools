@@ -69,16 +69,16 @@ export default function TranslatorPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 lg:space-y-8">
 
-      <div className="rounded-3xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-8 shadow-xl">
+      <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-start gap-3 lg:items-center lg:gap-4">
 
-          <div className="rounded-2xl bg-white/10 p-3 backdrop-blur">
+          <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur lg:rounded-2xl lg:p-3">
 
             <Languages
-              size={32}
+              size={26}
               className="text-white"
             />
 
@@ -86,11 +86,11 @@ export default function TranslatorPage() {
 
           <div>
 
-            <h1 className="text-4xl font-bold text-white">
+            <h1 className="text-2xl font-bold text-white lg:text-4xl">
               AI Translator
             </h1>
 
-            <p className="mt-2 text-white/80">
+            <p className="mt-2 text-sm text-white/80 lg:text-base">
               Translate text into multiple languages using AI.
             </p>
 
@@ -100,21 +100,20 @@ export default function TranslatorPage() {
 
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
 
-        <div className="rounded-3xl border border-slate-800 bg-[#111827] p-6 shadow-xl">
-
-          <textarea
+        <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
+                    <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Type text here..."
-            className="h-52 w-full resize-none rounded-2xl border border-slate-700 bg-slate-900 p-5 text-white outline-none focus:border-cyan-500"
+            className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
 
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className="mt-5 w-full rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white outline-none"
+            className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none lg:mt-5 lg:rounded-2xl lg:p-4"
           >
             <option>Indonesia</option>
             <option>English</option>
@@ -125,23 +124,28 @@ export default function TranslatorPage() {
             <option>French</option>
             <option>German</option>
           </select>
-                    <div className="mt-5 flex gap-3">
+
+          <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
 
             <button
               onClick={translate}
               disabled={loading}
-              className="flex items-center gap-2 rounded-2xl bg-cyan-500 px-6 py-3 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
               <Play size={18} />
-              {loading ? "Translating..." : "Translate"}
+
+              {loading
+                ? "Translating..."
+                : "Translate"}
             </button>
 
             <button
               onClick={clearAll}
               disabled={!prompt && !result}
-              className="flex items-center gap-2 rounded-2xl bg-red-500 px-6 py-3 font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
               <Trash2 size={18} />
+
               Clear
             </button>
 
@@ -149,23 +153,22 @@ export default function TranslatorPage() {
 
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-[#111827] p-6 shadow-xl">
+        <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
-          <div className="mb-5 flex justify-end">
+          <div className="mb-4 flex justify-end lg:mb-5">
 
             <button
               onClick={copyResult}
               disabled={!result}
-              className="rounded-2xl border border-slate-700 bg-slate-900 p-3 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
             >
               <Copy size={18} />
             </button>
 
           </div>
+                    {result ? (
 
-          {result ? (
-
-            <div className="h-[500px] overflow-auto rounded-2xl border border-slate-700 bg-slate-900 p-5">
+            <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4 lg:h-[500px] lg:rounded-2xl lg:p-5">
 
               <pre className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-300">
                 {result}
@@ -175,20 +178,20 @@ export default function TranslatorPage() {
 
           ) : (
 
-            <div className="flex h-[500px] items-center justify-center rounded-2xl border-2 border-dashed border-slate-700 bg-slate-900">
+            <div className="flex h-[320px] items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-900 lg:h-[500px] lg:rounded-2xl">
 
               <div className="text-center">
 
                 <Languages
-                  size={64}
+                  size={48}
                   className="mx-auto mb-5 text-slate-600"
                 />
 
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-xl font-bold text-white lg:text-2xl">
                   AI Translator
                 </h2>
 
-                <p className="mt-3 text-slate-400">
+                <p className="mt-3 text-sm text-slate-400 lg:text-base">
                   Enter text to start translating.
                 </p>
 
@@ -201,6 +204,7 @@ export default function TranslatorPage() {
         </div>
 
       </div>
-          </div>
+
+    </div>
   );
 }

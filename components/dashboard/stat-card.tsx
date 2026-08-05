@@ -35,23 +35,25 @@ export default function StatCard({
   return (
 
     <div
-      className="
-      rounded-2xl
+     className="
+      rounded-xl
       border
       bg-card
       text-card-foreground
-      p-6
+      p-4
       transition
       duration-300
       hover:border-cyan-500
       hover:-translate-y-1
       hover:shadow-xl
+      lg:rounded-2xl
+      lg:p-6
       "
     >
 
 
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between lg:items-center">
 
 
 
@@ -59,7 +61,7 @@ export default function StatCard({
 
 
 
-          <p className="text-sm opacity-70">
+          <p className="text-xs opacity-70 lg:text-sm">
 
             {title}
 
@@ -68,7 +70,7 @@ export default function StatCard({
 
 
 
-          <h2 className="mt-3 text-3xl font-bold">
+          <h2 className="mt-2 text-2xl font-bold lg:mt-3 lg:text-3xl">
 
             {value}
 
@@ -77,7 +79,7 @@ export default function StatCard({
 
 
 
-          <p className="mt-3 text-sm opacity-60">
+          <p className="mt-2 text-xs opacity-60 lg:mt-3 lg:text-sm">
 
             {description}
 
@@ -92,16 +94,18 @@ export default function StatCard({
 
 
         <div
-          className="
-          rounded-xl
+  className="
+          rounded-lg
           bg-cyan-500/10
-          p-3
+          p-2.5
           text-cyan-400
+          lg:rounded-xl
+          lg:p-3
           "
-        >
+>
 
 
-          <Icon size={24}/>
+        <Icon size={20} className="lg:h-6 lg:w-6" />
 
 
         </div>

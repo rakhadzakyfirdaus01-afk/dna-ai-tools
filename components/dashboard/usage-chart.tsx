@@ -72,13 +72,13 @@ export default function UsageChart() {
 
   return (
 
-    <div className="h-[300px] w-full">
+    <div className="h-[260px] w-full rounded-2xl border border-slate-800 bg-[#111827] p-3 lg:h-[300px] lg:p-5">
 
 
       <ResponsiveContainer
-        width="100%"
-        height="100%"
-      >
+  width="100%"
+  height="100%"
+>
 
 
         <LineChart data={data}>
@@ -91,16 +91,28 @@ export default function UsageChart() {
 
 
           <XAxis
-            dataKey="day"
-          />
+  dataKey="day"
+  tick={{
+    fontSize: 12,
+  }}
+/>
 
 
 
-          <YAxis />
+          <YAxis
+  tick={{
+    fontSize: 12,
+  }}
+/>
 
 
 
-          <Tooltip />
+          <Tooltip
+  contentStyle={{
+    borderRadius: 12,
+    border: "none",
+  }}
+/>
 
 
 

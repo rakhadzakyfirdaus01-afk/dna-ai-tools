@@ -75,30 +75,30 @@ export default function DashboardContent() {
   }, []);
 
   return (
-    <div className="space-y-8">
+   <div className="space-y-5 lg:space-y-8">
       {/* Welcome */}
 
-      <div className="rounded-3xl bg-gradient-to-r from-cyan-600 to-blue-700 p-8">
-        <p className="text-white/80">
-          {t.welcomeBack}
-        </p>
+      <div className="rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-700 p-5 shadow-lg lg:rounded-3xl lg:p-8">
+        <p className="text-sm text-white/80 lg:text-base">
+  {t.welcomeBack}
+</p>
 
-        <h1 className="mt-2 text-4xl font-bold text-white">
+        <h1 className="mt-2 break-words text-2xl font-bold text-white lg:text-4xl">
           {session?.user?.name ?? "User"}
         </h1>
 
-        <p className="mt-2 text-white/80">
-          {t.welcomeDescription}
-        </p>
+        <p className="mt-2 text-sm text-white/80 lg:text-base">
+  {t.welcomeDescription}
+</p>
 
-        <p className="mt-2 text-white/80">
-          {session?.user?.email}
-        </p>
+        <p className="mt-2 break-all text-sm text-white/80 lg:text-base">
+  {session?.user?.email}
+</p>
       </div>
 
       {/* Stats */}
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5 xl:grid-cols-4">
         <StatCard
           title={t.aiRequests}
           value={stats.totalRequests.toString()}
@@ -162,7 +162,7 @@ export default function DashboardContent() {
 
       {/* Bottom Section */}
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
         <ActivityCard />
         <QuickAction />
       </div>

@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-
 export async function GET() {
-
   try {
-
     const history = await prisma.history.findMany({
-
       orderBy: {
         createdAt: "asc",
       },
-
     });
-
 
     const usage = [
       {
@@ -46,39 +40,28 @@ export async function GET() {
       },
     ];
 
-
     history.forEach((item) => {
-
       const date = new Date(item.createdAt);
 
       const day = date.getDay();
 
-
-      const index =
-        day === 0 ? 6 : day - 1;
-
+      const index = day === 0 ? 6 : day - 1;
 
       usage[index].value++;
-
     });
 
-
     return NextResponse.json(usage);
-
-
   } catch (error) {
-
-    console.error(error);
+    console.error("Usage API Error:", error);
 
     return NextResponse.json(
       {
         message: "Failed get usage data",
+        error: String(error),
       },
       {
         status: 500,
       }
     );
-
   }
-
 }

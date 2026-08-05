@@ -57,12 +57,12 @@ const actions = [
 
 export default function QuickAction() {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-[#111827] p-6">
-      <h2 className="mb-6 text-xl font-semibold text-white">
+    <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 lg:p-6">
+      <h2 className="mb-4 text-lg font-semibold text-white lg:mb-6 lg:text-xl">
         Quick Actions
       </h2>
 
-      <div className="space-y-4">
+      <div className="space-y-3 lg:space-y-4">
         {actions.map((item) => {
           const Icon = item.icon;
 
@@ -70,22 +70,22 @@ export default function QuickAction() {
             <Link
               key={item.href}
               href={item.href}
-              className="group flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 p-4 transition duration-300 hover:-translate-y-1 hover:border-cyan-500 hover:bg-slate-800 hover:shadow-xl"
+              className="group flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 p-3 transition duration-300 hover:-translate-y-1 hover:border-cyan-500 hover:bg-slate-800 hover:shadow-xl lg:p-4"
             >
-              <div className="flex items-center gap-4">
-                <div className="rounded-xl bg-cyan-500/10 p-3">
+              <div className="flex items-center gap-3 lg:gap-4">
+                <div className="rounded-lg bg-cyan-500/10 p-2.5 lg:rounded-xl lg:p-3">
                   <Icon
-                    className="text-cyan-400"
-                    size={22}
-                  />
+  className="text-cyan-400"
+  size={20}
+/>
                 </div>
 
                 <div>
-                  <h3 className="font-medium text-white">
+                  <h3 className="text-sm font-medium text-white lg:text-base">
                     {item.title}
                   </h3>
 
-                  <p className="text-sm text-slate-400">
+                  <p className="text-xs text-slate-400 lg:text-sm">
                     {item.description}
                   </p>
                 </div>

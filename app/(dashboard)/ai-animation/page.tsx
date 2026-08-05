@@ -17,14 +17,14 @@ export default function AIAnimationPage() {
 
   return (
 
-    <div className="min-h-screen bg-[#020617] p-8 text-white">
+    <div className="min-h-screen bg-[#020617] p-4 text-white lg:p-8">
 
 
 
-      <div className="mb-8">
+      <div className="mb-6 lg:mb-8">
 
 
-        <h1 className="text-3xl font-bold">
+        <h1 className="text-2xl font-bold lg:text-3xl">
 
           AI Animation
 
@@ -32,7 +32,7 @@ export default function AIAnimationPage() {
 
 
 
-        <p className="mt-2 text-slate-400">
+        <p className="mt-2 text-sm text-slate-400 lg:text-base">
 
           Create professional AI videos using Google Veo.
 
@@ -48,11 +48,11 @@ export default function AIAnimationPage() {
 
 
 
-      <div className="rounded-2xl border border-slate-800 bg-[#111827] p-8">
+      <div className="rounded-2xl border border-slate-800 bg-[#111827] p-5 lg:p-8">
 
 
 
-        <h2 className="text-xl font-semibold">
+        <h2 className="text-lg font-semibold lg:text-xl">
 
           Google Veo AI Animation
 
@@ -60,7 +60,7 @@ export default function AIAnimationPage() {
 
 
 
-        <p className="mt-3 text-slate-400">
+        <p className="mt-3 text-sm text-slate-400 lg:text-base">
 
           Generate advanced AI videos with Google's video generation technology.
 
@@ -78,7 +78,7 @@ export default function AIAnimationPage() {
           onClick={openVeo}
 
 
-          className="mt-6 rounded-xl bg-cyan-500 px-6 py-3 font-semibold text-white transition hover:bg-cyan-600"
+          className="mt-6 flex w-full items-center justify-center rounded-xl bg-cyan-500 px-6 py-3 font-semibold text-white transition hover:bg-cyan-600 lg:inline-flex lg:w-auto"
 
 
         >

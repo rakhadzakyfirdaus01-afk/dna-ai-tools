@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const history = await prisma.history.findMany({
@@ -50,7 +52,11 @@ export async function GET() {
       usage[index].value++;
     });
 
-    return NextResponse.json(usage);
+    return NextResponse.json(usage, {
+  headers: {
+    "Cache-Control": "no-store",
+  },
+});
   } catch (error) {
     console.error("Usage API Error:", error);
 

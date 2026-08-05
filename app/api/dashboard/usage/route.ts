@@ -45,7 +45,11 @@ export async function GET() {
     history.forEach((item) => {
       const date = new Date(item.createdAt);
 
-      const day = date.getDay();
+      const day = new Date(
+  date.toLocaleString("en-US", {
+    timeZone: "Asia/Jakarta",
+  })
+).getDay();
 
       const index = day === 0 ? 6 : day - 1;
 

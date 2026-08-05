@@ -8,8 +8,8 @@ export async function GET() {
     const totalRequests = history.length;
 
     const debugSessions = history.filter(
-      (item) => item.feature.includes("Debugger")
-    ).length;
+  (item) => item.feature.includes("AI Tech Assistant")
+).length;
 
     const generatedImages = history.filter(
       (item) => item.feature.includes("Image")

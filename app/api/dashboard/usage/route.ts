@@ -51,6 +51,12 @@ export async function GET() {
 
       usage[index].value++;
     });
+    
+   console.log(
+  history.map((item) => ({
+    createdAt: item.createdAt,
+  }))
+);
 
     return NextResponse.json(usage, {
   headers: {

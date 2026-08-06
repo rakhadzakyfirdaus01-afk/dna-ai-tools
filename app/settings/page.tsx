@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const router = useRouter();
 
 
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
 
 
 
@@ -24,7 +24,24 @@ export default function SettingsPage() {
     session?.user?.image ?? "/logo-dna.png"
   );
 
+useEffect(() => {
+  async function loadProfile() {
+    const response = await fetch("/api/profile");
 
+    if (!response.ok) return;
+
+    const data = await response.json();
+
+    if (data.image) {
+      setProfileImage(data.image);
+      await update({
+  image: data.image,
+});
+    }
+  }
+
+  loadProfile();
+}, []);
 
 
 

@@ -1,0 +1,2 @@
+POST http://localhost:3000/api/profile/upload
+Content-Type: multipart/form-data

@@ -45,19 +45,7 @@ export async function GET() {
     history.forEach((item) => {
       const date = new Date(item.createdAt);
 
-console.log(
-  "UTC:",
-  item.createdAt,
-  "LOCAL:",
-  date.toLocaleString("id-ID", {
-    timeZone: "Asia/Jakarta",
-  }),
-  "DAY:",
-  date.toLocaleString("en-US", {
-    weekday: "long",
-    timeZone: "Asia/Jakarta",
-  })
-);
+
 
 const day = new Date(
   date.toLocaleString("en-US", {

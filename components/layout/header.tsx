@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
@@ -33,6 +33,26 @@ export default function Header({
   const { t } = useLanguage();
 
   const { data: session } = useSession();
+
+     const [profileImage, setProfileImage] = useState<string | null>(
+  session?.user?.image ?? null
+);
+
+useEffect(() => {
+  async function loadProfileImage() {
+    const response = await fetch("/api/profile");
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+
+    if (data.image) {
+      setProfileImage(data.image);
+    }
+  }
+
+  loadProfileImage();
+}, []);
 
   const today = new Date().toLocaleDateString("id-ID", {
     weekday: "long",
@@ -210,21 +230,17 @@ export default function Header({
 
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-base font-bold lg:h-12 lg:w-12 lg:text-lg">
 
-              {session?.user?.image ? (
-
-                <Image
-                  src={session.user.image}
-                  alt="Profile"
-                  width={48}
-                  height={48}
-                  className="h-full w-full object-cover"
-                />
-
-              ) : (
-
-                session?.user?.name?.charAt(0) ?? "U"
-
-              )}
+              {profileImage ? (
+           <Image
+            src={profileImage}
+           alt="Profile"
+           width={48}
+           height={48}
+           className="h-full w-full object-cover"
+           />
+           ) : (
+            session?.user?.name?.charAt(0) ?? "U"
+           )}
 
             </div>
 

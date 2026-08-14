@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const router = useRouter();
-
   const { data: session, update } = useSession();
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -15,6 +15,8 @@ export default function SettingsPage() {
   const [profileImage, setProfileImage] = useState(
     session?.user?.image ?? "/logo-dna.png"
   );
+
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -40,16 +42,18 @@ export default function SettingsPage() {
     loadProfile();
   }, [update]);
 
-  async function saveSettings() {
+  async function uploadPhoto() {
     if (!selectedImage) {
+      toast.error("Pilih foto terlebih dahulu");
       return;
     }
 
-    const formData = new FormData();
-
-    formData.append("image", selectedImage);
-
     try {
+      setUploading(true);
+
+      const formData = new FormData();
+      formData.append("image", selectedImage);
+
       const response = await fetch("/api/profile", {
         method: "POST",
         body: formData,
@@ -58,8 +62,7 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error(data.message);
-        return;
+        throw new Error(data.message ?? "Upload foto gagal");
       }
 
       if (data.image) {
@@ -70,20 +73,32 @@ export default function SettingsPage() {
         });
 
         setSelectedImage(null);
+
+        toast.success("Foto profil berhasil diperbarui");
       }
     } catch (error) {
-      console.error("Failed to update profile:", error);
+      console.error("PROFILE UPLOAD ERROR:", error);
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal mengupload foto"
+      );
+    } finally {
+      setUploading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-8">
+    <div className="min-h-screen bg-background p-8 text-foreground">
+
+      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">
           Settings
         </h1>
 
-        <p className="text-sm mt-2 opacity-70">
+        <p className="mt-2 text-sm opacity-70">
           Customize your AI workspace.
         </p>
       </div>
@@ -92,59 +107,82 @@ export default function SettingsPage() {
 
         {/* Profile */}
         <section className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="text-xl font-bold mb-6">
+
+          <h2 className="mb-6 text-xl font-bold">
             👤 Profile User
           </h2>
 
-          <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+          <div className="flex flex-col items-center gap-6 sm:flex-row">
 
-
+            {/* Profile Image */}
             <Image
               src={profileImage}
               alt="Profile"
               width={100}
               height={100}
-              className="rounded-full object-cover"
+              className="h-[100px] w-[100px] rounded-full object-cover"
             />
 
+            {/* User Info */}
             <div className="w-full min-w-0 sm:w-auto">
 
               <h3 className="text-xl font-semibold">
                 {session?.user?.name ?? "User"}
               </h3>
 
-              <p className="w-full max-w-full break-all text-sm opacity-70">
-  {session?.user?.email}
-</p>
+              <p className="w-full break-all text-sm opacity-70">
+                {session?.user?.email}
+              </p>
 
             </div>
+
           </div>
 
-          <div className="mt-6">
+          {/* Upload */}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
 
             <input
               type="file"
               accept="image/*"
-              onChange={(e) =>
+              onChange={(e) => {
                 setSelectedImage(
                   e.target.files?.[0] ?? null
-                )
-              }
+                );
+              }}
               className="text-sm"
             />
 
+            <button
+              type="button"
+              onClick={uploadPhoto}
+              disabled={uploading || !selectedImage}
+              className="rounded-xl bg-cyan-500 px-5 py-2 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {uploading ? "Uploading..." : "Upload Photo"}
+            </button>
+
           </div>
+
+          {/* Selected file */}
+          {selectedImage && (
+            <p className="mt-3 text-sm opacity-70">
+              File dipilih: {selectedImage.name}
+            </p>
+          )}
+
         </section>
 
         {/* Preferences */}
         <section className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="text-xl font-bold mb-6">
+
+          <h2 className="mb-6 text-xl font-bold">
             🔔 Preferences
           </h2>
 
           <div className="space-y-6">
 
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
+
               <div>
                 <h3 className="font-semibold">
                   Notifications
@@ -160,9 +198,11 @@ export default function SettingsPage() {
                 defaultChecked
                 className="accent-cyan-500"
               />
+
             </div>
 
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
+
               <div>
                 <h3 className="font-semibold">
                   Animations
@@ -178,9 +218,11 @@ export default function SettingsPage() {
                 defaultChecked
                 className="accent-cyan-500"
               />
+
             </div>
 
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
+
               <div>
                 <h3 className="font-semibold">
                   Auto Save
@@ -196,39 +238,37 @@ export default function SettingsPage() {
                 defaultChecked
                 className="accent-cyan-500"
               />
+
             </div>
 
           </div>
+
         </section>
 
         {/* Privacy */}
         <section className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="text-xl font-bold mb-6">
+
+          <h2 className="mb-6 text-xl font-bold">
             🛡 Privacy
           </h2>
 
           <p className="text-sm opacity-70">
-            Your prompts and generated results are stored securely and are only accessible from your account.
+            Your prompts and generated results are stored securely
+            and are only accessible from your account.
           </p>
+
         </section>
 
       </div>
 
       {/* Bottom Buttons */}
-      <div className="flex justify-end gap-4 mt-8">
+      <div className="mt-8 flex justify-end gap-4">
 
         <button
           onClick={() => router.push("/dashboard")}
-          className="rounded-xl border border-cyan-500 px-6 py-3 text-cyan-400 hover:bg-cyan-500 hover:text-white transition"
+          className="rounded-xl border border-cyan-500 px-6 py-3 text-cyan-400 transition hover:bg-cyan-500 hover:text-white"
         >
           Back to Dashboard
-        </button>
-
-        <button
-          onClick={saveSettings}
-          className="rounded-xl bg-cyan-500 px-6 py-3 text-white hover:bg-cyan-600 transition"
-        >
-          Save Settings
         </button>
 
       </div>

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Languages,
   Play,
   Copy,
   Trash2,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,6 +16,55 @@ export default function TranslatorPage() {
   const [language, setLanguage] = useState("Indonesia");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [isListening, setIsListening] = useState(false);
+
+  function startVoice() {
+    if (typeof window === "undefined") return;
+
+    const SpeechRecognition =
+  (window as any).SpeechRecognition ||
+  (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error(
+        "Voice input tidak didukung browser ini."
+      );
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+
+    recognition.lang = "id-ID";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      toast.success("Silakan bicara...");
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript =
+        event.results[0][0].transcript;
+
+      setPrompt((current) =>
+        current
+          ? `${current} ${transcript}`
+          : transcript
+      );
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      toast.error("Gagal menangkap suara.");
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  }
 
   async function translate() {
     if (!prompt.trim()) {
@@ -37,7 +88,9 @@ export default function TranslatorPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Translation failed");
+        throw new Error(
+          data.error || "Translation failed"
+        );
       }
 
       setResult(data.result);
@@ -76,16 +129,13 @@ export default function TranslatorPage() {
         <div className="flex items-start gap-3 lg:items-center lg:gap-4">
 
           <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur lg:rounded-2xl lg:p-3">
-
             <Languages
               size={26}
               className="text-white"
             />
-
           </div>
 
           <div>
-
             <h1 className="text-2xl font-bold text-white lg:text-4xl">
               AI Translator
             </h1>
@@ -93,7 +143,6 @@ export default function TranslatorPage() {
             <p className="mt-2 text-sm text-white/80 lg:text-base">
               Translate text into multiple languages using AI.
             </p>
-
           </div>
 
         </div>
@@ -103,12 +152,35 @@ export default function TranslatorPage() {
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
 
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
-                    <textarea
+
+          <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Type text here..."
             className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
+
+          <div className="mt-4 flex flex-col gap-3 lg:flex-row">
+
+            <button
+              onClick={startVoice}
+              disabled={isListening}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-500 px-5 py-3 font-medium text-white transition hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
+            >
+              {isListening ? (
+                <>
+                  <MicOff size={18} />
+                  Listening...
+                </>
+              ) : (
+                <>
+                  <Mic size={18} />
+                  Voice
+                </>
+              )}
+            </button>
+
+          </div>
 
           <select
             value={language}
@@ -166,7 +238,8 @@ export default function TranslatorPage() {
             </button>
 
           </div>
-                    {result ? (
+
+          {result ? (
 
             <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4 lg:h-[500px] lg:rounded-2xl lg:p-5">
 

@@ -11,9 +11,8 @@ export default function ThemeProvider({
     <NextThemesProvider
       attribute="class"
       defaultTheme="system"
-      enableSystem={true}
-      disableTransitionOnChange={true}
-      storageKey="dna-ai-theme"
+      enableSystem
+      disableTransitionOnChange
     >
       {children}
     </NextThemesProvider>

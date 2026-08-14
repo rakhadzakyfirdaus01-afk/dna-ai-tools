@@ -41,23 +41,22 @@ Aturan:
 - Berikan solusi langkah demi langkah.
 - Jangan mengarang fakta.
 - Gunakan format yang rapi.
-`;
+`.trim();
 
 export async function askDebugger(
   prompt: string,
   locale: Locale = "id"
 ) {
+  const cleanPrompt = prompt.trim();
+
   const result = await ai.models.generateContent({
     model: "gemini-3.6-flash",
-    contents: `
-${getLanguageInstruction(locale)}
-
-${SYSTEM_PROMPT}
-
-User:
-${prompt}
-`,
+    contents: [
+      getLanguageInstruction(locale),
+      SYSTEM_PROMPT,
+      `User:\n${cleanPrompt}`,
+    ].join("\n\n"),
   });
 
-  return result.text ?? "";
+  return result.text?.trim() ?? "";
 }

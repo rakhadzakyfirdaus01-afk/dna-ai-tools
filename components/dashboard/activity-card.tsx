@@ -56,7 +56,14 @@ const defaultActivities = [
 export default function ActivityCard() {
 
 
-  const [activities, setActivities] = useState<any[]>(defaultActivities);
+  const [activities, setActivities] = useState<
+  {
+    title: string;
+    time: string;
+    icon: typeof Bug;
+    color: string;
+  }[]
+>(defaultActivities);
 
 
 
@@ -131,15 +138,7 @@ export default function ActivityCard() {
 
 
 
-    const interval = setInterval(() => {
-
-      getActivities();
-
-    }, 5000);
-
-
-
-    return () => clearInterval(interval);
+    
 
 
 

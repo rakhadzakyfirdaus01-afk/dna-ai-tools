@@ -10,12 +10,8 @@ export async function GET() {
 
     if (!session?.user?.id) {
       return NextResponse.json(
-        {
-          message: "Unauthorized",
-        },
-        {
-          status: 401,
-        }
+        { message: "Unauthorized" },
+        { status: 401 }
       );
     }
 
@@ -61,7 +57,6 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
-
     const image = formData.get("image");
 
     if (!(image instanceof File)) {
@@ -87,7 +82,6 @@ export async function POST(request: Request) {
     }
 
     const bytes = await image.arrayBuffer();
-
     const buffer = Buffer.from(bytes);
 
     const uploadResult = await new Promise<any>(
@@ -125,12 +119,13 @@ export async function POST(request: Request) {
       message: "Profile image updated",
       image: imageUrl,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("PROFILE UPLOAD ERROR:", error);
 
     return NextResponse.json(
       {
-        message: "Profile image upload failed",
+        message:
+          error?.message ?? "Profile image upload failed",
       },
       {
         status: 500,

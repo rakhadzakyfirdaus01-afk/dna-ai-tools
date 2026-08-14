@@ -34,7 +34,6 @@ export default function UsageChart() {
 
         const result = await response.json();
 
-        // Pastikan data yang masuk ke Recharts selalu berupa array
         if (Array.isArray(result)) {
           setData(result);
         } else if (Array.isArray(result.data)) {
@@ -55,18 +54,11 @@ export default function UsageChart() {
 
   return (
     <div className="h-[300px] w-full">
-      <ResponsiveContainer
-        width="100%"
-        height="100%"
-      >
+      <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
-          <CartesianGrid
-            strokeDasharray="3 3"
-          />
+          <CartesianGrid strokeDasharray="3 3" />
 
-          <XAxis
-            dataKey="day"
-          />
+          <XAxis dataKey="day" />
 
           <YAxis />
 

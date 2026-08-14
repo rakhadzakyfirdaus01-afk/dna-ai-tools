@@ -56,7 +56,6 @@ export async function askImagePrompt({
 }: ImagePromptInput) {
   const result = await ai.models.generateContent({
     model: "gemini-3.6-flash",
-
     contents: [
       {
         inlineData: {
@@ -65,12 +64,10 @@ export async function askImagePrompt({
         },
       },
       {
-        text: `
-${SYSTEM_PROMPT}
+        text: `${SYSTEM_PROMPT}
 
 Instruksi tambahan dari pengguna:
-${prompt}
-`,
+${prompt}`,
       },
     ],
   });

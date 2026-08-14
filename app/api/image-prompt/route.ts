@@ -8,7 +8,6 @@ import prisma from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-
     const session = await getServerSession(authOptions);
 
 
@@ -27,21 +26,19 @@ export async function POST(req: Request) {
     const formData = await req.formData();
 
 
-    const image = formData.get("image") as File | null;
-    const prompt = (formData.get("prompt") as string) || "";
+   const image = formData.get("image");
+const prompt = (formData.get("prompt") as string) || "";
 
-
-    if (!image) {
-      return NextResponse.json(
-        {
-          error: "Image is required",
-        },
-        {
-          status: 400,
-        }
-      );
+if (!(image instanceof File) || image.size === 0) {
+  return NextResponse.json(
+    {
+      error: "Image is required",
+    },
+    {
+      status: 400,
     }
-
+  );
+}
 
     const bytes = await image.arrayBuffer();
 
@@ -49,7 +46,7 @@ export async function POST(req: Request) {
     const base64 = Buffer.from(bytes).toString("base64");
 
 
-    const mimeType = image.type;
+    const mimeType = image.type || "application/octet-stream";
 
 
     const result = await askImagePrompt({
@@ -63,17 +60,16 @@ export async function POST(req: Request) {
 
 
     const history = await prisma.history.create({
-      data: {
-        userId: session.user.id,
-        title: "Image Prompt",
-        feature: "Image Prompt",
-        prompt: prompt,
-        result: result,
-      },
-    });
+  data: {
+    userId: session.user.id,
+    title: "Image Prompt",
+    feature: "Image Prompt",
+    prompt,
+    result,
+  },
+});
 
-
-    console.log("IMAGE PROMPT HISTORY SAVED:", history);
+    
 
 
     return NextResponse.json({
@@ -82,19 +78,19 @@ export async function POST(req: Request) {
     });
 
 
-  } catch (error: any) {
+  } catch (error) {
+  console.error("IMAGE PROMPT ERROR:", error);
 
-    console.error("IMAGE PROMPT ERROR:", error);
-
-
-    return NextResponse.json(
-      {
-        error: error.message ?? "Failed to generate prompt",
-      },
-      {
-        status: 500,
-      }
-    );
-
-  }
+  return NextResponse.json(
+    {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate prompt",
+    },
+    {
+      status: 500,
+    }
+  );
+}
 }

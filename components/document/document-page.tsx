@@ -184,7 +184,7 @@ className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-9
 
           {result ? (
 
-            <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4 lg:h-[500px] lg:rounded-2xl lg:p-5 border border-slate-700 bg-slate-900 p-5">
+            <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-5 lg:h-[500px] lg:rounded-2xl">
 
               <pre className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-300">
                 {result}
@@ -194,7 +194,7 @@ className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-9
 
           ) : (
 
-            <div className="flex h-[320px] items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-900 lg:h-[500px] lg:rounded-2xl border-2 border-dashed border-slate-700 bg-slate-900">
+            <div className="flex h-[320px] items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-900 lg:h-[500px] lg:rounded-2xl">
 
               <div className="text-center">
 

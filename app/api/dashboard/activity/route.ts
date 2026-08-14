@@ -47,7 +47,7 @@ if (!session?.user?.id) {
   } catch (error) {
 
 
-    console.error(error);
+    console.error("Dashboard activity error:", error);
 
 
     return NextResponse.json(

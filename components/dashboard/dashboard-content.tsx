@@ -31,28 +31,38 @@ interface Stats {
   aiTranslator: number;
 }
 
+const initialStats: Stats = {
+  totalRequests: 0,
+  debugSessions: 0,
+  generatedImages: 0,
+  aiDesigns: 0,
+  aiAnimations: 0,
+  aiDocuments: 0,
+  aiOCR: 0,
+  aiTranslator: 0,
+};
+
 export default function DashboardContent() {
   const { data: session } = useSession();
   const { t } = useLanguage();
 
-  const [stats, setStats] = useState<Stats>({
-    totalRequests: 0,
-    debugSessions: 0,
-    generatedImages: 0,
-    aiDesigns: 0,
-    aiAnimations: 0,
-    aiDocuments: 0,
-    aiOCR: 0,
-    aiTranslator: 0,
-  });
+  const [stats, setStats] = useState<Stats>(initialStats);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function getStats() {
       try {
-        const res = await fetch("/api/dashboard/stats", {
-  cache: "no-store",
-});
-        const data = await res.json();
+        const response = await fetch("/api/dashboard/stats", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load stats: ${response.status}`);
+        }
+
+        const data = await response.json();
 
         setStats({
           totalRequests: data.totalRequests ?? 0,
@@ -65,37 +75,41 @@ export default function DashboardContent() {
           aiTranslator: data.aiTranslator ?? 0,
         });
       } catch (error) {
-        console.log("Failed loading dashboard stats:", error);
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        console.error("Failed loading dashboard stats:", error);
       }
     }
 
     getStats();
 
-    const interval = setInterval(getStats, 5000);
-
-    return () => clearInterval(interval);
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   return (
-   <div className="space-y-5 lg:space-y-8">
+    <div className="space-y-5 lg:space-y-8">
       {/* Welcome */}
 
       <div className="rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-700 p-5 shadow-lg lg:rounded-3xl lg:p-8">
         <p className="text-sm text-white/80 lg:text-base">
-  {t.welcomeBack}
-</p>
+          {t.welcomeBack}
+        </p>
 
         <h1 className="mt-2 break-words text-2xl font-bold text-white lg:text-4xl">
           {session?.user?.name ?? "User"}
         </h1>
 
         <p className="mt-2 text-sm text-white/80 lg:text-base">
-  {t.welcomeDescription}
-</p>
+          {t.welcomeDescription}
+        </p>
 
         <p className="mt-2 break-all text-sm text-white/80 lg:text-base">
-  {session?.user?.email}
-</p>
+          {session?.user?.email}
+        </p>
       </div>
 
       {/* Stats */}

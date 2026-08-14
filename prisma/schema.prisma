@@ -21,6 +21,11 @@ model User {
   image         String?
   role          Role     @default(USER)
 
+  theme         String   @default("system")
+  notifications Boolean  @default(true)
+  animations    Boolean  @default(true)
+  autoSave      Boolean  @default(true)
+
   accounts      Account[]
   sessions      Session[]
   history       History[]

@@ -5,56 +5,100 @@ import { authOptions } from "@/auth";
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
 
-
-   const session = await getServerSession(authOptions);
-
-if (!session?.user?.id) {
-  return NextResponse.json(
-    {
-      message: "Unauthorized",
-    },
-    {
-      status: 401,
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        {
+          message: "Unauthorized",
+        },
+        {
+          status: 401,
+        }
+      );
     }
-  );
-}
-   
-   const history = await prisma.history.findMany({
-  where: {
-    userId: session.user.id,
-  },
-});
 
-    const totalRequests = history.length;
+    const userId = session.user.id;
 
-    const debugSessions = history.filter(
-  (item) => item.feature.includes("AI Tech Assistant")
-).length;
+    const [
+      totalRequests,
+      debugSessions,
+      generatedImages,
+      aiDesigns,
+      aiAnimations,
+      aiDocuments,
+      aiOCR,
+      aiTranslator,
+    ] = await Promise.all([
+      prisma.history.count({
+        where: {
+          userId,
+        },
+      }),
 
-    const generatedImages = history.filter(
-      (item) => item.feature.includes("Image")
-    ).length;
+      prisma.history.count({
+        where: {
+          userId,
+          feature: {
+            contains: "AI Tech Assistant",
+          },
+        },
+      }),
 
-    const aiDesigns = history.filter(
-      (item) => item.feature.includes("Design")
-    ).length;
+      prisma.history.count({
+        where: {
+          userId,
+          feature: {
+            contains: "Image",
+          },
+        },
+      }),
 
-    const aiAnimations = history.filter(
-      (item) => item.feature.includes("Animation")
-    ).length;
+      prisma.history.count({
+        where: {
+          userId,
+          feature: {
+            contains: "Design",
+          },
+        },
+      }),
 
-    const aiDocuments = history.filter(
-      (item) => item.feature.includes("Document")
-    ).length;
+      prisma.history.count({
+        where: {
+          userId,
+          feature: {
+            contains: "Animation",
+          },
+        },
+      }),
 
-    const aiOCR = history.filter(
-      (item) => item.feature.includes("OCR")
-    ).length;
+      prisma.history.count({
+        where: {
+          userId,
+          feature: {
+            contains: "Document",
+          },
+        },
+      }),
 
-    const aiTranslator = history.filter(
-      (item) => item.feature.includes("Translator")
-    ).length;
+      prisma.history.count({
+        where: {
+          userId,
+          feature: {
+            contains: "OCR",
+          },
+        },
+      }),
+
+      prisma.history.count({
+        where: {
+          userId,
+          feature: {
+            contains: "Translator",
+          },
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       totalRequests,
@@ -66,7 +110,6 @@ if (!session?.user?.id) {
       aiOCR,
       aiTranslator,
     });
-
   } catch (error) {
     console.error("Dashboard stats error:", error);
 

@@ -1,20 +1,19 @@
 import type { Locale } from "@/components/shared/language-provider";
 
-export function getLanguageInstruction(locale: Locale) {
-  switch (locale) {
-    case "en":
-      return `
+const LANGUAGE_INSTRUCTIONS: Record<Locale, string> = {
+  en: `
 Always answer in English.
 If generating prompts, generate them in English.
 Do not answer in Indonesian unless the user explicitly requests it.
-`;
+`.trim(),
 
-    case "id":
-    default:
-      return `
+  id: `
 Selalu jawab menggunakan Bahasa Indonesia.
 Jika membuat prompt AI, gunakan Bahasa Indonesia.
 Jangan menggunakan Bahasa Inggris kecuali diminta oleh pengguna.
-`;
-  }
+`.trim(),
+};
+
+export function getLanguageInstruction(locale: Locale) {
+  return LANGUAGE_INSTRUCTIONS[locale] ?? LANGUAGE_INSTRUCTIONS.id;
 }

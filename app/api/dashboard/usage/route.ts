@@ -25,11 +25,13 @@ if (!session?.user?.id) {
   where: {
     userId: session.user.id,
   },
+  select: {
+    createdAt: true,
+  },
   orderBy: {
     createdAt: "asc",
   },
 });
-
     const usage = [
       {
         day: "Mon",
@@ -78,11 +80,7 @@ const day = new Date(
       usage[index].value++;
     });
     
-   console.log(
-  history.map((item) => ({
-    createdAt: item.createdAt,
-  }))
-);
+   
 
     return NextResponse.json(usage, {
   headers: {

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
+import ProfilePage from "@/app/profile/page";
 import {
   Settings,
   Moon,
@@ -13,25 +15,105 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+type SettingsData = {
+  theme: "light" | "dark" | "system";
+  notifications: boolean;
+  animations: boolean;
+  autoSave: boolean;
+};
+
 export default function SettingsPage() {
-  const [theme, setTheme] = useState("system");
+  const {
+  theme,
+  setTheme,
+  resolvedTheme,
+} = useTheme();
 
-  const [notification, setNotification] =
-    useState(true);
+  const [notification, setNotification] = useState(true);
+  const [animations, setAnimations] = useState(true);
+  const [autoSave, setAutoSave] = useState(true);
 
-  const [animations, setAnimations] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [autoSave, setAutoSave] =
-    useState(true);
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await fetch("/api/settings");
 
-  function saveSettings() {
-    toast.success("Settings saved");
+        if (!res.ok) {
+          throw new Error("Failed to load settings");
+        }
+
+        const data = await res.json();
+
+        const settings = data.settings;
+
+        if (!settings) return;
+
+        setTheme(settings.theme);
+        setNotification(settings.notifications);
+        setAnimations(settings.animations);
+        setAutoSave(settings.autoSave);
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to load settings");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSettings();
+  }, []);
+
+  async function saveSettings() {
+    try {
+      setSaving(true);
+
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          theme,
+          notifications: notification,
+          animations,
+          autoSave,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          data.error || "Failed to save settings"
+        );
+      }
+
+      toast.success("Settings saved");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <p className="text-slate-400">
+          Loading settings...
+        </p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-5 lg:space-y-6">
 
+      {/* Header */}
       <div className="flex items-start gap-3 lg:items-center">
 
         <Settings
@@ -52,7 +134,8 @@ export default function SettingsPage() {
         </div>
 
       </div>
-
+             <ProfilePage />
+      {/* Appearance */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 lg:p-6">
 
         <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-white lg:mb-6 lg:text-xl">
@@ -65,6 +148,7 @@ export default function SettingsPage() {
 
         <div className="grid gap-3 md:grid-cols-3">
 
+          {/* Light */}
           <button
             onClick={() => setTheme("light")}
             className={`rounded-xl border p-4 transition ${
@@ -74,7 +158,7 @@ export default function SettingsPage() {
             }`}
           >
 
-            <Sun className="mx-auto mb-2" />
+            <Sun className="mx-auto mb-2 text-white" />
 
             <p className="text-white">
               Light
@@ -82,6 +166,7 @@ export default function SettingsPage() {
 
           </button>
 
+          {/* Dark */}
           <button
             onClick={() => setTheme("dark")}
             className={`rounded-xl border p-4 transition ${
@@ -91,7 +176,7 @@ export default function SettingsPage() {
             }`}
           >
 
-            <Moon className="mx-auto mb-2" />
+            <Moon className="mx-auto mb-2 text-white" />
 
             <p className="text-white">
               Dark
@@ -99,6 +184,7 @@ export default function SettingsPage() {
 
           </button>
 
+          {/* System */}
           <button
             onClick={() => setTheme("system")}
             className={`rounded-xl border p-4 transition ${
@@ -108,7 +194,7 @@ export default function SettingsPage() {
             }`}
           >
 
-            <Monitor className="mx-auto mb-2" />
+            <Monitor className="mx-auto mb-2 text-white" />
 
             <p className="text-white">
               System
@@ -120,8 +206,10 @@ export default function SettingsPage() {
 
       </div>
 
+      {/* Preferences */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 lg:p-6">
-                <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-white lg:mb-6 lg:text-xl">
+
+        <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-white lg:mb-6 lg:text-xl">
 
           <Bell size={20} />
 
@@ -131,6 +219,7 @@ export default function SettingsPage() {
 
         <div className="space-y-5">
 
+          {/* Notifications */}
           <div className="flex flex-col gap-3 rounded-xl border border-slate-800 p-4 lg:flex-row lg:items-center lg:justify-between">
 
             <div>
@@ -151,11 +240,12 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setNotification(e.target.checked)
               }
-              className="h-5 w-5 self-start lg:self-auto"
+              className="h-5 w-5 self-start accent-cyan-500 lg:self-auto"
             />
 
           </div>
 
+          {/* Animations */}
           <div className="flex flex-col gap-3 rounded-xl border border-slate-800 p-4 lg:flex-row lg:items-center lg:justify-between">
 
             <div>
@@ -176,11 +266,12 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setAnimations(e.target.checked)
               }
-              className="h-5 w-5 self-start lg:self-auto"
+              className="h-5 w-5 self-start accent-cyan-500 lg:self-auto"
             />
 
           </div>
 
+          {/* Auto Save */}
           <div className="flex flex-col gap-3 rounded-xl border border-slate-800 p-4 lg:flex-row lg:items-center lg:justify-between">
 
             <div>
@@ -201,7 +292,7 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setAutoSave(e.target.checked)
               }
-              className="h-5 w-5 self-start lg:self-auto"
+              className="h-5 w-5 self-start accent-cyan-500 lg:self-auto"
             />
 
           </div>
@@ -210,6 +301,7 @@ export default function SettingsPage() {
 
       </div>
 
+      {/* Privacy */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 lg:p-6">
 
         <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-white lg:mb-6 lg:text-xl">
@@ -227,20 +319,23 @@ export default function SettingsPage() {
 
       </div>
 
+      {/* Save */}
       <div className="flex">
 
         <button
           onClick={saveSettings}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-6 py-3 font-medium text-white transition hover:bg-cyan-500 lg:ml-auto lg:w-auto"
+          disabled={saving}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-6 py-3 font-medium text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50 lg:ml-auto lg:w-auto"
         >
 
           <Save size={18} />
 
-          Save Settings
+          {saving ? "Saving..." : "Save Settings"}
 
         </button>
 
       </div>
-          </div>
+
+    </div>
   );
 }

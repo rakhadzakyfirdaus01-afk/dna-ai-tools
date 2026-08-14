@@ -19,13 +19,13 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const {
-      code,
-      locale = "id",
-    }: {
-      code: string;
-      locale?: Locale;
-    } = body;
+    const code =
+      typeof body.code === "string"
+        ? body.code.trim()
+        : "";
+
+    const locale: Locale =
+      body.locale === "en" ? "en" : "id";
 
     if (!code) {
       return NextResponse.json(
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     const result = await askDebugger(code, locale);
 
-    const history = await prisma.history.create({
+    await prisma.history.create({
       data: {
         userId: session.user.id,
         title: "AI Tech Assistant",
@@ -49,9 +49,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       result,
-      history,
     });
-
   } catch (error) {
     console.error("DEBUGGER ERROR:", error);
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 
 export default function RegisterPage() {
@@ -56,9 +57,15 @@ export default function RegisterPage() {
         <div className="text-center mb-6">
 
 
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-cyan-500/20 text-2xl">
-            ✨
-          </div>
+          <div className="mx-auto mb-4 flex items-center justify-center">
+  <Image
+    src="/logo-dna.png"
+    alt="DNA AI Logo"
+    width={120}
+    height={120}
+    priority
+  />
+</div>
 
 
           <h1 className="text-3xl font-bold text-white">

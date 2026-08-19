@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 import {
-  Sparkles,
   Mail,
   Lock,
   Eye,
@@ -89,12 +89,18 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6">
       <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-500/10">
-            <Sparkles
-              size={34}
-              className="text-cyan-400"
-            />
-          </div>
+          <div className="mx-auto mb-5 flex items-center justify-center">
+  <div className="rounded-full bg-cyan-500/10 p-3 shadow-[0_0_35px_rgba(34,211,238,0.35)]">
+    <Image
+      src="/logo-dna.png"
+      alt="DNA AI Logo"
+      width={120}
+      height={120}
+      priority
+      className="transition duration-300 hover:scale-110"
+    />
+  </div>
+</div>
 
           <h1 className="text-3xl font-bold text-white">
             Create Account

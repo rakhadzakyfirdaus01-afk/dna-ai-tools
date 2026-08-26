@@ -1,4 +1,5 @@
 import "./globals.css";
+import SplashScreen from "@/components/SplashScreen";
 
 import type { Metadata } from "next";
 
@@ -19,8 +20,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <body>
-        <LanguageProvider>
+     <body>
+  <SplashScreen />
+
+  <LanguageProvider>
           <SessionWrapper>
             <ThemeProvider>
               {children}

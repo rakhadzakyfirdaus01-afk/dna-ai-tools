@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Languages,
   Play,
@@ -10,6 +10,7 @@ import {
   MicOff,
 } from "lucide-react";
 import { toast } from "sonner";
+import { addNotification } from "@/components/notifications/notification-store";
 
 export default function TranslatorPage() {
   const [prompt, setPrompt] = useState("");
@@ -23,8 +24,9 @@ export default function TranslatorPage() {
     if (typeof window === "undefined") return;
 
     const SpeechRecognition =
-  (window as any).SpeechRecognition ||
-  (window as any).webkitSpeechRecognition;
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
     if (!SpeechRecognition) {
       toast.error(
         "Voice input tidak didukung browser ini."
@@ -93,7 +95,18 @@ export default function TranslatorPage() {
         );
       }
 
+      // Tampilkan hasil terjemahan
       setResult(data.result);
+
+      // Simpan hasil terjemahan ke sistem notifikasi
+      addNotification({
+        feature: "Penerjemah",
+        title: "Penerjemah selesai",
+        message:
+          `Terjemahan ke Bahasa ${language} berhasil dibuat dan siap dilihat.`,
+        type: "success",
+        result: data.result,
+      });
 
       toast.success("Translation completed.");
     } catch (error) {
@@ -113,29 +126,40 @@ export default function TranslatorPage() {
     toast.success("Cleared.");
   }
 
-  function copyResult() {
+  async function copyResult() {
     if (!result) return;
 
-    navigator.clipboard.writeText(result);
+    try {
+      await navigator.clipboard.writeText(result);
 
-    toast.success("Copied.");
+      toast.success("Copied.");
+    } catch (error) {
+      console.error(error);
+
+      toast.error("Failed to copy.");
+    }
   }
 
   return (
     <div className="space-y-5 lg:space-y-8">
+
+      {/* Header */}
 
       <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
 
         <div className="flex items-start gap-3 lg:items-center lg:gap-4">
 
           <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur lg:rounded-2xl lg:p-3">
+
             <Languages
               size={26}
               className="text-white"
             />
+
           </div>
 
           <div>
+
             <h1 className="text-2xl font-bold text-white lg:text-4xl">
               AI Translator
             </h1>
@@ -143,13 +167,18 @@ export default function TranslatorPage() {
             <p className="mt-2 text-sm text-white/80 lg:text-base">
               Translate text into multiple languages using AI.
             </p>
+
           </div>
 
         </div>
 
       </div>
 
+      {/* Main Content */}
+
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
+
+        {/* Input */}
 
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
@@ -160,6 +189,8 @@ export default function TranslatorPage() {
             className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
 
+          {/* Voice */}
+
           <div className="mt-4 flex flex-col gap-3 lg:flex-row">
 
             <button
@@ -167,6 +198,7 @@ export default function TranslatorPage() {
               disabled={isListening}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-500 px-5 py-3 font-medium text-white transition hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
+
               {isListening ? (
                 <>
                   <MicOff size={18} />
@@ -178,15 +210,19 @@ export default function TranslatorPage() {
                   Voice
                 </>
               )}
+
             </button>
 
           </div>
+
+          {/* Language */}
 
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
             className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none lg:mt-5 lg:rounded-2xl lg:p-4"
           >
+
             <option>Indonesia</option>
             <option>English</option>
             <option>Japanese</option>
@@ -195,7 +231,10 @@ export default function TranslatorPage() {
             <option>Arabic</option>
             <option>French</option>
             <option>German</option>
+
           </select>
+
+          {/* Actions */}
 
           <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
 
@@ -204,11 +243,13 @@ export default function TranslatorPage() {
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
+
               <Play size={18} />
 
               {loading
                 ? "Translating..."
                 : "Translate"}
+
             </button>
 
             <button
@@ -216,14 +257,18 @@ export default function TranslatorPage() {
               disabled={!prompt && !result}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
+
               <Trash2 size={18} />
 
               Clear
+
             </button>
 
           </div>
 
         </div>
+
+        {/* Result */}
 
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
@@ -232,9 +277,12 @@ export default function TranslatorPage() {
             <button
               onClick={copyResult}
               disabled={!result}
+              title="Copy result"
               className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
             >
+
               <Copy size={18} />
+
             </button>
 
           </div>

@@ -11,9 +11,6 @@ import { useLanguage } from "@/components/shared/language-provider";
 import {
   Search,
   Bell,
-  Moon,
-  Settings,
-  Sparkles,
   Menu,
 } from "lucide-react";
 
@@ -34,25 +31,25 @@ export default function Header({
 
   const { data: session } = useSession();
 
-     const [profileImage, setProfileImage] = useState<string | null>(
-  session?.user?.image ?? null
-);
+  const [profileImage, setProfileImage] = useState<string | null>(
+    session?.user?.image ?? null
+  );
 
-useEffect(() => {
-  async function loadProfileImage() {
-    const response = await fetch("/api/profile");
+  useEffect(() => {
+    async function loadProfileImage() {
+      const response = await fetch("/api/profile");
 
-    if (!response.ok) return;
+      if (!response.ok) return;
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (data.image) {
-      setProfileImage(data.image);
+      if (data.image) {
+        setProfileImage(data.image);
+      }
     }
-  }
 
-  loadProfileImage();
-}, []);
+    loadProfileImage();
+  }, []);
 
   const today = new Date().toLocaleDateString("id-ID", {
     weekday: "long",
@@ -103,16 +100,18 @@ useEffect(() => {
   );
 
   return (
-        <header className="sticky top-0 z-40 border-b border-slate-800 bg-[#0F172A]/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-slate-800 bg-[#0F172A]/90 backdrop-blur">
 
       <div className="flex h-14 items-center justify-between px-3 lg:h-20 lg:px-8">
+
+        {/* LEFT */}
 
         <div className="flex items-center gap-2">
 
           <button
-  onClick={() => setMobileMenu(!mobileMenu)}
-  className="rounded-xl bg-slate-900 p-2 transition hover:bg-slate-800 lg:hidden"
->
+            onClick={() => setMobileMenu(!mobileMenu)}
+            className="rounded-xl bg-slate-900 p-2 transition hover:bg-slate-800 lg:hidden"
+          >
             <Menu size={22} />
           </button>
 
@@ -130,11 +129,17 @@ useEffect(() => {
 
         </div>
 
+        {/* RIGHT */}
+
         <div className="flex items-center gap-1.5 lg:gap-4">
 
+          {/* LANGUAGE */}
+
           <div className="scale-90 lg:scale-100">
-          <LanguageSwitcher />
-         </div>
+            <LanguageSwitcher />
+          </div>
+
+          {/* SEARCH */}
 
           <div className="relative hidden lg:block">
 
@@ -162,46 +167,53 @@ useEffect(() => {
 
               <div className="absolute left-0 top-14 w-80 rounded-xl border border-slate-700 bg-[#0F172A] p-2">
 
-                {result.map((item) => (
+                {result.length > 0 ? (
 
-                  <button
-                    key={item.path}
-                    onClick={() => {
-                      router.push(item.path);
-                      setSearch("");
-                      setOpen(false);
-                    }}
-                    className="w-full rounded-lg px-4 py-3 text-left text-white hover:bg-slate-800"
-                  >
-                    {item.name}
-                  </button>
+                  result.map((item) => (
 
-                ))}
+                    <button
+                      key={item.path}
+                      onClick={() => {
+                        router.push(item.path);
+                        setSearch("");
+                        setOpen(false);
+                      }}
+                      className="w-full rounded-lg px-4 py-3 text-left text-white hover:bg-slate-800"
+                    >
+                      {item.name}
+                    </button>
+
+                  ))
+
+                ) : (
+
+                  <p className="px-4 py-3 text-sm text-slate-500">
+                    Tidak ditemukan.
+                  </p>
+
+                )}
 
               </div>
 
             )}
 
           </div>
-                    <button className="rounded-lg bg-slate-900 p-2.5 transition hover:bg-slate-800 lg:rounded-xl lg:p-3">
+
+          {/* NOTIFICATION */}
+
+          <button
+            onClick={() => {
+              window.dispatchEvent(
+                new CustomEvent("open-notifications")
+              );
+            }}
+            title="Notifications"
+            className="rounded-lg bg-slate-900 p-2.5 transition hover:bg-slate-800 lg:rounded-xl lg:p-3"
+          >
             <Bell size={20} />
           </button>
 
-          <button className="hidden rounded-xl bg-slate-900 p-3 lg:block">
-            <Moon size={20} />
-          </button>
-
-          <button className="hidden rounded-xl bg-slate-900 p-3 lg:block">
-            <Settings size={20} />
-          </button>
-
-          <button className="hidden items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3 font-semibold lg:flex">
-
-            <Sparkles size={18} />
-
-            {t.geminiReady}
-
-          </button>
+          {/* PROFILE */}
 
           <div className="flex items-center gap-3">
 
@@ -231,16 +243,20 @@ useEffect(() => {
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-base font-bold lg:h-12 lg:w-12 lg:text-lg">
 
               {profileImage ? (
-           <Image
-            src={profileImage}
-           alt="Profile"
-           width={48}
-           height={48}
-           className="h-full w-full object-cover"
-           />
-           ) : (
-            session?.user?.name?.charAt(0) ?? "U"
-           )}
+
+                <Image
+                  src={profileImage}
+                  alt="Profile"
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-cover"
+                />
+
+              ) : (
+
+                session?.user?.name?.charAt(0) ?? "U"
+
+              )}
 
             </div>
 
@@ -249,6 +265,7 @@ useEffect(() => {
         </div>
 
       </div>
-          </header>
+
+    </header>
   );
 }

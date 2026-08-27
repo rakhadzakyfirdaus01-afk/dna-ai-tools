@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { addNotification } from "@/components/notifications/notification-store";
 
 export default function DocumentPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -38,16 +39,33 @@ export default function DocumentPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Analysis failed");
+        throw new Error(
+          data.error || "Analysis failed"
+        );
       }
 
+      // Tampilkan hasil AI di halaman
       setResult(data.result);
 
-      toast.success("Document analyzed successfully.");
+      // Simpan hasil AI ke sistem notifikasi
+      addNotification({
+        feature: "AI Document",
+        title: "AI Document selesai",
+        message:
+          "Dokumen berhasil dianalisis dan hasilnya siap dilihat.",
+        type: "success",
+        result: data.result,
+      });
+
+      toast.success(
+        "Document analyzed successfully."
+      );
     } catch (error) {
       console.error(error);
 
-      toast.error("Failed to analyze document.");
+      toast.error(
+        "Failed to analyze document."
+      );
     } finally {
       setLoading(false);
     }
@@ -61,16 +79,24 @@ export default function DocumentPage() {
     toast.success("Cleared.");
   }
 
-  function copyResult() {
+  async function copyResult() {
     if (!result) return;
 
-    navigator.clipboard.writeText(result);
+    try {
+      await navigator.clipboard.writeText(result);
 
-    toast.success("Copied.");
+      toast.success("Copied.");
+    } catch (error) {
+      console.error(error);
+
+      toast.error("Failed to copy.");
+    }
   }
 
   return (
     <div className="space-y-5 lg:space-y-8">
+
+      {/* Header */}
 
       <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
 
@@ -92,8 +118,9 @@ export default function DocumentPage() {
             </h1>
 
             <p className="mt-2 text-sm text-white/80 lg:text-base">
-              Upload PDF, DOCX, or TXT files and let AI summarize,
-              explain, or answer questions about the document.
+              Upload PDF, DOCX, or TXT files and let AI
+              summarize, explain, or answer questions
+              about the document.
             </p>
 
           </div>
@@ -102,7 +129,11 @@ export default function DocumentPage() {
 
       </div>
 
+      {/* Content */}
+
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
+
+        {/* Input */}
 
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
@@ -113,7 +144,7 @@ export default function DocumentPage() {
               className="mb-3 text-cyan-400"
             />
 
-            <p className="text-white font-semibold">
+            <p className="font-semibold text-white">
               Upload Document
             </p>
 
@@ -122,7 +153,7 @@ export default function DocumentPage() {
             </p>
 
             {file && (
-              <p className="mt-4 text-sm text-cyan-400">
+              <p className="mt-4 break-all text-center text-sm text-cyan-400">
                 {file.name}
               </p>
             )}
@@ -131,42 +162,63 @@ export default function DocumentPage() {
               hidden
               type="file"
               accept=".pdf,.doc,.docx,.txt"
-              onChange={(e) =>
-                setFile(e.target.files?.[0] || null)
-              }
+              onChange={(e) => {
+                setFile(
+                  e.target.files?.[0] || null
+                );
+              }}
             />
 
           </label>
 
           <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) =>
+              setPrompt(e.target.value)
+            }
             placeholder="Ask AI about your document..."
-className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
+            className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
-                    <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
+
+          {/* Buttons */}
+
+          <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
 
             <button
               onClick={analyze}
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 lg:w-auto lg:rounded-2xl lg:px-6 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
+
               <Play size={18} />
-              {loading ? "Analyzing..." : "Analyze"}
+
+              {loading
+                ? "Analyzing..."
+                : "Analyze"}
+
             </button>
 
             <button
               onClick={clearAll}
-              disabled={!file && !prompt && !result}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 lg:w-auto lg:rounded-2xl lg:px-6 font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={
+                !file &&
+                !prompt &&
+                !result
+              }
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
+
               <Trash2 size={18} />
+
               Clear
+
             </button>
 
           </div>
 
         </div>
+
+        {/* Result */}
 
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
@@ -175,9 +227,12 @@ className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-9
             <button
               onClick={copyResult}
               disabled={!result}
-              className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 lg:rounded-2xl lg:p-3 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Copy result"
+              className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
             >
+
               <Copy size={18} />
+
             </button>
 
           </div>
@@ -220,6 +275,7 @@ className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-9
         </div>
 
       </div>
-          </div>
+
+    </div>
   );
 }

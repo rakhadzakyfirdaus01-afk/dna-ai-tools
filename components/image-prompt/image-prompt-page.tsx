@@ -8,6 +8,7 @@ import {
   ImagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { addNotification } from "@/components/notifications/notification-store";
 
 export default function ImagePromptPage() {
   const [prompt, setPrompt] = useState("");
@@ -26,7 +27,9 @@ export default function ImagePromptPage() {
 
     setPreviewUrl(objectUrl);
 
-    return () => URL.revokeObjectURL(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
   }, [image]);
 
   function handleFileChange(
@@ -70,9 +73,20 @@ export default function ImagePromptPage() {
 
       setResult(data.result);
 
+      // Simpan hasil AI ke sistem notifikasi
+      addNotification({
+        feature: "Image Prompt Generator",
+        title: "Image Prompt Generator selesai",
+        message:
+          "Prompt gambar berhasil dibuat dan siap dilihat.",
+        type: "success",
+        result: data.result,
+      });
+
       toast.success("Prompt generated!");
     } catch (error) {
       console.error(error);
+
       toast.error("Failed to generate prompt!");
     } finally {
       setLoading(false);
@@ -88,12 +102,18 @@ export default function ImagePromptPage() {
     toast.success("Cleared!");
   }
 
-  function copyResult() {
+  async function copyResult() {
     if (!result) return;
 
-    navigator.clipboard.writeText(result);
+    try {
+      await navigator.clipboard.writeText(result);
 
-    toast.success("Copied!");
+      toast.success("Copied!");
+    } catch (error) {
+      console.error(error);
+
+      toast.error("Failed to copy!");
+    }
   }
 
   return (
@@ -121,7 +141,8 @@ export default function ImagePromptPage() {
         </div>
 
       </div>
-            {/* Upload */}
+
+      {/* Upload */}
 
       <div className="space-y-4">
 
@@ -132,6 +153,7 @@ export default function ImagePromptPage() {
             className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-white transition hover:bg-purple-700 lg:w-auto"
           >
             <ImagePlus size={18} />
+
             Choose Image
           </label>
 
@@ -146,11 +168,13 @@ export default function ImagePromptPage() {
           {previewUrl && (
             <>
               <div className="mt-5 overflow-hidden rounded-2xl border border-slate-700">
+
                 <img
                   src={previewUrl}
                   alt="Preview"
                   className="h-56 w-full object-cover"
                 />
+
               </div>
 
               <p className="mt-4 break-all text-sm text-green-400">
@@ -192,7 +216,6 @@ export default function ImagePromptPage() {
           <span className="lg:hidden">
             Clear
           </span>
-
         </button>
 
         <button
@@ -205,11 +228,11 @@ export default function ImagePromptPage() {
           <span className="lg:hidden">
             Copy
           </span>
-
         </button>
 
       </div>
-            {/* Result */}
+
+      {/* Result */}
 
       <div className="rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-lg">
 

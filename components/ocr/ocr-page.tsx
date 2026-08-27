@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { addNotification } from "@/components/notifications/notification-store";
 
 export default function OcrPage() {
   const [image, setImage] = useState<File | null>(null);
@@ -43,6 +44,16 @@ export default function OcrPage() {
 
       setResult(data.result);
 
+      // Simpan hasil OCR ke sistem notifikasi
+      addNotification({
+        feature: "Pengenal Teks",
+        title: "Pengenal Teks selesai",
+        message:
+          "Teks berhasil dikenali dan hasilnya siap dilihat.",
+        type: "success",
+        result: data.result,
+      });
+
       toast.success("OCR completed.");
     } catch (error) {
       console.error(error);
@@ -61,16 +72,24 @@ export default function OcrPage() {
     toast.success("Cleared.");
   }
 
-  function copyResult() {
+  async function copyResult() {
     if (!result) return;
 
-    navigator.clipboard.writeText(result);
+    try {
+      await navigator.clipboard.writeText(result);
 
-    toast.success("Copied.");
+      toast.success("Copied.");
+    } catch (error) {
+      console.error(error);
+
+      toast.error("Failed to copy.");
+    }
   }
 
   return (
     <div className="space-y-5 lg:space-y-8">
+
+      {/* Header */}
 
       <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
 
@@ -102,12 +121,15 @@ export default function OcrPage() {
 
       </div>
 
+      {/* Main Content */}
+
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
 
+        {/* Input Section */}
+
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
-                    <label
-            className="mb-4 flex h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-900 transition hover:border-cyan-500 lg:mb-5 lg:h-44 lg:rounded-2xl"
-          >
+
+          <label className="mb-4 flex h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-900 transition hover:border-cyan-500 lg:mb-5 lg:h-44 lg:rounded-2xl">
 
             <Upload
               size={34}
@@ -123,11 +145,9 @@ export default function OcrPage() {
             </p>
 
             {image && (
-
-              <p className="mt-4 text-sm text-cyan-400">
+              <p className="mt-4 break-all text-center text-sm text-cyan-400">
                 {image.name}
               </p>
-
             )}
 
             <input
@@ -141,12 +161,16 @@ export default function OcrPage() {
 
           </label>
 
+          {/* Prompt */}
+
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Ask AI about the uploaded image..."
             className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
+
+          {/* Buttons */}
 
           <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
 
@@ -180,6 +204,8 @@ export default function OcrPage() {
 
         </div>
 
+        {/* Result Section */}
+
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
           <div className="mb-4 flex justify-end lg:mb-5">
@@ -187,6 +213,7 @@ export default function OcrPage() {
             <button
               onClick={copyResult}
               disabled={!result}
+              title="Copy result"
               className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
             >
 
@@ -195,7 +222,8 @@ export default function OcrPage() {
             </button>
 
           </div>
-                    {result ? (
+
+          {result ? (
 
             <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4 lg:h-[500px] lg:rounded-2xl lg:p-5">
 

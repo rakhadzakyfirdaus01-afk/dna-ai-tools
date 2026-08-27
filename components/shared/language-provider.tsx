@@ -40,16 +40,16 @@ export function LanguageProvider({
   const [locale, setLocaleState] = useState<Locale>("id");
 
   useEffect(() => {
-    const saved = localStorage.getItem("language") as Locale | null;
+    const savedLanguage = localStorage.getItem("language");
 
-    if (saved) {
-      setLocaleState(saved);
+    if (savedLanguage === "id" || savedLanguage === "en") {
+      setLocaleState(savedLanguage);
     }
   }, []);
 
-  const setLocale = (locale: Locale) => {
-    localStorage.setItem("language", locale);
-    setLocaleState(locale);
+  const setLocale = (newLocale: Locale) => {
+    localStorage.setItem("language", newLocale);
+    setLocaleState(newLocale);
   };
 
   return (

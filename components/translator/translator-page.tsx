@@ -11,13 +11,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { addNotification } from "@/components/notifications/notification-store";
+import { useLanguage } from "@/components/shared/language-provider";
 
 export default function TranslatorPage() {
+  const { t } = useLanguage();
+
   const [prompt, setPrompt] = useState("");
   const [language, setLanguage] = useState("Indonesia");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [isListening, setIsListening] = useState(false);
 
   function startVoice() {
@@ -28,9 +30,7 @@ export default function TranslatorPage() {
       (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      toast.error(
-        "Voice input tidak didukung browser ini."
-      );
+      toast.error(t.voiceInputNotSupported);
       return;
     }
 
@@ -42,7 +42,7 @@ export default function TranslatorPage() {
 
     recognition.onstart = () => {
       setIsListening(true);
-      toast.success("Silakan bicara...");
+      toast.success(t.speakNow);
     };
 
     recognition.onresult = (event: any) => {
@@ -58,7 +58,7 @@ export default function TranslatorPage() {
 
     recognition.onerror = () => {
       setIsListening(false);
-      toast.error("Gagal menangkap suara.");
+      toast.error(t.failedToCaptureVoice);
     };
 
     recognition.onend = () => {
@@ -70,7 +70,7 @@ export default function TranslatorPage() {
 
   async function translate() {
     if (!prompt.trim()) {
-      toast.error("Please enter text.");
+      toast.error(t.pleaseEnterText);
       return;
     }
 
@@ -91,28 +91,26 @@ export default function TranslatorPage() {
 
       if (!res.ok) {
         throw new Error(
-          data.error || "Translation failed"
+          data.error || t.failedToTranslate
         );
       }
 
-      // Tampilkan hasil terjemahan
       setResult(data.result);
 
-      // Simpan hasil terjemahan ke sistem notifikasi
       addNotification({
-        feature: "Penerjemah",
-        title: "Penerjemah selesai",
+        feature: t.aiTranslator,
+        title: t.translationFinished,
         message:
-          `Terjemahan ke Bahasa ${language} berhasil dibuat dan siap dilihat.`,
+          `${t.translationToLanguage} ${language} ${t.translationReady}`,
         type: "success",
         result: data.result,
       });
 
-      toast.success("Translation completed.");
+      toast.success(t.translationCompleted);
     } catch (error) {
       console.error(error);
 
-      toast.error("Failed to translate.");
+      toast.error(t.failedToTranslate);
     } finally {
       setLoading(false);
     }
@@ -123,7 +121,7 @@ export default function TranslatorPage() {
     setResult("");
     setLanguage("Indonesia");
 
-    toast.success("Cleared.");
+    toast.success(t.clear);
   }
 
   async function copyResult() {
@@ -132,11 +130,11 @@ export default function TranslatorPage() {
     try {
       await navigator.clipboard.writeText(result);
 
-      toast.success("Copied.");
+      toast.success(t.copied);
     } catch (error) {
       console.error(error);
 
-      toast.error("Failed to copy.");
+      toast.error(t.failedToCopy);
     }
   }
 
@@ -161,11 +159,11 @@ export default function TranslatorPage() {
           <div>
 
             <h1 className="text-2xl font-bold text-white lg:text-4xl">
-              AI Translator
+              {t.translatorTitle}
             </h1>
 
             <p className="mt-2 text-sm text-white/80 lg:text-base">
-              Translate text into multiple languages using AI.
+              {t.translatorDescription}
             </p>
 
           </div>
@@ -184,8 +182,10 @@ export default function TranslatorPage() {
 
           <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Type text here..."
+            onChange={(e) =>
+              setPrompt(e.target.value)
+            }
+            placeholder={t.typeTextHere}
             className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
 
@@ -202,12 +202,12 @@ export default function TranslatorPage() {
               {isListening ? (
                 <>
                   <MicOff size={18} />
-                  Listening...
+                  {t.listening}
                 </>
               ) : (
                 <>
                   <Mic size={18} />
-                  Voice
+                  {t.voice}
                 </>
               )}
 
@@ -219,7 +219,9 @@ export default function TranslatorPage() {
 
           <select
             value={language}
-            onChange={(e) => setLanguage(e.target.value)}
+            onChange={(e) =>
+              setLanguage(e.target.value)
+            }
             className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none lg:mt-5 lg:rounded-2xl lg:p-4"
           >
 
@@ -247,8 +249,8 @@ export default function TranslatorPage() {
               <Play size={18} />
 
               {loading
-                ? "Translating..."
-                : "Translate"}
+                ? t.translating
+                : t.translate}
 
             </button>
 
@@ -260,7 +262,7 @@ export default function TranslatorPage() {
 
               <Trash2 size={18} />
 
-              Clear
+              {t.clear}
 
             </button>
 
@@ -277,7 +279,7 @@ export default function TranslatorPage() {
             <button
               onClick={copyResult}
               disabled={!result}
-              title="Copy result"
+              title={t.copyResult}
               className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
             >
 
@@ -309,11 +311,11 @@ export default function TranslatorPage() {
                 />
 
                 <h2 className="text-xl font-bold text-white lg:text-2xl">
-                  AI Translator
+                  {t.translatorTitle}
                 </h2>
 
                 <p className="mt-3 text-sm text-slate-400 lg:text-base">
-                  Enter text to start translating.
+                  {t.enterTextToTranslate}
                 </p>
 
               </div>

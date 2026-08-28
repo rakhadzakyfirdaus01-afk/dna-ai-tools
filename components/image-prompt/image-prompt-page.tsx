@@ -9,8 +9,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { addNotification } from "@/components/notifications/notification-store";
+import { useLanguage } from "@/components/shared/language-provider";
 
 export default function ImagePromptPage() {
+  const { locale } = useLanguage();
+
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,12 +44,21 @@ export default function ImagePromptPage() {
 
     setImage(file);
 
-    toast.success(`Selected: ${file.name}`);
+    toast.success(
+      locale === "id"
+        ? `Dipilih: ${file.name}`
+        : `Selected: ${file.name}`
+    );
   }
 
   async function generate() {
     if (!image) {
-      toast.error("Please choose an image first!");
+      toast.error(
+        locale === "id"
+          ? "Silakan pilih gambar terlebih dahulu!"
+          : "Please choose an image first!"
+      );
+
       return;
     }
 
@@ -67,27 +79,42 @@ export default function ImagePromptPage() {
 
       if (!res.ok) {
         throw new Error(
-          data.error || "Failed to generate prompt"
+          data.error ||
+            (locale === "id"
+              ? "Gagal membuat prompt"
+              : "Failed to generate prompt")
         );
       }
 
       setResult(data.result);
 
-      // Simpan hasil AI ke sistem notifikasi
       addNotification({
         feature: "Image Prompt Generator",
-        title: "Image Prompt Generator selesai",
+        title:
+          locale === "id"
+            ? "Generator Prompt Gambar selesai"
+            : "Image Prompt Generator selesai",
         message:
-          "Prompt gambar berhasil dibuat dan siap dilihat.",
+          locale === "id"
+            ? "Prompt gambar berhasil dibuat dan siap dilihat."
+            : "Image prompt has been generated and is ready to view.",
         type: "success",
         result: data.result,
       });
 
-      toast.success("Prompt generated!");
+      toast.success(
+        locale === "id"
+          ? "Prompt berhasil dibuat!"
+          : "Prompt generated!"
+      );
     } catch (error) {
       console.error(error);
 
-      toast.error("Failed to generate prompt!");
+      toast.error(
+        locale === "id"
+          ? "Gagal membuat prompt!"
+          : "Failed to generate prompt!"
+      );
     } finally {
       setLoading(false);
     }
@@ -99,7 +126,11 @@ export default function ImagePromptPage() {
     setImage(null);
     setPreviewUrl("");
 
-    toast.success("Cleared!");
+    toast.success(
+      locale === "id"
+        ? "Berhasil dibersihkan!"
+        : "Cleared!"
+    );
   }
 
   async function copyResult() {
@@ -108,11 +139,19 @@ export default function ImagePromptPage() {
     try {
       await navigator.clipboard.writeText(result);
 
-      toast.success("Copied!");
+      toast.success(
+        locale === "id"
+          ? "Berhasil disalin!"
+          : "Copied!"
+      );
     } catch (error) {
       console.error(error);
 
-      toast.error("Failed to copy!");
+      toast.error(
+        locale === "id"
+          ? "Gagal menyalin!"
+          : "Failed to copy!"
+      );
     }
   }
 
@@ -131,11 +170,15 @@ export default function ImagePromptPage() {
         <div>
 
           <h1 className="text-2xl font-bold text-white lg:text-3xl">
-            Image Prompt Generator
+            {locale === "id"
+              ? "Generator Prompt Gambar"
+              : "Image Prompt Generator"}
           </h1>
 
           <p className="mt-1 text-sm text-slate-400 lg:text-base">
-            Generate professional prompts for AI image models.
+            {locale === "id"
+              ? "Buat prompt profesional untuk model gambar AI."
+              : "Generate professional prompts for AI image models."}
           </p>
 
         </div>
@@ -152,9 +195,13 @@ export default function ImagePromptPage() {
             htmlFor="image-upload"
             className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-white transition hover:bg-purple-700 lg:w-auto"
           >
+
             <ImagePlus size={18} />
 
-            Choose Image
+            {locale === "id"
+              ? "Pilih Gambar"
+              : "Choose Image"}
+
           </label>
 
           <input
@@ -167,19 +214,31 @@ export default function ImagePromptPage() {
 
           {previewUrl && (
             <>
+
               <div className="mt-5 overflow-hidden rounded-2xl border border-slate-700">
 
                 <img
                   src={previewUrl}
-                  alt="Preview"
+                  alt={
+                    locale === "id"
+                      ? "Pratinjau"
+                      : "Preview"
+                  }
                   className="h-56 w-full object-cover"
                 />
 
               </div>
 
               <p className="mt-4 break-all text-sm text-green-400">
-                Selected File: {image?.name}
+
+                {locale === "id"
+                  ? "File Dipilih:"
+                  : "Selected File:"}{" "}
+
+                {image?.name}
+
               </p>
+
             </>
           )}
 
@@ -188,7 +247,11 @@ export default function ImagePromptPage() {
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Additional instructions (optional)..."
+          placeholder={
+            locale === "id"
+              ? "Instruksi tambahan (opsional)..."
+              : "Additional instructions (optional)..."
+          }
           className="h-32 w-full rounded-2xl border border-slate-700 bg-slate-900 p-4 text-sm text-white outline-none transition focus:border-purple-500 lg:h-40 lg:text-base"
         />
 
@@ -203,7 +266,15 @@ export default function ImagePromptPage() {
           disabled={loading}
           className="w-full rounded-xl bg-purple-600 px-5 py-3 font-medium text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
         >
-          {loading ? "Generating..." : "Generate"}
+
+          {loading
+            ? locale === "id"
+              ? "Membuat..."
+              : "Generating..."
+            : locale === "id"
+              ? "Buat Prompt"
+              : "Generate"}
+
         </button>
 
         <button
@@ -211,11 +282,15 @@ export default function ImagePromptPage() {
           disabled={!prompt && !result && !image}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 px-5 py-3 text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
         >
+
           <Trash2 size={18} />
 
           <span className="lg:hidden">
-            Clear
+            {locale === "id"
+              ? "Bersihkan"
+              : "Clear"}
           </span>
+
         </button>
 
         <button
@@ -223,11 +298,15 @@ export default function ImagePromptPage() {
           disabled={!result}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 px-5 py-3 text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
         >
+
           <Copy size={18} />
 
           <span className="lg:hidden">
-            Copy
+            {locale === "id"
+              ? "Salin"
+              : "Copy"}
           </span>
+
         </button>
 
       </div>
@@ -239,7 +318,9 @@ export default function ImagePromptPage() {
         <div className="mb-4 flex items-center justify-between">
 
           <h2 className="text-lg font-semibold text-white">
-            Generated Prompt
+            {locale === "id"
+              ? "Prompt yang Dihasilkan"
+              : "Generated Prompt"}
           </h2>
 
         </div>
@@ -249,7 +330,9 @@ export default function ImagePromptPage() {
           {loading ? (
 
             <p className="animate-pulse text-slate-400">
-              ✨ AI is generating your prompt...
+              {locale === "id"
+                ? "✨ AI sedang membuat prompt..."
+                : "✨ AI is generating your prompt..."}
             </p>
 
           ) : result ? (
@@ -259,7 +342,9 @@ export default function ImagePromptPage() {
           ) : (
 
             <p className="text-slate-500">
-              Your generated prompt will appear here.
+              {locale === "id"
+                ? "Prompt yang dihasilkan akan muncul di sini."
+                : "Your generated prompt will appear here."}
             </p>
 
           )}

@@ -10,8 +10,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { addNotification } from "@/components/notifications/notification-store";
+import { useLanguage } from "@/components/shared/language-provider";
 
 export default function DocumentPage() {
+  const { t } = useLanguage();
+
   const [file, setFile] = useState<File | null>(null);
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
@@ -19,7 +22,7 @@ export default function DocumentPage() {
 
   async function analyze() {
     if (!file) {
-      toast.error("Please select a document.");
+      toast.error(t.uploadDocumentToAnalyze);
       return;
     }
 
@@ -40,14 +43,12 @@ export default function DocumentPage() {
 
       if (!res.ok) {
         throw new Error(
-          data.error || "Analysis failed"
+          data.error || t.failedToAnalyzeDocument
         );
       }
 
-      // Tampilkan hasil AI di halaman
       setResult(data.result);
 
-      // Simpan hasil AI ke sistem notifikasi
       addNotification({
         feature: "AI Document",
         title: "AI Document selesai",
@@ -57,15 +58,11 @@ export default function DocumentPage() {
         result: data.result,
       });
 
-      toast.success(
-        "Document analyzed successfully."
-      );
+      toast.success(t.documentAnalyzedSuccessfully);
     } catch (error) {
       console.error(error);
 
-      toast.error(
-        "Failed to analyze document."
-      );
+      toast.error(t.failedToAnalyzeDocument);
     } finally {
       setLoading(false);
     }
@@ -76,7 +73,7 @@ export default function DocumentPage() {
     setPrompt("");
     setResult("");
 
-    toast.success("Cleared.");
+    toast.success(t.clear);
   }
 
   async function copyResult() {
@@ -85,18 +82,20 @@ export default function DocumentPage() {
     try {
       await navigator.clipboard.writeText(result);
 
-      toast.success("Copied.");
+      toast.success(t.copied);
     } catch (error) {
       console.error(error);
 
-      toast.error("Failed to copy.");
+      toast.error(t.failedToCopy);
     }
   }
 
   return (
     <div className="space-y-5 lg:space-y-8">
 
-      {/* Header */}
+      {/* =========================
+          HEADER
+      ========================== */}
 
       <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
 
@@ -114,13 +113,11 @@ export default function DocumentPage() {
           <div>
 
             <h1 className="text-2xl font-bold text-white lg:text-4xl">
-              AI Document
+              {t.aiDocumentTitle}
             </h1>
 
             <p className="mt-2 text-sm text-white/80 lg:text-base">
-              Upload PDF, DOCX, or TXT files and let AI
-              summarize, explain, or answer questions
-              about the document.
+              {t.aiDocumentDescription}
             </p>
 
           </div>
@@ -129,11 +126,15 @@ export default function DocumentPage() {
 
       </div>
 
-      {/* Content */}
+      {/* =========================
+          CONTENT
+      ========================== */}
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
 
-        {/* Input */}
+        {/* =========================
+            INPUT
+        ========================== */}
 
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
@@ -145,11 +146,11 @@ export default function DocumentPage() {
             />
 
             <p className="font-semibold text-white">
-              Upload Document
+              {t.uploadDocument}
             </p>
 
             <p className="mt-2 text-sm text-slate-400">
-              PDF • DOCX • TXT
+              {t.documentFormats}
             </p>
 
             {file && (
@@ -171,16 +172,22 @@ export default function DocumentPage() {
 
           </label>
 
+          {/* =========================
+              PROMPT
+          ========================== */}
+
           <textarea
             value={prompt}
             onChange={(e) =>
               setPrompt(e.target.value)
             }
-            placeholder="Ask AI about your document..."
+            placeholder={t.askAboutDocument}
             className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
 
-          {/* Buttons */}
+          {/* =========================
+              BUTTONS
+          ========================== */}
 
           <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
 
@@ -193,8 +200,8 @@ export default function DocumentPage() {
               <Play size={18} />
 
               {loading
-                ? "Analyzing..."
-                : "Analyze"}
+                ? t.analyzing
+                : t.analyze}
 
             </button>
 
@@ -210,7 +217,7 @@ export default function DocumentPage() {
 
               <Trash2 size={18} />
 
-              Clear
+              {t.clear}
 
             </button>
 
@@ -218,7 +225,9 @@ export default function DocumentPage() {
 
         </div>
 
-        {/* Result */}
+        {/* =========================
+            RESULT
+        ========================== */}
 
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
@@ -227,7 +236,7 @@ export default function DocumentPage() {
             <button
               onClick={copyResult}
               disabled={!result}
-              title="Copy result"
+              title={t.copied}
               className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
             >
 
@@ -259,11 +268,11 @@ export default function DocumentPage() {
                 />
 
                 <h2 className="text-2xl font-bold text-white">
-                  AI Document Analyzer
+                  {t.aiDocumentAnalyzer}
                 </h2>
 
                 <p className="mt-3 text-slate-400">
-                  Upload a document to start analyzing.
+                  {t.uploadDocumentToAnalyze}
                 </p>
 
               </div>

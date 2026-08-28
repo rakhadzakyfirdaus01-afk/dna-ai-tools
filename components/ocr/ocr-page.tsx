@@ -10,8 +10,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { addNotification } from "@/components/notifications/notification-store";
+import { useLanguage } from "@/components/shared/language-provider";
 
 export default function OcrPage() {
+  const { t } = useLanguage();
+
   const [image, setImage] = useState<File | null>(null);
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
@@ -19,7 +22,7 @@ export default function OcrPage() {
 
   async function analyze() {
     if (!image) {
-      toast.error("Please select an image.");
+      toast.error(t.pleaseSelectImage);
       return;
     }
 
@@ -39,26 +42,24 @@ export default function OcrPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "OCR failed");
+        throw new Error(data.error || t.ocrFailed);
       }
 
       setResult(data.result);
 
-      // Simpan hasil OCR ke sistem notifikasi
       addNotification({
-        feature: "Pengenal Teks",
-        title: "Pengenal Teks selesai",
-        message:
-          "Teks berhasil dikenali dan hasilnya siap dilihat.",
+        feature: t.ocrFeatureName,
+        title: t.ocrCompleted,
+        message: t.ocrResultReady,
         type: "success",
         result: data.result,
       });
 
-      toast.success("OCR completed.");
+      toast.success(t.ocrCompleted);
     } catch (error) {
       console.error(error);
 
-      toast.error("Failed to process image.");
+      toast.error(t.failedToProcessImage);
     } finally {
       setLoading(false);
     }
@@ -69,7 +70,7 @@ export default function OcrPage() {
     setPrompt("");
     setResult("");
 
-    toast.success("Cleared.");
+    toast.success(t.clear);
   }
 
   async function copyResult() {
@@ -78,11 +79,11 @@ export default function OcrPage() {
     try {
       await navigator.clipboard.writeText(result);
 
-      toast.success("Copied.");
+      toast.success(t.copied);
     } catch (error) {
       console.error(error);
 
-      toast.error("Failed to copy.");
+      toast.error(t.failedToCopy);
     }
   }
 
@@ -107,12 +108,11 @@ export default function OcrPage() {
           <div>
 
             <h1 className="text-2xl font-bold text-white lg:text-4xl">
-              AI OCR
+              {t.ocrTitle}
             </h1>
 
             <p className="mt-2 text-sm text-white/80 lg:text-base">
-              Upload an image and let AI extract, analyze,
-              summarize, or explain the text inside it.
+              {t.ocrDescription}
             </p>
 
           </div>
@@ -137,11 +137,11 @@ export default function OcrPage() {
             />
 
             <p className="font-semibold text-white">
-              Upload Image
+              {t.uploadImage}
             </p>
 
             <p className="mt-2 text-sm text-slate-400">
-              PNG • JPG • JPEG • WEBP
+              {t.imageFormats}
             </p>
 
             {image && (
@@ -166,7 +166,7 @@ export default function OcrPage() {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Ask AI about the uploaded image..."
+            placeholder={t.askAboutImage}
             className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
 
@@ -183,8 +183,8 @@ export default function OcrPage() {
               <Play size={18} />
 
               {loading
-                ? "Analyzing..."
-                : "Analyze"}
+                ? t.analyzing
+                : t.analyze}
 
             </button>
 
@@ -196,7 +196,7 @@ export default function OcrPage() {
 
               <Trash2 size={18} />
 
-              Clear
+              {t.clear}
 
             </button>
 
@@ -213,7 +213,7 @@ export default function OcrPage() {
             <button
               onClick={copyResult}
               disabled={!result}
-              title="Copy result"
+              title={t.copyResult}
               className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
             >
 
@@ -245,11 +245,11 @@ export default function OcrPage() {
                 />
 
                 <h2 className="text-xl font-bold text-white lg:text-2xl">
-                  AI OCR
+                  {t.ocrAnalyzer}
                 </h2>
 
                 <p className="mt-3 text-sm text-slate-400 lg:text-base">
-                  Upload an image to extract and analyze text.
+                  {t.uploadImageToAnalyze}
                 </p>
 
               </div>

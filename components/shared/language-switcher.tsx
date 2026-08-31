@@ -24,17 +24,22 @@ export default function LanguageSwitcher() {
           ? "Change language to English"
           : "Ganti bahasa ke Indonesia"
       }
-      className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:border-cyan-400 hover:bg-slate-800"
+      className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm transition-all duration-200 hover:border-cyan-400 hover:bg-slate-800 active:scale-95"
     >
       <Globe
         size={18}
+        strokeWidth={2}
         className="shrink-0 text-cyan-400"
       />
 
       <span className="whitespace-nowrap">
-        {locale === "id"
-          ? "🇮🇩 Indonesia"
-          : "🇺🇸 English"}
+        <span className="hidden sm:inline">
+          {locale === "id" ? "🇮🇩 Indonesia" : "🇺🇸 English"}
+        </span>
+
+        <span className="sm:hidden">
+          {locale === "id" ? "ID" : "EN"}
+        </span>
       </span>
     </button>
   );

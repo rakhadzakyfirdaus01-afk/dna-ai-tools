@@ -10,8 +10,12 @@ export async function GET() {
 
     if (!session?.user?.id) {
       return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
+        {
+          message: "Unauthorized",
+        },
+        {
+          status: 401,
+        }
       );
     }
 
@@ -21,11 +25,13 @@ export async function GET() {
       },
       select: {
         image: true,
+        name: true,
       },
     });
 
     return NextResponse.json({
       image: user?.image ?? null,
+      name: user?.name ?? null,
     });
   } catch (error) {
     console.error("GET PROFILE ERROR:", error);
@@ -126,6 +132,95 @@ export async function POST(request: Request) {
       {
         message:
           error?.message ?? "Profile image upload failed",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    console.log("=================================");
+    console.log("PATCH /api/profile DIPANGGIL");
+
+    const session = await getServerSession(authOptions);
+
+    console.log("SESSION USER ID:", session?.user?.id);
+
+    if (!session?.user?.id) {
+      console.log("SESSION TIDAK ADA");
+
+      return NextResponse.json(
+        {
+          message: "Unauthorized",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    const body = await request.json();
+
+    console.log("BODY:", body);
+
+    const name =
+      typeof body.name === "string"
+        ? body.name.trim()
+        : "";
+
+    console.log("NAME:", name);
+
+    if (!name) {
+      return NextResponse.json(
+        {
+          message: "Nama wajib diisi",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    if (name.length > 50) {
+      return NextResponse.json(
+        {
+          message: "Nama maksimal 50 karakter",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: session.user.id,
+      },
+      data: {
+        name: name,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    console.log("USER BERHASIL DIUPDATE:", updatedUser);
+
+    return NextResponse.json({
+      message: "Nama berhasil diperbarui",
+      name: updatedUser.name,
+    });
+  } catch (error: any) {
+    console.error("UPDATE PROFILE NAME ERROR:", error);
+
+    return NextResponse.json(
+      {
+        message:
+          error?.message ?? "Gagal memperbarui nama",
       },
       {
         status: 500,

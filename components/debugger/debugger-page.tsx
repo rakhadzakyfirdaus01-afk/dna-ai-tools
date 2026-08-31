@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Bug, Play, Copy, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  Bug,
+  Play,
+  Copy,
+  Trash2,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/components/shared/language-provider";
 import { addNotification } from "@/components/notifications/notification-store";
@@ -12,14 +21,194 @@ export default function DebuggerPage() {
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  async function analyze() {
-    if (!prompt.trim()) {
+  const recognitionRef = useRef<any>(null);
+  const voiceQuestionRef = useRef(false);
+
+  function speakResult(text: string) {
+    if (
+      typeof window === "undefined" ||
+      !("speechSynthesis" in window)
+    ) {
+      toast.error(
+        locale === "id"
+          ? "Text-to-Speech tidak didukung browser ini."
+          : "Text-to-Speech is not supported by this browser."
+      );
+
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const cleanText = text
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/[*#`_~]/g, "")
+      .replace(/\n+/g, ". ");
+
+    const utterance = new SpeechSynthesisUtterance(
+      cleanText
+    );
+
+    utterance.lang =
+      locale === "id" ? "id-ID" : "en-US";
+
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function stopSpeaking() {
+    if (typeof window === "undefined") return;
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    setIsSpeaking(false);
+  }
+
+  function startVoice() {
+    if (typeof window === "undefined") return;
+
+    if (isSpeaking) {
+      stopSpeaking();
+    }
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast.error(
+        locale === "id"
+          ? "Input suara tidak didukung browser ini. Gunakan Google Chrome."
+          : "Voice input is not supported by this browser. Use Google Chrome."
+      );
+
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+
+    recognition.lang =
+      locale === "id" ? "id-ID" : "en-US";
+
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      voiceQuestionRef.current = true;
+
+      toast.success(
+        locale === "id"
+          ? "Silakan bicara..."
+          : "Speak now..."
+      );
+    };
+
+    recognition.onresult = async (event: any) => {
+      const transcript =
+        event.results?.[0]?.[0]?.transcript?.trim();
+
+      if (!transcript) return;
+
+      setPrompt(transcript);
+
+      await analyze(transcript, true);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error(
+        "Speech Recognition Error:",
+        event
+      );
+
+      setIsListening(false);
+      voiceQuestionRef.current = false;
+
+      if (event?.error === "not-allowed") {
+        toast.error(
+          locale === "id"
+            ? "Izin mikrofon ditolak. Izinkan akses mikrofon di browser."
+            : "Microphone permission was denied. Allow microphone access in your browser."
+        );
+
+        return;
+      }
+
+      if (event?.error === "no-speech") {
+        toast.error(
+          locale === "id"
+            ? "Tidak ada suara yang terdeteksi."
+            : "No speech was detected."
+        );
+
+        return;
+      }
+
+      toast.error(
+        locale === "id"
+          ? "Gagal menangkap suara."
+          : "Failed to capture voice."
+      );
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch (error) {
+      console.error(error);
+
+      setIsListening(false);
+      recognitionRef.current = null;
+    }
+  }
+
+  async function analyze(
+    inputText?: string,
+    fromVoice = false
+  ) {
+    const textToAnalyze =
+      inputText !== undefined
+        ? inputText
+        : prompt;
+
+    if (!textToAnalyze.trim()) {
       toast.error(
         locale === "id"
           ? "Silakan masukkan pertanyaan atau tempel kode!"
           : "Please enter a question or paste your code!"
       );
+
       return;
     }
 
@@ -32,7 +221,7 @@ export default function DebuggerPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          code: prompt,
+          code: textToAnalyze,
           locale,
         }),
       });
@@ -40,13 +229,13 @@ export default function DebuggerPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Request failed");
+        throw new Error(
+          data.error || "Request failed"
+        );
       }
 
-      // Tampilkan jawaban AI di halaman
       setResult(data.result);
 
-      // Simpan jawaban AI ke sistem notifikasi
       addNotification({
         feature: "AI Tech Assistant",
         title:
@@ -60,6 +249,10 @@ export default function DebuggerPage() {
         type: "success",
         result: data.result,
       });
+
+      if (fromVoice) {
+        speakResult(data.result);
+      }
 
       toast.success(
         locale === "id"
@@ -76,10 +269,19 @@ export default function DebuggerPage() {
       );
     } finally {
       setLoading(false);
+      voiceQuestionRef.current = false;
     }
   }
 
   function clearAll() {
+    stopSpeaking();
+
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+
+    setIsListening(false);
     setPrompt("");
     setResult("");
 
@@ -149,7 +351,10 @@ export default function DebuggerPage() {
 
           <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) => {
+              setPrompt(e.target.value);
+              voiceQuestionRef.current = false;
+            }}
             spellCheck={false}
             placeholder={
               locale === "id"
@@ -161,10 +366,37 @@ export default function DebuggerPage() {
 
           <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
 
+            {/* VOICE */}
+            <button
+              onClick={startVoice}
+              disabled={loading}
+              className={`flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6 ${
+                isListening
+                  ? "bg-red-500 hover:bg-red-600"
+                  : "bg-purple-500 hover:bg-purple-600"
+              }`}
+            >
+              {isListening ? (
+                <>
+                  <MicOff size={18} />
+                  {locale === "id"
+                    ? "Berhenti"
+                    : "Stop"}
+                </>
+              ) : (
+                <>
+                  <Mic size={18} />
+                  {locale === "id"
+                    ? "Bicara"
+                    : "Speak"}
+                </>
+              )}
+            </button>
+
             {/* ASK AI */}
             <button
-              onClick={analyze}
-              disabled={loading}
+              onClick={() => analyze()}
+              disabled={loading || isListening}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
               <Play size={18} />
@@ -181,7 +413,12 @@ export default function DebuggerPage() {
             {/* CLEAR */}
             <button
               onClick={clearAll}
-              disabled={!prompt && !result}
+              disabled={
+                !prompt &&
+                !result &&
+                !isListening &&
+                !isSpeaking
+              }
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
               <Trash2 size={18} />
@@ -192,14 +429,43 @@ export default function DebuggerPage() {
             </button>
 
           </div>
+
         </div>
 
         {/* RESULT */}
         <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
-          {/* COPY BUTTON */}
-          <div className="mb-3 flex justify-end lg:mb-4">
+          {/* RESULT ACTIONS */}
+          <div className="mb-3 flex justify-end gap-2 lg:mb-4">
 
+            {/* SPEAK / STOP */}
+            {result && (
+              <button
+                onClick={() =>
+                  isSpeaking
+                    ? stopSpeaking()
+                    : speakResult(result)
+                }
+                title={
+                  isSpeaking
+                    ? locale === "id"
+                      ? "Hentikan suara"
+                      : "Stop speaking"
+                    : locale === "id"
+                      ? "Bacakan jawaban"
+                      : "Read response aloud"
+                }
+                className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition-all duration-300 hover:bg-slate-800 lg:rounded-2xl lg:p-3"
+              >
+                {isSpeaking ? (
+                  <VolumeX size={18} />
+                ) : (
+                  <Volume2 size={18} />
+                )}
+              </button>
+            )}
+
+            {/* COPY */}
             <button
               onClick={copyResult}
               disabled={!result}

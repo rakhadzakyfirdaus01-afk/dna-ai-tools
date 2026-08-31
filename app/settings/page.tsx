@@ -18,6 +18,12 @@ export default function SettingsPage() {
 
   const [uploading, setUploading] = useState(false);
 
+  const [name, setName] = useState(
+    session?.user?.name ?? ""
+  );
+
+  const [savingName, setSavingName] = useState(false);
+
   useEffect(() => {
     async function loadProfile() {
       try {
@@ -34,13 +40,21 @@ export default function SettingsPage() {
             image: data.image,
           });
         }
+
+        if (data.name) {
+          setName(data.name);
+
+          await update({
+            name: data.name,
+          });
+        }
       } catch (error) {
         console.error("Failed to load profile:", error);
       }
     }
 
     loadProfile();
-  }, [update]);
+  }, []);
 
   async function uploadPhoto() {
     if (!selectedImage) {
@@ -89,6 +103,60 @@ export default function SettingsPage() {
     }
   }
 
+  async function saveName() {
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      toast.error("Nama tidak boleh kosong");
+      return;
+    }
+
+    if (trimmedName.length > 50) {
+      toast.error("Nama maksimal 50 karakter");
+      return;
+    }
+
+    try {
+      setSavingName(true);
+
+      const response = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: trimmedName,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ?? "Gagal memperbarui nama"
+        );
+      }
+
+      setName(data.name);
+
+      await update({
+        name: data.name,
+      });
+
+      toast.success("Nama berhasil diperbarui");
+    } catch (error) {
+      console.error("UPDATE NAME ERROR:", error);
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal memperbarui nama"
+      );
+    } finally {
+      setSavingName(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background p-8 text-foreground">
 
@@ -127,12 +195,54 @@ export default function SettingsPage() {
             <div className="w-full min-w-0 sm:w-auto">
 
               <h3 className="text-xl font-semibold">
-                {session?.user?.name ?? "User"}
+                {name || "User"}
               </h3>
 
               <p className="w-full break-all text-sm opacity-70">
                 {session?.user?.email}
               </p>
+
+            </div>
+
+          </div>
+
+          {/* Change Name */}
+          <div className="mt-6">
+
+            <label
+              htmlFor="profile-name"
+              className="mb-2 block text-sm font-medium"
+            >
+              Nama
+            </label>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+
+              <input
+                id="profile-name"
+                type="text"
+                value={name}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
+                maxLength={50}
+                placeholder="Masukkan nama"
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-foreground outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+              />
+
+              <button
+                type="button"
+                onClick={saveName}
+                disabled={
+                  savingName ||
+                  !name.trim()
+                }
+                className="rounded-xl bg-cyan-500 px-5 py-2.5 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {savingName
+                  ? "Menyimpan..."
+                  : "Simpan Nama"}
+              </button>
 
             </div>
 
@@ -158,7 +268,9 @@ export default function SettingsPage() {
               disabled={uploading || !selectedImage}
               className="rounded-xl bg-cyan-500 px-5 py-2 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {uploading ? "Uploading..." : "Upload Photo"}
+              {uploading
+                ? "Uploading..."
+                : "Upload Photo"}
             </button>
 
           </div>

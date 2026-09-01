@@ -2,15 +2,17 @@ import type { Locale } from "@/components/shared/language-provider";
 
 const LANGUAGE_INSTRUCTIONS: Record<Locale, string> = {
   en: `
-Always answer in English.
-If generating prompts, generate them in English.
-Do not answer in Indonesian unless the user explicitly requests it.
+Respond in English when the user communicates in English.
+If the user communicates in Indonesian, respond in Indonesian.
+Match the user's language naturally.
+Do not translate the user's message unless requested.
 `.trim(),
 
   id: `
-Selalu jawab menggunakan Bahasa Indonesia.
-Jika membuat prompt AI, gunakan Bahasa Indonesia.
-Jangan menggunakan Bahasa Inggris kecuali diminta oleh pengguna.
+Respond in Indonesian when the user communicates in Indonesian.
+If the user communicates in English, respond in English.
+Match the user's language naturally.
+Do not translate the user's message unless requested.
 `.trim(),
 };
 

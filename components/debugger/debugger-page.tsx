@@ -23,6 +23,7 @@ export default function DebuggerPage() {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const voiceQuestionRef = useRef(false);
@@ -55,6 +56,23 @@ export default function DebuggerPage() {
     utterance.lang =
       locale === "id" ? "id-ID" : "en-US";
 
+    const voices =
+      window.speechSynthesis.getVoices();
+
+    const selectedVoice = voices.find((voice) =>
+      locale === "id"
+        ? voice.lang
+            .toLowerCase()
+            .startsWith("id")
+        : voice.lang
+            .toLowerCase()
+            .startsWith("en")
+    );
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
     utterance.rate = 1;
     utterance.pitch = 1;
     utterance.volume = 1;
@@ -71,7 +89,9 @@ export default function DebuggerPage() {
       setIsSpeaking(false);
     };
 
-    window.speechSynthesis.speak(utterance);
+    window.speechSynthesis.speak(
+      utterance
+    );
   }
 
   function stopSpeaking() {
@@ -86,6 +106,8 @@ export default function DebuggerPage() {
 
   function startVoice() {
     if (typeof window === "undefined") return;
+
+    setVoiceMode(true);
 
     if (isSpeaking) {
       stopSpeaking();
@@ -102,6 +124,7 @@ export default function DebuggerPage() {
           : "Voice input is not supported by this browser. Use Google Chrome."
       );
 
+      setVoiceMode(false);
       return;
     }
 
@@ -110,10 +133,13 @@ export default function DebuggerPage() {
       return;
     }
 
-    const recognition = new SpeechRecognition();
+    const recognition =
+      new SpeechRecognition();
 
     recognition.lang =
-      locale === "id" ? "id-ID" : "en-US";
+      locale === "id"
+        ? "id-ID"
+        : "en-US";
 
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -129,7 +155,9 @@ export default function DebuggerPage() {
       );
     };
 
-    recognition.onresult = async (event: any) => {
+    recognition.onresult = async (
+      event: any
+    ) => {
       const transcript =
         event.results?.[0]?.[0]?.transcript?.trim();
 
@@ -137,42 +165,67 @@ export default function DebuggerPage() {
 
       setPrompt(transcript);
 
-      await analyze(transcript, true);
+      await analyze(
+        transcript,
+        true
+      );
     };
 
     recognition.onerror = (event: any) => {
-      console.error(
-        "Speech Recognition Error:",
-        event
-      );
+      const errorCode =
+        event?.error ?? "unknown";
 
       setIsListening(false);
       voiceQuestionRef.current = false;
 
-      if (event?.error === "not-allowed") {
+      if (errorCode === "not-allowed") {
         toast.error(
           locale === "id"
-            ? "Izin mikrofon ditolak. Izinkan akses mikrofon di browser."
-            : "Microphone permission was denied. Allow microphone access in your browser."
+            ? "Akses mikrofon ditolak. Izinkan mikrofon untuk website ini."
+            : "Microphone access was denied. Allow microphone access for this website."
         );
 
         return;
       }
 
-      if (event?.error === "no-speech") {
-        toast.error(
+      if (errorCode === "no-speech") {
+        toast(
           locale === "id"
-            ? "Tidak ada suara yang terdeteksi."
-            : "No speech was detected."
+            ? "Mohon bicara lebih jelas. Saya belum dapat mendengar suara Anda."
+            : "Please speak more clearly. I couldn't hear you."
         );
 
+        return;
+      }
+
+      if (errorCode === "audio-capture") {
+        toast.error(
+          locale === "id"
+            ? "Mikrofon tidak ditemukan atau sedang digunakan aplikasi lain."
+            : "No microphone was found or it is being used by another application."
+        );
+
+        return;
+      }
+
+      if (errorCode === "network") {
+        toast.error(
+          locale === "id"
+            ? "Speech Recognition mengalami masalah jaringan."
+            : "Speech Recognition encountered a network problem."
+        );
+
+        return;
+      }
+
+      if (errorCode === "aborted") {
         return;
       }
 
       toast.error(
         locale === "id"
-          ? "Gagal menangkap suara."
-          : "Failed to capture voice."
+          ? `Gagal menangkap suara (${errorCode}).`
+          : `Failed to capture voice (${errorCode}).`
       );
     };
 
@@ -181,13 +234,12 @@ export default function DebuggerPage() {
       recognitionRef.current = null;
     };
 
-    recognitionRef.current = recognition;
+    recognitionRef.current =
+      recognition;
 
     try {
       recognition.start();
     } catch (error) {
-      console.error(error);
-
       setIsListening(false);
       recognitionRef.current = null;
     }
@@ -215,29 +267,36 @@ export default function DebuggerPage() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/debugger", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: textToAnalyze,
-          locale,
-        }),
-      });
+      const res = await fetch(
+        "/api/debugger",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            code: textToAnalyze,
+            locale,
+          }),
+        }
+      );
 
-      const data = await res.json();
+      const data =
+        await res.json();
 
       if (!res.ok) {
         throw new Error(
-          data.error || "Request failed"
+          data.error ||
+            "Request failed"
         );
       }
 
       setResult(data.result);
 
       addNotification({
-        feature: "AI Tech Assistant",
+        feature:
+          "AI Tech Assistant",
         title:
           locale === "id"
             ? "AI Tech Assistant selesai"
@@ -251,7 +310,9 @@ export default function DebuggerPage() {
       });
 
       if (fromVoice) {
-        speakResult(data.result);
+        speakResult(
+          data.result
+        );
       }
 
       toast.success(
@@ -269,7 +330,8 @@ export default function DebuggerPage() {
       );
     } finally {
       setLoading(false);
-      voiceQuestionRef.current = false;
+      voiceQuestionRef.current =
+        false;
     }
   }
 
@@ -278,7 +340,8 @@ export default function DebuggerPage() {
 
     if (recognitionRef.current) {
       recognitionRef.current.stop();
-      recognitionRef.current = null;
+      recognitionRef.current =
+        null;
     }
 
     setIsListening(false);
@@ -296,7 +359,9 @@ export default function DebuggerPage() {
     if (!result) return;
 
     try {
-      await navigator.clipboard.writeText(result);
+      await navigator.clipboard.writeText(
+        result
+      );
 
       toast.success(
         locale === "id"
@@ -315,214 +380,317 @@ export default function DebuggerPage() {
   }
 
   return (
-    <div className="space-y-5 lg:space-y-8">
+    <>
+      {/* VOICE MODE */}
+      {voiceMode && (
+        <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center bg-slate-950">
 
-      {/* HEADER */}
-      <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
-        <div className="flex items-start gap-3 lg:items-center lg:gap-4">
+          <div className="w-full max-w-md px-6 text-center">
 
-          <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur lg:rounded-2xl lg:p-3">
-            <Bug
-              className="text-white"
-              size={26}
-            />
-          </div>
+            {/* DNA LOGO */}
+            <div className="flex justify-center">
+              <div
+                className={`flex h-32 w-32 items-center justify-center rounded-full bg-slate-900 ${
+                  isListening || isSpeaking
+                    ? "shadow-[0_0_80px_rgba(34,211,238,0.35)]"
+                    : "shadow-[0_0_45px_rgba(34,211,238,0.18)]"
+                }`}
+              >
+                <img
+                  src="/logo-dna.png"
+                  alt="DNA AI"
+                  className="h-24 w-24 rounded-full object-contain"
+                />
+              </div>
+            </div>
 
-          <div>
-            <h1 className="text-2xl font-bold text-white lg:text-4xl">
-              {t.debugger}
-            </h1>
+            {/* STATUS */}
+            <h2 className="mt-8 text-2xl font-bold text-white">
+              DNA AI Assistant
+            </h2>
 
-            <p className="mt-2 text-sm text-white/80 lg:text-base">
-              {locale === "id"
-                ? "Tanyakan apa saja tentang pemrograman, software, Windows, hardware, jaringan, database, API, atau tempel kode untuk diperbaiki."
-                : "Ask anything about programming, software, Windows, hardware, networking, databases, APIs, or paste code to debug."}
+            <p className="mt-3 text-sm text-slate-400">
+              {isListening
+                ? locale === "id"
+                  ? "Mendengarkan..."
+                  : "Listening..."
+                : isSpeaking
+                  ? locale === "id"
+                    ? "Sedang berbicara..."
+                    : "Speaking..."
+                  : locale === "id"
+                    ? "Siap mendengarkan"
+                    : "Ready to listen"}
             </p>
-          </div>
 
-        </div>
-      </div>
-
-      {/* INPUT & RESULT */}
-      <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
-
-        {/* INPUT */}
-        <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
-
-          <textarea
-            value={prompt}
-            onChange={(e) => {
-              setPrompt(e.target.value);
-              voiceQuestionRef.current = false;
-            }}
-            spellCheck={false}
-            placeholder={
-              locale === "id"
-                ? "Masukkan pertanyaan atau tempel kode di sini..."
-                : "Ask a question or paste your code here..."
-            }
-            className="h-[320px] w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 font-mono text-sm text-white outline-none transition-all duration-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 lg:h-[500px] lg:rounded-2xl lg:p-5"
-          />
-
-          <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
-
-            {/* VOICE */}
+            {/* VOICE BUTTON */}
             <button
+              type="button"
               onClick={startVoice}
               disabled={loading}
-              className={`flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6 ${
+              className={`mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-full text-white transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${
                 isListening
                   ? "bg-red-500 hover:bg-red-600"
                   : "bg-purple-500 hover:bg-purple-600"
               }`}
             >
               {isListening ? (
-                <>
-                  <MicOff size={18} />
-                  {locale === "id"
-                    ? "Berhenti"
-                    : "Stop"}
-                </>
+                <MicOff size={24} />
               ) : (
-                <>
-                  <Mic size={18} />
-                  {locale === "id"
-                    ? "Bicara"
-                    : "Speak"}
-                </>
+                <Mic size={24} />
               )}
             </button>
 
-            {/* ASK AI */}
+            {/* CLOSE */}
             <button
-              onClick={() => analyze()}
-              disabled={loading || isListening}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
+              type="button"
+              onClick={() => {
+                stopSpeaking();
+
+                if (
+                  recognitionRef.current
+                ) {
+                  recognitionRef.current.stop();
+                  recognitionRef.current =
+                    null;
+                }
+
+                setIsListening(false);
+                setVoiceMode(false);
+              }}
+              className="mx-auto mt-6 block text-sm text-slate-500 transition hover:text-white"
             >
-              <Play size={18} />
-
-              {loading
-                ? locale === "id"
-                  ? "Memproses..."
-                  : "Thinking..."
-                : locale === "id"
-                  ? "Tanya AI"
-                  : "Ask AI"}
-            </button>
-
-            {/* CLEAR */}
-            <button
-              onClick={clearAll}
-              disabled={
-                !prompt &&
-                !result &&
-                !isListening &&
-                !isSpeaking
-              }
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
-            >
-              <Trash2 size={18} />
-
               {locale === "id"
-                ? "Bersihkan"
-                : "Clear"}
+                ? "Tutup"
+                : "Close"}
             </button>
 
           </div>
+        </div>
+      )}
 
+      {/* MAIN PAGE */}
+      <div className="space-y-5 lg:space-y-8">
+
+        {/* HEADER */}
+        <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
+          <div className="flex items-start gap-3 lg:items-center lg:gap-4">
+
+            <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur lg:rounded-2xl lg:p-3">
+              <Bug
+                className="text-white"
+                size={26}
+              />
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-bold text-white lg:text-4xl">
+                {t.debugger}
+              </h1>
+
+              <p className="mt-2 text-sm text-white/80 lg:text-base">
+                {locale === "id"
+                  ? "Tanyakan apa saja tentang pemrograman, software, Windows, hardware, jaringan, database, API, atau tempel kode untuk diperbaiki."
+                  : "Ask anything about programming, software, Windows, hardware, networking, databases, APIs, or paste code to debug."}
+              </p>
+            </div>
+
+          </div>
         </div>
 
-        {/* RESULT */}
-        <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
+        {/* INPUT & RESULT */}
+        <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
 
-          {/* RESULT ACTIONS */}
-          <div className="mb-3 flex justify-end gap-2 lg:mb-4">
+          {/* INPUT */}
+          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
-            {/* SPEAK / STOP */}
-            {result && (
+            <textarea
+              value={prompt}
+              onChange={(e) => {
+                setPrompt(e.target.value);
+                voiceQuestionRef.current =
+                  false;
+              }}
+              spellCheck={false}
+              placeholder={
+                locale === "id"
+                  ? "Masukkan pertanyaan atau tempel kode di sini..."
+                  : "Ask a question or paste your code here..."
+              }
+              className="h-[320px] w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 font-mono text-sm text-white outline-none transition-all duration-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 lg:h-[500px] lg:rounded-2xl lg:p-5"
+            />
+
+            <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
+
+              {/* VOICE */}
               <button
-                onClick={() =>
-                  isSpeaking
-                    ? stopSpeaking()
-                    : speakResult(result)
-                }
-                title={
-                  isSpeaking
-                    ? locale === "id"
-                      ? "Hentikan suara"
-                      : "Stop speaking"
-                    : locale === "id"
-                      ? "Bacakan jawaban"
-                      : "Read response aloud"
-                }
-                className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition-all duration-300 hover:bg-slate-800 lg:rounded-2xl lg:p-3"
+                onClick={startVoice}
+                disabled={loading}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6 ${
+                  isListening
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-purple-500 hover:bg-purple-600"
+                }`}
               >
-                {isSpeaking ? (
-                  <VolumeX size={18} />
+                {isListening ? (
+                  <>
+                    <MicOff size={18} />
+                    {locale === "id"
+                      ? "Berhenti"
+                      : "Stop"}
+                  </>
                 ) : (
-                  <Volume2 size={18} />
+                  <>
+                    <Mic size={18} />
+                    {locale === "id"
+                      ? "Bicara"
+                      : "Speak"}
+                  </>
                 )}
               </button>
-            )}
 
-            {/* COPY */}
-            <button
-              onClick={copyResult}
-              disabled={!result}
-              title={
-                locale === "id"
-                  ? "Salin jawaban"
-                  : "Copy response"
-              }
-              className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition-all duration-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
-            >
-              <Copy size={18} />
-            </button>
+              {/* ASK AI */}
+              <button
+                onClick={() => analyze()}
+                disabled={
+                  loading ||
+                  isListening
+                }
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
+              >
+                <Play size={18} />
 
-          </div>
+                {loading
+                  ? locale === "id"
+                    ? "Memproses..."
+                    : "Thinking..."
+                  : locale === "id"
+                    ? "Tanya AI"
+                    : "Ask AI"}
+              </button>
 
-          {/* HAS RESULT */}
-          {result ? (
+              {/* CLEAR */}
+              <button
+                onClick={clearAll}
+                disabled={
+                  !prompt &&
+                  !result &&
+                  !isListening &&
+                  !isSpeaking
+                }
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
+              >
+                <Trash2 size={18} />
 
-            <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4 lg:h-[500px] lg:rounded-2xl lg:p-5">
-
-              <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-7 text-slate-300">
-                {result}
-              </pre>
+                {locale === "id"
+                  ? "Bersihkan"
+                  : "Clear"}
+              </button>
 
             </div>
 
-          ) : (
+          </div>
 
-            /* EMPTY RESULT */
-            <div className="flex h-[320px] items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-900 lg:h-[500px] lg:rounded-2xl">
+          {/* RESULT */}
+          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
-              <div className="text-center">
+            {/* RESULT ACTIONS */}
+            <div className="mb-3 flex justify-end gap-2 lg:mb-4">
 
-                <Bug
-                  size={48}
-                  className="mx-auto mb-5 text-slate-600"
-                />
+              {/* SPEAK / STOP */}
+              {result && (
+                <button
+                  onClick={() =>
+                    isSpeaking
+                      ? stopSpeaking()
+                      : speakResult(
+                          result
+                        )
+                  }
+                  title={
+                    isSpeaking
+                      ? locale === "id"
+                        ? "Hentikan suara"
+                        : "Stop speaking"
+                      : locale === "id"
+                        ? "Bacakan jawaban"
+                        : "Read response aloud"
+                  }
+                  className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition-all duration-300 hover:bg-slate-800 lg:rounded-2xl lg:p-3"
+                >
+                  {isSpeaking ? (
+                    <VolumeX
+                      size={18}
+                    />
+                  ) : (
+                    <Volume2
+                      size={18}
+                    />
+                  )}
+                </button>
+              )}
 
-                <h3 className="text-base font-semibold text-slate-300 lg:text-lg">
-                  {locale === "id"
-                    ? "Mulai Bertanya ke AI"
-                    : "Start Asking AI"}
-                </h3>
+              {/* COPY */}
+              <button
+                onClick={copyResult}
+                disabled={!result}
+                title={
+                  locale === "id"
+                    ? "Salin jawaban"
+                    : "Copy response"
+                }
+                className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition-all duration-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
+              >
+                <Copy size={18} />
+              </button>
 
-                <p className="mt-2 text-xs text-slate-500 lg:text-sm">
-                  {locale === "id"
-                    ? "Jawaban AI akan muncul di sini."
-                    : "Your AI response will appear here."}
-                </p>
+            </div>
+
+            {/* HAS RESULT */}
+            {result ? (
+
+              <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4 lg:h-[500px] lg:rounded-2xl lg:p-5">
+
+                <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-7 text-slate-300">
+                  {result}
+                </pre>
 
               </div>
 
-            </div>
-          )}
+            ) : (
+
+              /* EMPTY RESULT */
+              <div className="flex h-[320px] items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-900 lg:h-[500px] lg:rounded-2xl">
+
+                <div className="text-center">
+
+                  <Bug
+                    size={48}
+                    className="mx-auto mb-5 text-slate-600"
+                  />
+
+                  <h3 className="text-base font-semibold text-slate-300 lg:text-lg">
+                    {locale === "id"
+                      ? "Mulai Bertanya ke AI"
+                      : "Start Asking AI"}
+                  </h3>
+
+                  <p className="mt-2 text-xs text-slate-500 lg:text-sm">
+                    {locale === "id"
+                      ? "Jawaban AI akan muncul di sini."
+                      : "Your AI response will appear here."}
+                  </p>
+
+                </div>
+
+              </div>
+            )}
+
+          </div>
 
         </div>
+
       </div>
-    </div>
+    </>
   );
 }

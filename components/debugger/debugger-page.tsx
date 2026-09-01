@@ -367,7 +367,7 @@ export default function DebuggerPage() {
     }, 700);
   }
 
-  function playServerAudio(audioData: string) {
+  function playServerAudio(audioData: string, fallbackText: string) {
     if (typeof window === "undefined" || !audioData) return;
 
     if (audioPlayer) {
@@ -384,18 +384,18 @@ export default function DebuggerPage() {
         console.error("DNA AI AUDIO ERROR:", event);
         setIsSpeaking(false);
         setAudioPlayer(null);
-        speakResult(result);
+        speakResult(fallbackText);
       };
       setAudioPlayer(player);
       player.play().catch((error) => {
         console.error("DNA AI AUDIO PLAY ERROR:", error);
         setAudioPlayer(null);
         setIsSpeaking(false);
-        speakResult(result);
+        speakResult(fallbackText);
       });
     } catch (error) {
       console.error("DNA AI AUDIO EXCEPTION:", error);
-      speakResult(result);
+      speakResult(fallbackText);
     }
   }
 
@@ -684,7 +684,7 @@ export default function DebuggerPage() {
       if (fromVoice) {
         if (data.audio) {
           setTimeout(() => {
-            playServerAudio(data.audio);
+            playServerAudio(data.audio, data.result);
           }, 150);
         } else {
           setTimeout(() => {

@@ -15,8 +15,12 @@ export async function POST(req: Request) {
 
     if (!session?.user?.id) {
       return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
+        {
+          error: "Unauthorized",
+        },
+        {
+          status: 401,
+        }
       );
     }
 
@@ -28,21 +32,43 @@ export async function POST(req: Request) {
         : "";
 
     const locale: Locale =
-      body.locale === "en" ? "en" : "id";
+      body.locale === "en"
+        ? "en"
+        : "id";
 
     if (!code) {
       return NextResponse.json(
-        { error: "Code is required" },
-        { status: 400 }
+        {
+          error: "Code is required",
+        },
+        {
+          status: 400,
+        }
       );
     }
 
-    const result = await askDebugger(code, locale);
-
-    const audio = await generateDebuggerSpeech(
-      result,
+    const result = await askDebugger(
+      code,
       locale
     );
+
+    if (!result) {
+      return NextResponse.json(
+        {
+          error:
+            "AI tidak memberikan jawaban.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const audio =
+      await generateDebuggerSpeech(
+        result,
+        locale
+      );
 
     await prisma.history.create({
       data: {
@@ -60,11 +86,17 @@ export async function POST(req: Request) {
       audio,
     });
   } catch (error) {
-    console.error("DEBUGGER ERROR:", error);
+    console.error(
+      "DEBUGGER ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Internal server error",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Internal server error",
       },
       {
         status: 500,

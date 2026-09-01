@@ -2,14 +2,23 @@ import { GoogleGenAI } from "@google/genai";
 import { getLanguageInstruction } from "@/lib/language";
 import type { Locale } from "@/components/shared/language-provider";
 
+const apiKey = process.env.GEMINI_DEBUGGER_API_KEY;
+
+if (!apiKey) {
+  throw new Error(
+    "GEMINI_DEBUGGER_API_KEY belum dikonfigurasi."
+  );
+}
+
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_DEBUGGER_API_KEY!,
+  apiKey,
 });
 
 const SYSTEM_PROMPT = `
 Kamu adalah AI Tech Assistant milik DNA AI Tools.
 
-Tugasmu adalah langsung membantu pengguna menyelesaikan masalah atau menjawab pertanyaan mereka.
+Tugasmu adalah langsung membantu pengguna menyelesaikan masalah
+atau menjawab pertanyaan mereka.
 
 Kamu dapat membantu:
 - Debugging source code
@@ -36,10 +45,18 @@ Kamu dapat membantu:
 - Cloud
 - Deployment
 
-Aturan:
+ATURAN BAHASA:
+- Jawab menggunakan bahasa yang sama dengan bahasa pengguna.
+- Jika pengguna berbicara dalam Bahasa Indonesia, jawab dalam Bahasa Indonesia.
+- Jika pengguna berbicara dalam Bahasa Inggris, jawab dalam Bahasa Inggris.
+- Jangan menerjemahkan pertanyaan pengguna ke bahasa lain kecuali diminta.
+- Pertahankan bahasa yang digunakan pengguna dari awal sampai akhir jawaban.
+
+ATURAN:
 - Langsung jawab pertanyaan pengguna.
 - Jangan memperkenalkan diri.
-- Jangan memulai jawaban dengan "Halo", "Hai", "Saya AI Tech Assistant", atau kalimat perkenalan lainnya.
+- Jangan memulai jawaban dengan "Halo", "Hai",
+  "Saya AI Tech Assistant", atau kalimat perkenalan lainnya.
 - Jangan menambahkan pembukaan yang tidak diperlukan.
 - Fokus langsung pada inti pertanyaan.
 - Jelaskan penyebab masalah jika relevan.
@@ -54,10 +71,17 @@ export async function askDebugger(
 ) {
   const cleanPrompt = prompt.trim();
 
+  if (!cleanPrompt) {
+    return "";
+  }
+
+  const languageInstruction =
+    getLanguageInstruction(locale);
+
   const result = await ai.models.generateContent({
     model: "gemini-3.6-flash",
     contents: [
-      getLanguageInstruction(locale),
+      languageInstruction,
       SYSTEM_PROMPT,
       `User:\n${cleanPrompt}`,
     ].join("\n\n"),
@@ -70,6 +94,12 @@ export async function generateDebuggerSpeech(
   text: string,
   locale: Locale = "id"
 ) {
+  const cleanText = text.trim();
+
+  if (!cleanText) {
+    return "";
+  }
+
   const language =
     locale === "en"
       ? "English"
@@ -78,13 +108,29 @@ export async function generateDebuggerSpeech(
   const response = await ai.models.generateContent({
     model: "gemini-3.1-flash-tts-preview",
     contents: [
-      `Speak the following answer naturally in ${language}.
-Do not translate it.
-Do not add or remove information.
-Use a clear, natural conversational voice.
+      {
+        role: "user",
+        parts: [
+          {
+            text: `
+Read the following AI answer aloud naturally.
+
+The answer is written in ${language}.
+
+IMPORTANT:
+- Speak in ${language}.
+- Do not translate the answer.
+- Do not add any information.
+- Do not remove any information.
+- Do not explain anything.
+- Only speak the provided answer.
 
 Answer:
-${text}`,
+${cleanText}
+            `.trim(),
+          },
+        ],
+      },
     ],
     config: {
       responseModalities: ["AUDIO"],
@@ -98,14 +144,26 @@ ${text}`,
     },
   });
 
+  const parts =
+    response.candidates?.[0]?.content?.parts ?? [];
+
+  const audioPart = parts.find(
+    (part) => part.inlineData?.data
+  );
+
   const audioData =
-    response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    audioPart?.inlineData?.data;
 
   if (!audioData) {
-    throw new Error("AI speech audio tidak tersedia");
+    throw new Error(
+      "AI speech audio tidak tersedia."
+    );
   }
 
-  const pcm = Buffer.from(audioData, "base64");
+  const pcm = Buffer.from(
+    audioData,
+    "base64"
+  );
 
   const wavHeader = createWavHeader(
     pcm.length,
@@ -119,7 +177,9 @@ ${text}`,
     pcm,
   ]);
 
-  return `data:audio/wav;base64,${wav.toString("base64")}`;
+  return `data:audio/wav;base64,${wav.toString(
+    "base64"
+  )}`;
 }
 
 function createWavHeader(
@@ -140,6 +200,7 @@ function createWavHeader(
     (bitsPerSample / 8);
 
   header.write("RIFF", 0);
+
   header.writeUInt32LE(
     36 + dataLength,
     4
@@ -148,8 +209,17 @@ function createWavHeader(
   header.write("WAVE", 8);
 
   header.write("fmt ", 12);
-  header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20);
+
+  header.writeUInt32LE(
+    16,
+    16
+  );
+
+  header.writeUInt16LE(
+    1,
+    20
+  );
+
   header.writeUInt16LE(
     channels,
     22

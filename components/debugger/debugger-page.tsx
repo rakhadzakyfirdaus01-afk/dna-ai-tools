@@ -24,9 +24,11 @@ export default function DebuggerPage() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [audioUrl, setAudioUrl] = useState("");
 
   const recognitionRef = useRef<any>(null);
   const voiceQuestionRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   /*
    * Chrome/Windows dapat menjaga SpeechSynthesis dalam keadaan
@@ -366,16 +368,73 @@ export default function DebuggerPage() {
     }, 700);
   }
 
-  function stopSpeaking() {
-    if (
-      typeof window === "undefined"
-    ) {
+  function playAiAudio(audio: string) {
+    if (typeof window === "undefined" || !audio) {
       return;
     }
 
-    if (
-      "speechSynthesis" in window
-    ) {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
+      window.speechSynthesis?.cancel();
+
+      const player = new Audio(audio);
+      audioRef.current = player;
+      setAudioUrl(audio);
+
+      player.volume = 1;
+
+      player.onplay = () => {
+        setIsSpeaking(true);
+      };
+
+      player.onended = () => {
+        setIsSpeaking(false);
+        audioRef.current = null;
+      };
+
+      player.onerror = (event) => {
+        console.error("DNA AI AUDIO ERROR:", event);
+        setIsSpeaking(false);
+        audioRef.current = null;
+
+        toast.error(
+          locale === "id"
+            ? "Suara AI gagal diputar."
+            : "Failed to play AI voice."
+        );
+      };
+
+      player.play().catch((error) => {
+        console.error("DNA AI AUDIO PLAY ERROR:", error);
+        setIsSpeaking(false);
+        audioRef.current = null;
+
+        // Fallback ke Text-to-Speech browser.
+        speakResult(result);
+      });
+    } catch (error) {
+      console.error("DNA AI AUDIO EXCEPTION:", error);
+      setIsSpeaking(false);
+      speakResult(result);
+    }
+  }
+
+  function stopSpeaking() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+
+    if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
 
@@ -644,14 +703,17 @@ export default function DebuggerPage() {
 
       if (fromVoice) {
         /*
-         * Recognition sudah dihentikan di onresult.
-         * Delay kecil memberi Chrome waktu melepas audio
-         * session microphone sebelum TTS dimulai.
+         * Gunakan audio TTS dari server jika tersedia.
+         * Jika browser menolak pemutaran audio setelah
+         * proses async, playAiAudio() otomatis memakai
+         * speechSynthesis sebagai fallback.
          */
         setTimeout(() => {
-          speakResult(
-            data.result
-          );
+          if (typeof data.audio === "string" && data.audio) {
+            playAiAudio(data.audio);
+          } else {
+            speakResult(data.result);
+          }
         }, 150);
       }
 
@@ -687,6 +749,7 @@ export default function DebuggerPage() {
     setIsListening(false);
     setPrompt("");
     setResult("");
+    setAudioUrl("");
 
     toast.success(
       locale === "id"
@@ -1007,9 +1070,9 @@ export default function DebuggerPage() {
                   onClick={() =>
                     isSpeaking
                       ? stopSpeaking()
-                      : speakResult(
-                          result
-                        )
+                      : audioUrl
+                        ? playAiAudio(audioUrl)
+                        : speakResult(result)
                   }
                   title={
                     isSpeaking

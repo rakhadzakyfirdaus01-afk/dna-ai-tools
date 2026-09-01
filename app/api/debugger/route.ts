@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/auth";
 import prisma from "@/lib/prisma";
-import { askDebugger } from "@/lib/gemini-debugger";
+import {
+  askDebugger,
+  generateDebuggerSpeech,
+} from "@/lib/gemini-debugger";
 import type { Locale } from "@/components/shared/language-provider";
 
 export async function POST(req: Request) {
@@ -34,7 +37,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await askDebugger(code, locale);
+    const result = await askDebugger(
+      code,
+      locale
+    );
+
+    const audio =
+      await generateDebuggerSpeech(
+        result,
+        locale
+      );
 
     await prisma.history.create({
       data: {
@@ -49,9 +61,13 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       result,
+      audio,
     });
   } catch (error) {
-    console.error("DEBUGGER ERROR:", error);
+    console.error(
+      "DEBUGGER ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {

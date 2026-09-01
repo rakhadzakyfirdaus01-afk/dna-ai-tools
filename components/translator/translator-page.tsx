@@ -318,385 +318,323 @@ export default function TranslatorPage() {
   function speakTranslation(text: string) {
     if (
       typeof window === "undefined" ||
-      !("speechSynthesis" in window)
+      !("speechSynthesis" in window) ||
+      typeof SpeechSynthesisUtterance === "undefined"
     ) {
       toast.error(
         locale === "id"
-          ? "Text-to-Speech tidak didukung browser ini."
-          : "Text-to-Speech is not supported by this browser."
+          ? "Text-to-Speech tidak didukung browser ini. Gunakan Google Chrome."
+          : "Text-to-Speech is not supported by this browser. Use Google Chrome."
       );
-
       return;
     }
 
-    window.speechSynthesis.cancel();
+    const synth = window.speechSynthesis;
 
-    const languageMap: Record<string, string> = {
-      Abkhaz: "ab",
-      Aceh: "ace",
-      Acoli: "ach",
-      Afar: "aa",
-      Afrikaans: "af",
-      Akan: "ak",
-      Albania: "sq",
-      Alur: "alr",
-      Amharik: "am",
-      Arab: "ar",
-      Armenia: "hy",
-      Assam: "as",
-      Avar: "av",
-      Awadhi: "awa",
-      Aymara: "ay",
-      Azerbaijani: "az",
-      Bali: "ban",
-      Baluchi: "bal",
-      Bambara: "bm",
-      Baoulé: "ba",
-      Bashkir: "ba",
-      Basque: "eu",
-      "Batak Karo": "btx",
-      "Batak Simalungun": "bts",
-      "Batak Toba": "bbc",
-      Belanda: "nl",
-      Belarusia: "be",
-      Bemba: "bem",
-      Bengali: "bn",
-      Betawi: "bew",
-      Bhojpuri: "bho",
-      Bikol: "bik",
-      Bosnia: "bs",
-      Breton: "br",
-      Bulgaria: "bg",
-      Buriat: "bua",
-      Burma: "my",
-      Cebuano: "ceb",
-      Ceko: "cs",
-      Chamorro: "ch",
-      Chechen: "ce",
-      "China (Aks. Sederhana)": "zh-CN",
-      "China (Aks. Tradisional)": "zh-TW",
-      Chuuke: "chk",
-      Chuvash: "cv",
-      Dansk: "da",
-      Dari: "fa-AF",
-      Dinka: "din",
-      Divehi: "dv",
-      Dogri: "doi",
-      Dombe: "dov",
-      Dyula: "dyu",
-      Dzongkha: "dz",
-      Esperanto: "eo",
-      Estonia: "et",
-      Ewe: "ee",
-      Faroe: "fo",
-      Fiji: "fj",
-      Fon: "fon",
-      "Frisia Barat": "fy",
-      Friuli: "fur",
-      Fulani: "ff",
-      Ga: "gaa",
-      "Gaelik Skotlandia": "gd",
-      Galisia: "gl",
-      Ganda: "lg",
-      Georgia: "ka",
-      Guarani: "gn",
-      Gujarat: "gu",
-      "Hakha Chin": "cnh",
-      Hausa: "ha",
-      Hawaii: "haw",
-      Hiligaynon: "hil",
-      Hindi: "hi",
-      Hmong: "hmn",
-      Hungaria: "hu",
-      Hunsrik: "hrx",
-      Iban: "iba",
-      Ibrani: "he",
-      Igbo: "ig",
-      Iloko: "ilo",
-      Indonesia: "id-ID",
-      Inggris: "en-US",
-      Irlandia: "ga",
-      Islandia: "is",
-      Italia: "it",
-      "Jamaika Patois": "jam",
-      Jawa: "jv",
-      Jepang: "ja-JP",
-      Jerman: "de-DE",
-      Jingpo: "kac",
-      Kalaallisut: "kl",
-      Kannada: "kn",
-      Kanton: "yue",
-      Kanuri: "kr",
-      Katalan: "ca",
-      Kazakh: "kk",
-      Khasi: "kha",
-      Khmer: "km",
-      Kiga: "cgg",
-      Kinyarwanda: "rw",
-      Kirgiz: "ky",
-      Kituba: "ktu",
-      "Kok Borok": "trp",
-      Komi: "kv",
-      Kongo: "kg",
-      Konkani: "kok",
-      Korea: "ko-KR",
-      Korsika: "co",
-      "Kreol Haiti": "ht",
-      Krio: "kri",
-      Kroasia: "hr",
-      Kurdi: "ku",
-      "Kurdi Sorani": "ckb",
-      Lao: "lo",
-      Latgalian: "ltg",
-      Latin: "la",
-      Latvia: "lv",
-      Liguria: "lij",
-      Limburgia: "li",
-      Lingala: "ln",
-      Lituania: "lt",
-      Lombard: "lmo",
-      Luksemburg: "lb",
-      Luo: "luo",
-      Madura: "mad",
-      Maithili: "mai",
-      Makasar: "mak",
-      Makedonia: "mk",
-      Malagasi: "mg",
-      Malayalam: "ml",
-      Malta: "mt",
-      Mam: "mam",
-      "Manipuri (Meitei Mayek)": "mni",
-      Manx: "gv",
-      Maori: "mi",
-      Marathi: "mr",
-      Marshall: "mh",
-      Marwari: "mwr",
-      "Maya Yukatek": "yua",
-      "Meadow Mari": "chm",
-      Melayu: "ms-MY",
-      "Melayu (Arab)": "ms",
-      Minangkabau: "min",
-      Mizo: "lus",
-      Mongolia: "mn",
-      Morisien: "mfe",
-      "Nahuatl (Huasteca Timur)": "nhe",
-      Ndau: "ndc",
-      "Ndebele Selatan": "nr",
-      "Nepal Bhasa (Newari)": "new",
-      Nepali: "ne",
-      NKo: "nqo",
-      Norwegia: "no",
-      Nuer: "nus",
-      Nyanja: "ny",
-      Oriya: "or",
-      Oromo: "om",
-      Ositania: "oc",
-      Ossetia: "os",
-      Pampanga: "pam",
-      Pangasina: "pag",
-      Papiamento: "pap",
-      Pashto: "ps",
-      Persia: "fa",
-      Polski: "pl",
-      Portugis: "pt-BR",
-      "Portugis (Portugal)": "pt-PT",
-      Prancis: "fr-FR",
-      Punjabi: "pa",
-      "Punjabi (Arab)": "pa-Arab",
-      "Q'eqchi'": "kek",
-      Quechua: "qu",
-      Romani: "rom",
-      Rumania: "ro",
-      Rundi: "rn",
-      Rusia: "ru-RU",
-      Sakha: "sah",
-      "Sami Utara": "se",
-      Samoa: "sm",
-      Sango: "sg",
-      Sanskerta: "sa",
-      "Santali (Latin)": "sat",
-      Serbia: "sr",
-      "Seselwa Kreol Prancis": "crs",
-      Shan: "shn",
-      Shona: "sn",
-      Silesia: "szl",
-      Sindhi: "sd",
-      Sinhala: "si",
-      Sisilia: "scn",
-      Slovak: "sk",
-      Slovenia: "sl",
-      Somalia: "so",
-      "Sotho Selatan": "st",
-      "Sotho Utara": "nso",
-      Spanyol: "es-ES",
-      Sunda: "su",
-      Suomi: "fi",
-      Susu: "sus",
-      Swahili: "sw",
-      Swati: "ss",
-      Swedia: "sv",
-      Tagalog: "tl",
-      Tahiti: "ty",
-      Tajik: "tg",
-      Tamazight: "ber",
-      "Tamazight (Tifinagh)": "ber",
-      Tamil: "ta",
-      Tatar: "tt",
-      "Tatar Krimea": "crh",
-      Telugu: "te",
-      Tetun: "tet",
-      Thai: "th",
-      Tibet: "bo",
-      Tigrinya: "ti",
-      Tiv: "tiv",
-      "Tok Pisin": "tpi",
-      Tonga: "to",
-      Tsonga: "ts",
-      Tswana: "tn",
-      Tulu: "tcy",
-      Tumbuka: "tum",
-      Turki: "tr-TR",
-      Turkmen: "tk",
-      Tuvinia: "tyv",
-      Udmurt: "udm",
-      Ukraina: "uk-UA",
-      Urdu: "ur",
-      Uyghur: "ug",
-      Uzbek: "uz",
-      Venda: "ve",
-      Venesia: "vec",
-      Vietnam: "vi-VN",
-      Warai: "war",
-      Welsh: "cy",
-      Wolof: "wo",
-      Xhosa: "xh",
-      Yiddish: "yi",
-      Yoruba: "yo",
-      Yunani: "el",
-      Zapotek: "zap",
-      Zulu: "zu",
-    };
+    /*
+     * Chrome kadang mengembalikan daftar voice kosong
+     * pada pemanggilan pertama. Tunggu sebentar agar
+     * voice yang tersedia benar-benar dimuat.
+     */
+    const speakNow = () => {
+      synth.cancel();
 
-    const speechLanguage =
-      languageMap[language] ?? "en-US";
+      if (synth.paused) {
+        synth.resume();
+      }
 
-    const cleanText = text
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/[*#`_~]/g, "")
-      .replace(/\n+/g, ". ")
-      .replace(/:/g, "... ")
-      .replace(/;/g, "... ")
-      .replace(/\?/g, "? ")
-      .replace(/!/g, "! ")
-      .replace(/,/g, ", ")
-      .trim();
+      const languageMap: Record<string, string> = {
+        Indonesia: "id-ID",
+        Inggris: "en-US",
+        Jepang: "ja-JP",
+        Korea: "ko-KR",
+        Arab: "ar-SA",
+        Hindi: "hi-IN",
+        Jerman: "de-DE",
+        Prancis: "fr-FR",
+        Spanyol: "es-ES",
+        Portugis: "pt-BR",
+        "Portugis (Portugal)": "pt-PT",
+        Italia: "it-IT",
+        Belanda: "nl-NL",
+        Rusia: "ru-RU",
+        Turki: "tr-TR",
+        Thai: "th-TH",
+        Vietnam: "vi-VN",
+        Polandia: "pl-PL",
+        Ukraina: "uk-UA",
+        Swedia: "sv-SE",
+        Dansk: "da-DK",
+        Norwegia: "no-NO",
+        Finlandia: "fi-FI",
+        Yunani: "el-GR",
+        Ibrani: "he-IL",
+        Rumania: "ro-RO",
+        Hungaria: "hu-HU",
+        Ceko: "cs-CZ",
+        Slovak: "sk-SK",
+        Bulgaria: "bg-BG",
+        Serbia: "sr-RS",
+        Kroasia: "hr-HR",
+        Slovenia: "sl-SI",
+        Melayu: "ms-MY",
+        Filipina: "fil-PH",
+        Swahili: "sw-TZ",
+        Bali: "ban-ID",
+        Jawa: "jv-ID",
+        Sunda: "su-ID",
+        Madura: "mad-ID",
+        Minangkabau: "min-ID",
+        Aceh: "ace-ID",
+        Batak: "bbc-ID",
+      };
 
-    const utterance =
-      new SpeechSynthesisUtterance(
-        cleanText
+      /*
+       * Jika bahasa target tidak punya voice native di OS,
+       * gunakan kode bahasa paling dekat. Browser tetap
+       * memakai voice default yang tersedia.
+       */
+      const speechLanguage =
+        languageMap[language] ??
+        SPEECH_LANGUAGES.find(
+          (item) =>
+            item.label === language
+        )?.value ??
+        "en-US";
+
+      const cleanText = text
+        .replace(
+          /```[\s\S]*?```/g,
+          " "
+        )
+        .replace(
+          /[*#`_~]/g,
+          ""
+        )
+        .replace(
+          /\n+/g,
+          ". "
+        )
+        .replace(
+          /:/g,
+          "... "
+        )
+        .replace(
+          /;/g,
+          "... "
+        )
+        .replace(
+          /\?/g,
+          "? "
+        )
+        .replace(
+          /!/g,
+          "! "
+        )
+        .replace(
+          /,/g,
+          ", "
+        )
+        .trim();
+
+      if (!cleanText) {
+        return;
+      }
+
+      const voices =
+        synth.getVoices();
+
+      const languagePrefix =
+        speechLanguage
+          .toLowerCase()
+          .split("-")[0];
+
+      const matchingVoices =
+        voices.filter(
+          (voice) =>
+            voice.lang
+              .toLowerCase()
+              .startsWith(
+                languagePrefix
+              )
+        );
+
+      const preferredKeywords = [
+        "natural",
+        "neural",
+        "enhanced",
+        "premium",
+        "google",
+        "microsoft",
+      ];
+
+      const preferredVoice =
+        matchingVoices.find(
+          (voice) =>
+            preferredKeywords.some(
+              (keyword) =>
+                voice.name
+                  .toLowerCase()
+                  .includes(
+                    keyword
+                  )
+            )
+        );
+
+      const selectedVoice =
+        preferredVoice ??
+        matchingVoices.find(
+          (voice) =>
+            voice.localService
+        ) ??
+        matchingVoices[0];
+
+      /*
+       * Chrome dapat berhenti sendiri ketika satu utterance
+       * terlalu panjang. Pecah menjadi beberapa bagian aman.
+       */
+      const chunks =
+        cleanText.match(
+          /.{1,220}(?:\s|$)/g
+        ) ?? [cleanText];
+
+      let chunkIndex = 0;
+
+      const speakChunk = () => {
+        if (
+          chunkIndex >=
+          chunks.length
+        ) {
+          setTimeout(() => {
+            setIsSpeaking(false);
+          }, 150);
+          return;
+        }
+
+        const utterance =
+          new SpeechSynthesisUtterance(
+            chunks[
+              chunkIndex
+            ].trim()
+          );
+
+        utterance.lang =
+          speechLanguage;
+
+        if (selectedVoice) {
+          utterance.voice =
+            selectedVoice;
+        }
+
+        utterance.volume = 1;
+        utterance.rate =
+          0.94;
+        utterance.pitch =
+          0.98;
+
+        utterance.onstart = () => {
+          setIsSpeaking(true);
+        };
+
+        utterance.onend = () => {
+          chunkIndex += 1;
+
+          setTimeout(
+            speakChunk,
+            30
+          );
+        };
+
+        utterance.onerror = (
+          event
+        ) => {
+          console.error(
+            "TTS ERROR:",
+            event
+          );
+
+          /*
+           * Jangan langsung menganggap selesai jika Chrome
+           * sedang paused. Coba lanjutkan sekali.
+           */
+          if (
+            synth.paused
+          ) {
+            synth.resume();
+            setTimeout(
+              speakChunk,
+              80
+            );
+            return;
+          }
+
+          setIsSpeaking(false);
+        };
+
+        synth.speak(
+          utterance
+        );
+      };
+
+      /*
+       * Beri browser satu event loop untuk menyelesaikan
+       * cancel/resume sebelum speak().
+       */
+      setTimeout(
+        speakChunk,
+        60
       );
-
-    utterance.lang =
-      speechLanguage;
+    };
 
     const voices =
-      window.speechSynthesis.getVoices();
+      synth.getVoices();
 
-    const languagePrefix =
-      speechLanguage
-        .toLowerCase()
-        .split("-")[0];
-
-    const preferredKeywords = [
-      "natural",
-      "neural",
-      "enhanced",
-      "premium",
-      "google",
-      "microsoft",
-    ];
-
-    const matchingVoices =
-      voices.filter((voice) =>
-        voice.lang
-          .toLowerCase()
-          .startsWith(
-            languagePrefix
-          )
-      );
-
-    const preferredVoice =
-      matchingVoices.find((voice) =>
-        preferredKeywords.some(
-          (keyword) =>
-            voice.name
-              .toLowerCase()
-              .includes(keyword)
-        )
-      );
-
-    const localVoice =
-      matchingVoices.find(
-        (voice) =>
-          voice.localService
-      );
-
-    const selectedVoice =
-      preferredVoice ??
-      localVoice ??
-      matchingVoices[0];
-
-    if (selectedVoice) {
-      utterance.voice =
-        selectedVoice;
+    if (voices.length > 0) {
+      speakNow();
+      return;
     }
 
-    const slowLanguages = [
-      "ja",
-      "ko",
-      "zh",
-      "ar",
-      "ru",
-      "th",
-    ];
+    let finished = false;
 
-    const isSlowLanguage =
-      slowLanguages.includes(
-        languagePrefix
+    const onVoicesChanged =
+      () => {
+        if (finished) {
+          return;
+        }
+
+        finished = true;
+        synth.removeEventListener(
+          "voiceschanged",
+          onVoicesChanged
+        );
+
+        speakNow();
+      };
+
+    synth.addEventListener(
+      "voiceschanged",
+      onVoicesChanged
+    );
+
+    /*
+     * Jangan menunggu voiceschanged selamanya.
+     */
+    setTimeout(() => {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+
+      synth.removeEventListener(
+        "voiceschanged",
+        onVoicesChanged
       );
 
-    utterance.rate =
-      isSlowLanguage
-        ? 0.92
-        : 0.95;
-
-    utterance.pitch =
-      languagePrefix === "ja"
-        ? 1.0
-        : languagePrefix === "ko"
-          ? 1.0
-          : 0.98;
-
-    utterance.volume = 1;
-
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-    };
-
-    utterance.onend = () => {
-      setTimeout(() => {
-        setIsSpeaking(false);
-      }, 150);
-    };
-
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-    };
-
-    window.speechSynthesis.speak(
-      utterance
-    );
+      speakNow();
+    }, 500);
   }
+
 
   function startVoice() {
     if (
@@ -1050,7 +988,7 @@ export default function TranslatorPage() {
                 startVoice
               }
               disabled={
-                isListening
+                loading
               }
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-500 px-5 py-3 font-medium text-white transition hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >

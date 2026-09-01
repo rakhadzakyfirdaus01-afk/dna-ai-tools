@@ -28,126 +28,342 @@ export default function DebuggerPage() {
   const recognitionRef = useRef<any>(null);
   const voiceQuestionRef = useRef(false);
 
-  function speakResult(text: string) {
+  /*
+   * Chrome/Windows dapat menjaga SpeechSynthesis dalam keadaan
+   * belum aktif sampai ada interaksi user. Kita "unlock" engine
+   * tepat saat tombol Bicara ditekan.
+   */
+  function unlockSpeechSynthesis() {
     if (
       typeof window === "undefined" ||
-      !("speechSynthesis" in window)
+      !("speechSynthesis" in window) ||
+      typeof SpeechSynthesisUtterance === "undefined"
     ) {
-      toast.error(
-        locale === "id"
-          ? "Text-to-Speech tidak didukung browser ini."
-          : "Text-to-Speech is not supported by this browser."
-      );
-
       return;
     }
 
-    window.speechSynthesis.cancel();
+    const synth = window.speechSynthesis;
+
+    try {
+      synth.cancel();
+      synth.resume();
+
+      const unlockUtterance =
+        new SpeechSynthesisUtterance(".");
+
+      unlockUtterance.volume = 0;
+      unlockUtterance.rate = 10;
+      unlockUtterance.lang =
+        locale === "id"
+          ? "id-ID"
+          : "en-US";
+
+      synth.speak(
+        unlockUtterance
+      );
+    } catch (error) {
+      console.warn(
+        "DNA AI TTS unlock gagal:",
+        error
+      );
+    }
+  }
+
+  function speakResult(text: string) {
+    if (
+      typeof window === "undefined" ||
+      !("speechSynthesis" in window) ||
+      typeof SpeechSynthesisUtterance === "undefined"
+    ) {
+      toast.error(
+        locale === "id"
+          ? "Text-to-Speech tidak tersedia di browser ini."
+          : "Text-to-Speech is not available in this browser."
+      );
+      return;
+    }
+
+    const synth =
+      window.speechSynthesis;
 
     const cleanText = text
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/[*#`_~]/g, "")
-      .replace(/\n+/g, ". ")
-      .replace(/:/g, "... ")
-      .replace(/;/g, "... ")
-      .replace(/\?/g, "? ")
-      .replace(/!/g, "! ")
-      .replace(/,/g, ", ");
+      .replace(
+        /```[\s\S]*?```/g,
+        " "
+      )
+      .replace(
+        /[*#`_~]/g,
+        ""
+      )
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
 
-    const utterance =
-      new SpeechSynthesisUtterance(
-        cleanText
-      );
+    if (!cleanText) {
+      return;
+    }
 
-    utterance.lang =
+    const language =
       locale === "id"
         ? "id-ID"
         : "en-US";
 
-    const voices =
-      window.speechSynthesis.getVoices();
+    const startSpeaking = () => {
+      try {
+        synth.cancel();
+        synth.resume();
 
-    const languagePrefix =
-      locale === "id"
-        ? "id"
-        : "en";
+        const voices =
+          synth.getVoices();
 
-    const preferredVoiceNames =
-      locale === "id"
-        ? [
-            "Google Bahasa Indonesia",
-            "Google Indonesian",
-            "Microsoft Gadis",
-            "Microsoft Indonesian",
-          ]
-        : [
-            "Google US English",
-            "Google UK English Female",
-            "Google English",
-            "Microsoft Zira",
-            "Microsoft Aria",
-          ];
-
-    const selectedVoice =
-      voices.find(
-        (voice) =>
-          voice.lang
+        const prefix =
+          language
             .toLowerCase()
-            .startsWith(
-              languagePrefix
-            ) &&
-          preferredVoiceNames.some(
-            (name) =>
-              voice.name
+            .split("-")[0];
+
+        /*
+         * Voice bahasa target adalah pilihan pertama.
+         * Jika tidak ada, jangan memaksa voice tertentu:
+         * SpeechSynthesis akan memakai voice default browser.
+         */
+        const matchingVoice =
+          voices.find(
+            (voice) =>
+              voice.lang
                 .toLowerCase()
-                .includes(
-                  name.toLowerCase()
-                )
-          )
-      ) ??
-      voices.find(
-        (voice) =>
-          voice.lang
-            .toLowerCase()
-            .startsWith(
-              languagePrefix
-            )
-      );
+                .startsWith(prefix)
+          ) ??
+          voices.find(
+            (voice) =>
+              voice.default
+          ) ??
+          voices[0];
 
-    if (selectedVoice) {
-      utterance.voice =
-        selectedVoice;
+        /*
+         * Pecah teks panjang. Chrome lebih stabil jika
+         * setiap utterance tidak terlalu panjang.
+         */
+        const chunks =
+          cleanText.match(
+            /[^.!?]+[.!?]+|[^.!?]+$/g
+          ) ?? [cleanText];
+
+        let index = 0;
+
+        const speakNext = () => {
+          if (
+            index >=
+            chunks.length
+          ) {
+            setIsSpeaking(false);
+            return;
+          }
+
+          const part =
+            chunks[index]
+              .trim();
+
+          if (!part) {
+            index += 1;
+            speakNext();
+            return;
+          }
+
+          const utterance =
+            new SpeechSynthesisUtterance(
+              part
+            );
+
+          utterance.lang =
+            matchingVoice?.lang ??
+            language;
+
+          if (matchingVoice) {
+            utterance.voice =
+              matchingVoice;
+          }
+
+          utterance.volume = 1;
+          utterance.rate =
+            locale === "id"
+              ? 0.95
+              : 0.98;
+          utterance.pitch = 1;
+
+          utterance.onstart = () => {
+            setIsSpeaking(true);
+
+            console.log(
+              "DNA AI: TTS mulai berbicara",
+              {
+                language:
+                  utterance.lang,
+                voice:
+                  utterance.voice?.name ??
+                  "browser-default",
+              }
+            );
+          };
+
+          utterance.onend = () => {
+            index += 1;
+
+            setTimeout(
+              speakNext,
+              40
+            );
+          };
+
+          utterance.onerror = (
+            event
+          ) => {
+            console.error(
+              "DNA AI TTS ERROR:",
+              event.error,
+              event
+            );
+
+            setIsSpeaking(false);
+
+            /*
+             * Coba sekali lagi tanpa memaksa voice tertentu.
+             * Ini menangani kasus voice Windows tertentu
+             * gagal walaupun SpeechSynthesis tersedia.
+             */
+            if (
+              index === 0 &&
+              utterance.voice
+            ) {
+              index = 0;
+
+              const retry =
+                new SpeechSynthesisUtterance(
+                  part
+                );
+
+              retry.lang =
+                language;
+              retry.volume = 1;
+              retry.rate =
+                locale === "id"
+                  ? 0.95
+                  : 0.98;
+              retry.pitch = 1;
+
+              retry.onstart = () => {
+                setIsSpeaking(
+                  true
+                );
+              };
+
+              retry.onend = () => {
+                index += 1;
+                setTimeout(
+                  speakNext,
+                  40
+                );
+              };
+
+              retry.onerror = (
+                retryEvent
+              ) => {
+                console.error(
+                  "DNA AI TTS RETRY ERROR:",
+                  retryEvent
+                );
+                setIsSpeaking(
+                  false
+                );
+              };
+
+              synth.cancel();
+              synth.resume();
+
+              setTimeout(
+                () =>
+                  synth.speak(
+                    retry
+                  ),
+                100
+              );
+
+              return;
+            }
+          };
+
+          setTimeout(
+            () => {
+              synth.resume();
+              synth.speak(
+                utterance
+              );
+            },
+            100
+          );
+        };
+
+        speakNext();
+      } catch (error) {
+        console.error(
+          "DNA AI TTS EXCEPTION:",
+          error
+        );
+        setIsSpeaking(false);
+      }
+    };
+
+    /*
+     * Chrome kadang baru mengisi daftar voice setelah
+     * event voiceschanged. Kalau sudah tersedia, langsung
+     * bicara; kalau belum, tunggu sebentar.
+     */
+    if (
+      synth.getVoices()
+        .length > 0
+    ) {
+      startSpeaking();
+      return;
     }
 
-    utterance.volume = 1;
+    let done = false;
 
-    utterance.rate =
-      locale === "id"
-        ? 0.92
-        : 0.94;
+    const onVoicesChanged =
+      () => {
+        if (done) {
+          return;
+        }
 
-    utterance.pitch =
-      locale === "id"
-        ? 1.0
-        : 0.98;
+        done = true;
 
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-    };
+        synth.removeEventListener(
+          "voiceschanged",
+          onVoicesChanged
+        );
 
-    utterance.onend = () => {
-  setTimeout(() => {
-    setIsSpeaking(false);
-  }, 150);
-};
+        startSpeaking();
+      };
 
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-    };
-
-    window.speechSynthesis.speak(
-      utterance
+    synth.addEventListener(
+      "voiceschanged",
+      onVoicesChanged
     );
+
+    setTimeout(() => {
+      if (done) {
+        return;
+      }
+
+      done = true;
+
+      synth.removeEventListener(
+        "voiceschanged",
+        onVoicesChanged
+      );
+
+      startSpeaking();
+    }, 700);
   }
 
   function stopSpeaking() {
@@ -174,6 +390,13 @@ export default function DebuggerPage() {
     }
 
     setVoiceMode(true);
+
+    /*
+     * Aktifkan SpeechSynthesis dalam konteks user gesture.
+     * Ini penting untuk Chrome yang dapat menolak output
+     * speech setelah proses async/fetch selesai.
+     */
+    unlockSpeechSynthesis();
 
     if (isSpeaking) {
       stopSpeaking();
@@ -235,6 +458,29 @@ export default function DebuggerPage() {
       }
 
       setPrompt(transcript);
+
+      /*
+       * Sangat penting: hentikan microphone sebelum request AI.
+       * Jika recognition masih aktif ketika speechSynthesis.speak()
+       * dipanggil, Chrome/Windows dapat tidak mengeluarkan suara.
+       */
+      try {
+        recognition.stop();
+      } catch {}
+
+      setIsListening(false);
+
+      /*
+       * Beri waktu event onend recognition selesai sebelum
+       * AI mulai memproses dan nanti mengeluarkan suara.
+       */
+      await new Promise(
+        (resolve) =>
+          setTimeout(
+            resolve,
+            250
+          )
+      );
 
       await analyze(
         transcript,
@@ -397,9 +643,16 @@ export default function DebuggerPage() {
       });
 
       if (fromVoice) {
-        speakResult(
-          data.result
-        );
+        /*
+         * Recognition sudah dihentikan di onresult.
+         * Delay kecil memberi Chrome waktu melepas audio
+         * session microphone sebelum TTS dimulai.
+         */
+        setTimeout(() => {
+          speakResult(
+            data.result
+          );
+        }, 150);
       }
 
       toast.success(

@@ -37,16 +37,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await askDebugger(
-      code,
+    const result = await askDebugger(code, locale);
+
+    const audio = await generateDebuggerSpeech(
+      result,
       locale
     );
-
-    const audio =
-      await generateDebuggerSpeech(
-        result,
-        locale
-      );
 
     await prisma.history.create({
       data: {
@@ -64,10 +60,7 @@ export async function POST(req: Request) {
       audio,
     });
   } catch (error) {
-    console.error(
-      "DEBUGGER ERROR:",
-      error
-    );
+    console.error("DEBUGGER ERROR:", error);
 
     return NextResponse.json(
       {

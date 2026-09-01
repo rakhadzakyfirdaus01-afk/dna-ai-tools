@@ -24,11 +24,10 @@ export default function DebuggerPage() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
-  const [audioUrl, setAudioUrl] = useState("");
+  const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
 
   const recognitionRef = useRef<any>(null);
   const voiceQuestionRef = useRef(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   /*
    * Chrome/Windows dapat menjaga SpeechSynthesis dalam keadaan
@@ -368,73 +367,54 @@ export default function DebuggerPage() {
     }, 700);
   }
 
-  function playAiAudio(audio: string) {
-    if (typeof window === "undefined" || !audio) {
-      return;
+  function playServerAudio(audioData: string) {
+    if (typeof window === "undefined" || !audioData) return;
+
+    if (audioPlayer) {
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
     }
 
     try {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-
-      window.speechSynthesis?.cancel();
-
-      const player = new Audio(audio);
-      audioRef.current = player;
-      setAudioUrl(audio);
-
+      const player = new Audio(audioData);
       player.volume = 1;
-
-      player.onplay = () => {
-        setIsSpeaking(true);
-      };
-
-      player.onended = () => {
-        setIsSpeaking(false);
-        audioRef.current = null;
-      };
-
+      player.onplay = () => setIsSpeaking(true);
+      player.onended = () => { setIsSpeaking(false); setAudioPlayer(null); };
       player.onerror = (event) => {
         console.error("DNA AI AUDIO ERROR:", event);
         setIsSpeaking(false);
-        audioRef.current = null;
-
-        toast.error(
-          locale === "id"
-            ? "Suara AI gagal diputar."
-            : "Failed to play AI voice."
-        );
+        setAudioPlayer(null);
+        speakResult(result);
       };
-
+      setAudioPlayer(player);
       player.play().catch((error) => {
         console.error("DNA AI AUDIO PLAY ERROR:", error);
+        setAudioPlayer(null);
         setIsSpeaking(false);
-        audioRef.current = null;
-
-        // Fallback ke Text-to-Speech browser.
         speakResult(result);
       });
     } catch (error) {
       console.error("DNA AI AUDIO EXCEPTION:", error);
-      setIsSpeaking(false);
       speakResult(result);
     }
   }
 
   function stopSpeaking() {
-    if (typeof window === "undefined") {
+    if (
+      typeof window === "undefined"
+    ) {
       return;
     }
 
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
+    if (audioPlayer) {
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
+      setAudioPlayer(null);
     }
 
-    if ("speechSynthesis" in window) {
+    if (
+      "speechSynthesis" in window
+    ) {
       window.speechSynthesis.cancel();
     }
 
@@ -702,19 +682,15 @@ export default function DebuggerPage() {
       });
 
       if (fromVoice) {
-        /*
-         * Gunakan audio TTS dari server jika tersedia.
-         * Jika browser menolak pemutaran audio setelah
-         * proses async, playAiAudio() otomatis memakai
-         * speechSynthesis sebagai fallback.
-         */
-        setTimeout(() => {
-          if (typeof data.audio === "string" && data.audio) {
-            playAiAudio(data.audio);
-          } else {
+        if (data.audio) {
+          setTimeout(() => {
+            playServerAudio(data.audio);
+          }, 150);
+        } else {
+          setTimeout(() => {
             speakResult(data.result);
-          }
-        }, 150);
+          }, 150);
+        }
       }
 
       toast.success(
@@ -749,7 +725,6 @@ export default function DebuggerPage() {
     setIsListening(false);
     setPrompt("");
     setResult("");
-    setAudioUrl("");
 
     toast.success(
       locale === "id"
@@ -1070,9 +1045,9 @@ export default function DebuggerPage() {
                   onClick={() =>
                     isSpeaking
                       ? stopSpeaking()
-                      : audioUrl
-                        ? playAiAudio(audioUrl)
-                        : speakResult(result)
+                      : speakResult(
+                          result
+                        )
                   }
                   title={
                     isSpeaking

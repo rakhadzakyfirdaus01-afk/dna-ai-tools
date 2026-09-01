@@ -47,43 +47,99 @@ export default function DebuggerPage() {
     const cleanText = text
       .replace(/```[\s\S]*?```/g, " ")
       .replace(/[*#`_~]/g, "")
-      .replace(/\n+/g, ". ");
+      .replace(/\n+/g, ". ")
+      .replace(/:/g, "... ")
+      .replace(/;/g, "... ")
+      .replace(/\?/g, "? ")
+      .replace(/!/g, "! ")
+      .replace(/,/g, ", ");
 
-    const utterance = new SpeechSynthesisUtterance(
-      cleanText
-    );
+    const utterance =
+      new SpeechSynthesisUtterance(
+        cleanText
+      );
 
     utterance.lang =
-      locale === "id" ? "id-ID" : "en-US";
+      locale === "id"
+        ? "id-ID"
+        : "en-US";
 
     const voices =
       window.speechSynthesis.getVoices();
 
-    const selectedVoice = voices.find((voice) =>
+    const languagePrefix =
       locale === "id"
-        ? voice.lang
+        ? "id"
+        : "en";
+
+    const preferredVoiceNames =
+      locale === "id"
+        ? [
+            "Google Bahasa Indonesia",
+            "Google Indonesian",
+            "Microsoft Gadis",
+            "Microsoft Indonesian",
+          ]
+        : [
+            "Google US English",
+            "Google UK English Female",
+            "Google English",
+            "Microsoft Zira",
+            "Microsoft Aria",
+          ];
+
+    const selectedVoice =
+      voices.find(
+        (voice) =>
+          voice.lang
             .toLowerCase()
-            .startsWith("id")
-        : voice.lang
+            .startsWith(
+              languagePrefix
+            ) &&
+          preferredVoiceNames.some(
+            (name) =>
+              voice.name
+                .toLowerCase()
+                .includes(
+                  name.toLowerCase()
+                )
+          )
+      ) ??
+      voices.find(
+        (voice) =>
+          voice.lang
             .toLowerCase()
-            .startsWith("en")
-    );
+            .startsWith(
+              languagePrefix
+            )
+      );
 
     if (selectedVoice) {
-      utterance.voice = selectedVoice;
+      utterance.voice =
+        selectedVoice;
     }
 
-    utterance.rate = 1;
-    utterance.pitch = 1;
     utterance.volume = 1;
+
+    utterance.rate =
+      locale === "id"
+        ? 0.92
+        : 0.94;
+
+    utterance.pitch =
+      locale === "id"
+        ? 1.0
+        : 0.98;
 
     utterance.onstart = () => {
       setIsSpeaking(true);
     };
 
     utterance.onend = () => {
-      setIsSpeaking(false);
-    };
+  setTimeout(() => {
+    setIsSpeaking(false);
+  }, 150);
+};
 
     utterance.onerror = () => {
       setIsSpeaking(false);
@@ -95,9 +151,15 @@ export default function DebuggerPage() {
   }
 
   function stopSpeaking() {
-    if (typeof window === "undefined") return;
+    if (
+      typeof window === "undefined"
+    ) {
+      return;
+    }
 
-    if ("speechSynthesis" in window) {
+    if (
+      "speechSynthesis" in window
+    ) {
       window.speechSynthesis.cancel();
     }
 
@@ -105,7 +167,11 @@ export default function DebuggerPage() {
   }
 
   function startVoice() {
-    if (typeof window === "undefined") return;
+    if (
+      typeof window === "undefined"
+    ) {
+      return;
+    }
 
     setVoiceMode(true);
 
@@ -114,8 +180,10 @@ export default function DebuggerPage() {
     }
 
     const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      (window as any)
+        .SpeechRecognition ||
+      (window as any)
+        .webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       toast.error(
@@ -146,7 +214,8 @@ export default function DebuggerPage() {
 
     recognition.onstart = () => {
       setIsListening(true);
-      voiceQuestionRef.current = true;
+      voiceQuestionRef.current =
+        true;
 
       toast.success(
         locale === "id"
@@ -161,7 +230,9 @@ export default function DebuggerPage() {
       const transcript =
         event.results?.[0]?.[0]?.transcript?.trim();
 
-      if (!transcript) return;
+      if (!transcript) {
+        return;
+      }
 
       setPrompt(transcript);
 
@@ -171,14 +242,19 @@ export default function DebuggerPage() {
       );
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (
+      event: any
+    ) => {
       const errorCode =
         event?.error ?? "unknown";
 
       setIsListening(false);
-      voiceQuestionRef.current = false;
+      voiceQuestionRef.current =
+        false;
 
-      if (errorCode === "not-allowed") {
+      if (
+        errorCode === "not-allowed"
+      ) {
         toast.error(
           locale === "id"
             ? "Akses mikrofon ditolak. Izinkan mikrofon untuk website ini."
@@ -188,7 +264,9 @@ export default function DebuggerPage() {
         return;
       }
 
-      if (errorCode === "no-speech") {
+      if (
+        errorCode === "no-speech"
+      ) {
         toast(
           locale === "id"
             ? "Mohon bicara lebih jelas. Saya belum dapat mendengar suara Anda."
@@ -198,7 +276,10 @@ export default function DebuggerPage() {
         return;
       }
 
-      if (errorCode === "audio-capture") {
+      if (
+        errorCode ===
+        "audio-capture"
+      ) {
         toast.error(
           locale === "id"
             ? "Mikrofon tidak ditemukan atau sedang digunakan aplikasi lain."
@@ -208,7 +289,9 @@ export default function DebuggerPage() {
         return;
       }
 
-      if (errorCode === "network") {
+      if (
+        errorCode === "network"
+      ) {
         toast.error(
           locale === "id"
             ? "Speech Recognition mengalami masalah jaringan."
@@ -218,7 +301,9 @@ export default function DebuggerPage() {
         return;
       }
 
-      if (errorCode === "aborted") {
+      if (
+        errorCode === "aborted"
+      ) {
         return;
       }
 
@@ -231,7 +316,8 @@ export default function DebuggerPage() {
 
     recognition.onend = () => {
       setIsListening(false);
-      recognitionRef.current = null;
+      recognitionRef.current =
+        null;
     };
 
     recognitionRef.current =
@@ -241,7 +327,8 @@ export default function DebuggerPage() {
       recognition.start();
     } catch (error) {
       setIsListening(false);
-      recognitionRef.current = null;
+      recognitionRef.current =
+        null;
     }
   }
 
@@ -356,7 +443,9 @@ export default function DebuggerPage() {
   }
 
   async function copyResult() {
-    if (!result) return;
+    if (!result) {
+      return;
+    }
 
     try {
       await navigator.clipboard.writeText(
@@ -382,34 +471,43 @@ export default function DebuggerPage() {
   return (
     <>
       {/* VOICE MODE */}
+
       {voiceMode && (
         <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center bg-slate-950">
 
           <div className="w-full max-w-md px-6 text-center">
 
             {/* DNA LOGO */}
+
             <div className="flex justify-center">
+
               <div
                 className={`flex h-32 w-32 items-center justify-center rounded-full bg-slate-900 ${
-                  isListening || isSpeaking
+                  isListening ||
+                  isSpeaking
                     ? "shadow-[0_0_80px_rgba(34,211,238,0.35)]"
                     : "shadow-[0_0_45px_rgba(34,211,238,0.18)]"
                 }`}
               >
+
                 <img
                   src="/logo-dna.png"
                   alt="DNA AI"
                   className="h-24 w-24 rounded-full object-contain"
                 />
+
               </div>
+
             </div>
 
             {/* STATUS */}
+
             <h2 className="mt-8 text-2xl font-bold text-white">
               DNA AI Assistant
             </h2>
 
             <p className="mt-3 text-sm text-slate-400">
+
               {isListening
                 ? locale === "id"
                   ? "Mendengarkan..."
@@ -421,9 +519,11 @@ export default function DebuggerPage() {
                   : locale === "id"
                     ? "Siap mendengarkan"
                     : "Ready to listen"}
+
             </p>
 
             {/* VOICE BUTTON */}
+
             <button
               type="button"
               onClick={startVoice}
@@ -434,14 +534,21 @@ export default function DebuggerPage() {
                   : "bg-purple-500 hover:bg-purple-600"
               }`}
             >
+
               {isListening ? (
-                <MicOff size={24} />
+                <MicOff
+                  size={24}
+                />
               ) : (
-                <Mic size={24} />
+                <Mic
+                  size={24}
+                />
               )}
+
             </button>
 
             {/* CLOSE */}
+
             <button
               type="button"
               onClick={() => {
@@ -460,54 +567,72 @@ export default function DebuggerPage() {
               }}
               className="mx-auto mt-6 block text-sm text-slate-500 transition hover:text-white"
             >
+
               {locale === "id"
                 ? "Tutup"
                 : "Close"}
+
             </button>
 
           </div>
+
         </div>
       )}
 
       {/* MAIN PAGE */}
+
       <div className="space-y-5 lg:space-y-8">
 
         {/* HEADER */}
+
         <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-5 shadow-xl lg:rounded-3xl lg:p-8">
+
           <div className="flex items-start gap-3 lg:items-center lg:gap-4">
 
             <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur lg:rounded-2xl lg:p-3">
+
               <Bug
                 className="text-white"
                 size={26}
               />
+
             </div>
 
             <div>
+
               <h1 className="text-2xl font-bold text-white lg:text-4xl">
                 {t.debugger}
               </h1>
 
               <p className="mt-2 text-sm text-white/80 lg:text-base">
+
                 {locale === "id"
                   ? "Tanyakan apa saja tentang pemrograman, software, Windows, hardware, jaringan, database, API, atau tempel kode untuk diperbaiki."
                   : "Ask anything about programming, software, Windows, hardware, networking, databases, APIs, or paste code to debug."}
+
               </p>
+
             </div>
 
           </div>
+
         </div>
 
         {/* INPUT & RESULT */}
+
         <div className="grid gap-4 lg:gap-6 xl:grid-cols-2">
 
           {/* INPUT */}
+
           <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
             <textarea
               value={prompt}
               onChange={(e) => {
-                setPrompt(e.target.value);
+                setPrompt(
+                  e.target.value
+                );
+
                 voiceQuestionRef.current =
                   false;
               }}
@@ -523,8 +648,11 @@ export default function DebuggerPage() {
             <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
 
               {/* VOICE */}
+
               <button
-                onClick={startVoice}
+                onClick={
+                  startVoice
+                }
                 disabled={loading}
                 className={`flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6 ${
                   isListening
@@ -532,32 +660,44 @@ export default function DebuggerPage() {
                     : "bg-purple-500 hover:bg-purple-600"
                 }`}
               >
+
                 {isListening ? (
                   <>
-                    <MicOff size={18} />
+                    <MicOff
+                      size={18}
+                    />
+
                     {locale === "id"
                       ? "Berhenti"
                       : "Stop"}
                   </>
                 ) : (
                   <>
-                    <Mic size={18} />
+                    <Mic
+                      size={18}
+                    />
+
                     {locale === "id"
                       ? "Bicara"
                       : "Speak"}
                   </>
                 )}
+
               </button>
 
               {/* ASK AI */}
+
               <button
-                onClick={() => analyze()}
+                onClick={() =>
+                  analyze()
+                }
                 disabled={
                   loading ||
                   isListening
                 }
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
               >
+
                 <Play size={18} />
 
                 {loading
@@ -567,11 +707,15 @@ export default function DebuggerPage() {
                   : locale === "id"
                     ? "Tanya AI"
                     : "Ask AI"}
+
               </button>
 
               {/* CLEAR */}
+
               <button
-                onClick={clearAll}
+                onClick={
+                  clearAll
+                }
                 disabled={
                   !prompt &&
                   !result &&
@@ -580,11 +724,15 @@ export default function DebuggerPage() {
                 }
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
               >
-                <Trash2 size={18} />
+
+                <Trash2
+                  size={18}
+                />
 
                 {locale === "id"
                   ? "Bersihkan"
                   : "Clear"}
+
               </button>
 
             </div>
@@ -592,12 +740,15 @@ export default function DebuggerPage() {
           </div>
 
           {/* RESULT */}
+
           <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 shadow-xl lg:rounded-3xl lg:p-6">
 
             {/* RESULT ACTIONS */}
+
             <div className="mb-3 flex justify-end gap-2 lg:mb-4">
 
               {/* SPEAK / STOP */}
+
               {result && (
                 <button
                   onClick={() =>
@@ -618,6 +769,7 @@ export default function DebuggerPage() {
                   }
                   className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition-all duration-300 hover:bg-slate-800 lg:rounded-2xl lg:p-3"
                 >
+
                   {isSpeaking ? (
                     <VolumeX
                       size={18}
@@ -627,12 +779,16 @@ export default function DebuggerPage() {
                       size={18}
                     />
                   )}
+
                 </button>
               )}
 
               {/* COPY */}
+
               <button
-                onClick={copyResult}
+                onClick={
+                  copyResult
+                }
                 disabled={!result}
                 title={
                   locale === "id"
@@ -641,12 +797,17 @@ export default function DebuggerPage() {
                 }
                 className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition-all duration-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
               >
-                <Copy size={18} />
+
+                <Copy
+                  size={18}
+                />
+
               </button>
 
             </div>
 
             {/* HAS RESULT */}
+
             {result ? (
 
               <div className="h-[320px] overflow-auto rounded-xl border border-slate-700 bg-slate-900 p-4 lg:h-[500px] lg:rounded-2xl lg:p-5">
@@ -660,6 +821,7 @@ export default function DebuggerPage() {
             ) : (
 
               /* EMPTY RESULT */
+
               <div className="flex h-[320px] items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-900 lg:h-[500px] lg:rounded-2xl">
 
                 <div className="text-center">
@@ -670,15 +832,19 @@ export default function DebuggerPage() {
                   />
 
                   <h3 className="text-base font-semibold text-slate-300 lg:text-lg">
+
                     {locale === "id"
                       ? "Mulai Bertanya ke AI"
                       : "Start Asking AI"}
+
                   </h3>
 
                   <p className="mt-2 text-xs text-slate-500 lg:text-sm">
+
                     {locale === "id"
                       ? "Jawaban AI akan muncul di sini."
                       : "Your AI response will appear here."}
+
                   </p>
 
                 </div>

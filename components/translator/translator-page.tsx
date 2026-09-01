@@ -261,11 +261,54 @@ const TARGET_LANGUAGES = [
   "Zulu",
 ];
 
+const SPEECH_LANGUAGES = [
+  { label: "Indonesia", value: "id-ID" },
+  { label: "Inggris", value: "en-US" },
+  { label: "China (Sederhana)", value: "zh-CN" },
+  { label: "China (Tradisional)", value: "zh-TW" },
+  { label: "Jepang", value: "ja-JP" },
+  { label: "Korea", value: "ko-KR" },
+  { label: "Arab", value: "ar-SA" },
+  { label: "Hindi", value: "hi-IN" },
+  { label: "Jerman", value: "de-DE" },
+  { label: "Prancis", value: "fr-FR" },
+  { label: "Spanyol", value: "es-ES" },
+  { label: "Portugis (Brasil)", value: "pt-BR" },
+  { label: "Portugis (Portugal)", value: "pt-PT" },
+  { label: "Italia", value: "it-IT" },
+  { label: "Belanda", value: "nl-NL" },
+  { label: "Rusia", value: "ru-RU" },
+  { label: "Turki", value: "tr-TR" },
+  { label: "Thai", value: "th-TH" },
+  { label: "Vietnam", value: "vi-VN" },
+  { label: "Polski", value: "pl-PL" },
+  { label: "Ukraina", value: "uk-UA" },
+  { label: "Swedia", value: "sv-SE" },
+  { label: "Dansk", value: "da-DK" },
+  { label: "Norwegia", value: "no-NO" },
+  { label: "Finlandia", value: "fi-FI" },
+  { label: "Yunani", value: "el-GR" },
+  { label: "Ibrani", value: "he-IL" },
+  { label: "Rumania", value: "ro-RO" },
+  { label: "Hungaria", value: "hu-HU" },
+  { label: "Ceko", value: "cs-CZ" },
+  { label: "Slovak", value: "sk-SK" },
+  { label: "Bulgaria", value: "bg-BG" },
+  { label: "Serbia", value: "sr-RS" },
+  { label: "Kroasia", value: "hr-HR" },
+  { label: "Slovenia", value: "sl-SI" },
+  { label: "Melayu", value: "ms-MY" },
+  { label: "Filipina", value: "fil-PH" },
+  { label: "Swahili", value: "sw-TZ" },
+];
+
 export default function TranslatorPage() {
   const { t, locale } = useLanguage();
 
   const [prompt, setPrompt] = useState("");
   const [language, setLanguage] = useState("Indonesia");
+  const [speechLanguage, setSpeechLanguage] =
+    useState("id-ID");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -278,8 +321,11 @@ export default function TranslatorPage() {
       !("speechSynthesis" in window)
     ) {
       toast.error(
-        "Text-to-Speech tidak didukung browser ini."
+        locale === "id"
+          ? "Text-to-Speech tidak didukung browser ini."
+          : "Text-to-Speech is not supported by this browser."
       );
+
       return;
     }
 
@@ -534,10 +580,24 @@ export default function TranslatorPage() {
     const speechLanguage =
       languageMap[language] ?? "en-US";
 
-    const utterance =
-      new SpeechSynthesisUtterance(text);
+    const cleanText = text
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/[*#`_~]/g, "")
+      .replace(/\n+/g, ". ")
+      .replace(/:/g, "... ")
+      .replace(/;/g, "... ")
+      .replace(/\?/g, "? ")
+      .replace(/!/g, "! ")
+      .replace(/,/g, ", ")
+      .trim();
 
-    utterance.lang = speechLanguage;
+    const utterance =
+      new SpeechSynthesisUtterance(
+        cleanText
+      );
+
+    utterance.lang =
+      speechLanguage;
 
     const voices =
       window.speechSynthesis.getVoices();
@@ -547,19 +607,76 @@ export default function TranslatorPage() {
         .toLowerCase()
         .split("-")[0];
 
-    const selectedVoice = voices.find(
-      (voice) =>
+    const preferredKeywords = [
+      "natural",
+      "neural",
+      "enhanced",
+      "premium",
+      "google",
+      "microsoft",
+    ];
+
+    const matchingVoices =
+      voices.filter((voice) =>
         voice.lang
           .toLowerCase()
-          .startsWith(languagePrefix)
-    );
+          .startsWith(
+            languagePrefix
+          )
+      );
+
+    const preferredVoice =
+      matchingVoices.find((voice) =>
+        preferredKeywords.some(
+          (keyword) =>
+            voice.name
+              .toLowerCase()
+              .includes(keyword)
+        )
+      );
+
+    const localVoice =
+      matchingVoices.find(
+        (voice) =>
+          voice.localService
+      );
+
+    const selectedVoice =
+      preferredVoice ??
+      localVoice ??
+      matchingVoices[0];
 
     if (selectedVoice) {
-      utterance.voice = selectedVoice;
+      utterance.voice =
+        selectedVoice;
     }
 
-    utterance.rate = 1;
-    utterance.pitch = 1;
+    const slowLanguages = [
+      "ja",
+      "ko",
+      "zh",
+      "ar",
+      "ru",
+      "th",
+    ];
+
+    const isSlowLanguage =
+      slowLanguages.includes(
+        languagePrefix
+      );
+
+    utterance.rate =
+      isSlowLanguage
+        ? 0.92
+        : 0.95;
+
+    utterance.pitch =
+      languagePrefix === "ja"
+        ? 1.0
+        : languagePrefix === "ko"
+          ? 1.0
+          : 0.98;
+
     utterance.volume = 1;
 
     utterance.onstart = () => {
@@ -567,7 +684,9 @@ export default function TranslatorPage() {
     };
 
     utterance.onend = () => {
-      setIsSpeaking(false);
+      setTimeout(() => {
+        setIsSpeaking(false);
+      }, 150);
     };
 
     utterance.onerror = () => {
@@ -580,16 +699,25 @@ export default function TranslatorPage() {
   }
 
   function startVoice() {
-    if (typeof window === "undefined") return;
+    if (
+      typeof window === "undefined"
+    ) {
+      return;
+    }
 
     setVoiceMode(true);
 
     const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      (window as any)
+        .SpeechRecognition ||
+      (window as any)
+        .webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      toast.error(t.voiceInputNotSupported);
+      toast.error(
+        t.voiceInputNotSupported
+      );
+
       setVoiceMode(false);
       return;
     }
@@ -597,13 +725,21 @@ export default function TranslatorPage() {
     const recognition =
       new SpeechRecognition();
 
-    recognition.lang = "id-ID";
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.lang =
+      speechLanguage;
+
+    recognition.continuous =
+      false;
+
+    recognition.interimResults =
+      false;
 
     recognition.onstart = () => {
       setIsListening(true);
-      toast.success(t.speakNow);
+
+      toast.success(
+        t.speakNow
+      );
     };
 
     recognition.onresult = async (
@@ -612,32 +748,44 @@ export default function TranslatorPage() {
       const transcript =
         event.results?.[0]?.[0]?.transcript?.trim();
 
-      if (!transcript) return;
+      if (!transcript) {
+        return;
+      }
 
       setPrompt(transcript);
 
-      await translateVoice(transcript);
+      await translateVoice(
+        transcript
+      );
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (
+      event: any
+    ) => {
       const errorCode =
         event?.error ?? "unknown";
 
       setIsListening(false);
 
-      if (errorCode === "no-speech") {
+      if (
+        errorCode === "no-speech"
+      ) {
         toast(
           "Mohon bicara lebih jelas. Saya belum dapat mendengar suara Anda."
         );
+
         return;
       }
 
-      if (errorCode === "not-allowed") {
+      if (
+        errorCode === "not-allowed"
+      ) {
         toast.error(
           locale === "id"
             ? "Akses mikrofon ditolak."
             : "Microphone access was denied."
         );
+
         return;
       }
 
@@ -655,7 +803,6 @@ export default function TranslatorPage() {
     try {
       recognition.start();
     } catch (error) {
-      console.error(error);
       setIsListening(false);
     }
   }
@@ -663,7 +810,9 @@ export default function TranslatorPage() {
   async function translateVoice(
     voiceText: string
   ) {
-    if (!voiceText.trim()) return;
+    if (!voiceText.trim()) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -673,7 +822,7 @@ export default function TranslatorPage() {
         {
           method: "POST",
           headers: {
-            "Content-Type":
+             "Content-Type":
               "application/json",
           },
           body: JSON.stringify({
@@ -692,18 +841,25 @@ export default function TranslatorPage() {
         );
       }
 
-      setResult(data.result);
+      setResult(
+        data.result
+      );
 
       addNotification({
-        feature: t.aiTranslator,
-        title: t.translationFinished,
+        feature:
+          t.aiTranslator,
+        title:
+          t.translationFinished,
         message:
           `${t.translationToLanguage} ${language} ${t.translationReady}`,
         type: "success",
-        result: data.result,
+        result:
+          data.result,
       });
 
-      speakTranslation(data.result);
+      speakTranslation(
+        data.result
+      );
 
       toast.success(
         t.translationCompleted
@@ -721,7 +877,10 @@ export default function TranslatorPage() {
 
   async function translate() {
     if (!prompt.trim()) {
-      toast.error(t.pleaseEnterText);
+      toast.error(
+        t.pleaseEnterText
+      );
+
       return;
     }
 
@@ -752,15 +911,20 @@ export default function TranslatorPage() {
         );
       }
 
-      setResult(data.result);
+      setResult(
+        data.result
+      );
 
       addNotification({
-        feature: t.aiTranslator,
-        title: t.translationFinished,
+        feature:
+          t.aiTranslator,
+        title:
+          t.translationFinished,
         message:
           `${t.translationToLanguage} ${language} ${t.translationReady}`,
         type: "success",
-        result: data.result,
+        result:
+          data.result,
       });
 
       toast.success(
@@ -778,7 +942,12 @@ export default function TranslatorPage() {
   }
 
   function clearAll() {
-    if ("speechSynthesis" in window) {
+    if (
+      typeof window !==
+        "undefined" &&
+      "speechSynthesis" in
+        window
+    ) {
       window.speechSynthesis.cancel();
     }
 
@@ -788,23 +957,32 @@ export default function TranslatorPage() {
     setPrompt("");
     setResult("");
     setLanguage("Indonesia");
+    setSpeechLanguage("id-ID");
 
-    toast.success(t.clear);
+    toast.success(
+      t.clear
+    );
   }
 
   async function copyResult() {
-    if (!result) return;
+    if (!result) {
+      return;
+    }
 
     try {
       await navigator.clipboard.writeText(
         result
       );
 
-      toast.success(t.copied);
+      toast.success(
+        t.copied
+      );
     } catch (error) {
       console.error(error);
 
-      toast.error(t.failedToCopy);
+      toast.error(
+        t.failedToCopy
+      );
     }
   }
 
@@ -853,9 +1031,13 @@ export default function TranslatorPage() {
           <textarea
             value={prompt}
             onChange={(e) =>
-              setPrompt(e.target.value)
+              setPrompt(
+                e.target.value
+              )
             }
-            placeholder={t.typeTextHere}
+            placeholder={
+              t.typeTextHere
+            }
             className="h-44 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-cyan-500 lg:h-52 lg:rounded-2xl lg:p-5"
           />
 
@@ -864,24 +1046,65 @@ export default function TranslatorPage() {
           <div className="mt-4 flex flex-col gap-3 lg:flex-row">
 
             <button
-              onClick={startVoice}
-              disabled={isListening}
+              onClick={
+                startVoice
+              }
+              disabled={
+                isListening
+              }
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-500 px-5 py-3 font-medium text-white transition hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
 
               {isListening ? (
                 <>
-                  <MicOff size={18} />
+                  <MicOff
+                    size={18}
+                  />
+
                   {t.listening}
+
                 </>
               ) : (
                 <>
-                  <Mic size={18} />
+                  <Mic
+                    size={18}
+                  />
+
                   {t.voice}
+
                 </>
               )}
 
             </button>
+
+            <select
+              value={speechLanguage}
+              onChange={(e) =>
+                setSpeechLanguage(
+                  e.target.value
+                )
+              }
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none focus:border-cyan-500 lg:w-auto lg:rounded-2xl lg:p-3"
+            >
+
+              {SPEECH_LANGUAGES.map(
+                (voiceLanguage) => (
+                  <option
+                    key={
+                      voiceLanguage.value
+                    }
+                    value={
+                      voiceLanguage.value
+                    }
+                  >
+                    {
+                      voiceLanguage.label
+                    }
+                  </option>
+                )
+              )}
+
+            </select>
 
           </div>
 
@@ -890,7 +1113,9 @@ export default function TranslatorPage() {
           <select
             value={language}
             onChange={(e) =>
-              setLanguage(e.target.value)
+              setLanguage(
+                e.target.value
+              )
             }
             className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-white outline-none lg:mt-5 lg:rounded-2xl lg:p-4"
           >
@@ -898,10 +1123,16 @@ export default function TranslatorPage() {
             {TARGET_LANGUAGES.map(
               (targetLanguage) => (
                 <option
-                  key={targetLanguage}
-                  value={targetLanguage}
+                  key={
+                    targetLanguage
+                  }
+                  value={
+                    targetLanguage
+                  }
                 >
-                  {targetLanguage}
+                  {
+                    targetLanguage
+                  }
                 </option>
               )
             )}
@@ -913,12 +1144,18 @@ export default function TranslatorPage() {
           <div className="mt-4 flex flex-col gap-3 lg:mt-5 lg:flex-row">
 
             <button
-              onClick={translate}
-              disabled={loading}
+              onClick={
+                translate
+              }
+              disabled={
+                loading
+              }
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
 
-              <Play size={18} />
+              <Play
+                size={18}
+              />
 
               {loading
                 ? t.translating
@@ -927,12 +1164,19 @@ export default function TranslatorPage() {
             </button>
 
             <button
-              onClick={clearAll}
-              disabled={!prompt && !result}
+              onClick={
+                clearAll
+              }
+              disabled={
+                !prompt &&
+                !result
+              }
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:rounded-2xl lg:px-6"
             >
 
-              <Trash2 size={18} />
+              <Trash2
+                size={18}
+              />
 
               {t.clear}
 
@@ -957,9 +1201,13 @@ export default function TranslatorPage() {
                   isSpeaking
                     ? (
                         window.speechSynthesis.cancel(),
-                        setIsSpeaking(false)
+                        setIsSpeaking(
+                          false
+                        )
                       )
-                    : speakTranslation(result)
+                    : speakTranslation(
+                        result
+                      )
                 }
                 title={
                   isSpeaking
@@ -970,9 +1218,13 @@ export default function TranslatorPage() {
               >
 
                 {isSpeaking ? (
-                  <VolumeX size={18} />
+                  <VolumeX
+                    size={18}
+                  />
                 ) : (
-                  <Volume2 size={18} />
+                  <Volume2
+                    size={18}
+                  />
                 )}
 
               </button>
@@ -981,13 +1233,21 @@ export default function TranslatorPage() {
             {/* COPY */}
 
             <button
-              onClick={copyResult}
-              disabled={!result}
-              title={t.copyResult}
+              onClick={
+                copyResult
+              }
+              disabled={
+                !result
+              }
+              title={
+                t.copyResult
+              }
               className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-2xl lg:p-3"
             >
 
-              <Copy size={18} />
+              <Copy
+                size={18}
+              />
 
             </button>
 
@@ -1043,7 +1303,8 @@ export default function TranslatorPage() {
 
               <div
                 className={`flex h-32 w-32 items-center justify-center rounded-full bg-slate-900 ${
-                  isListening || isSpeaking
+                  isListening ||
+                  isSpeaking
                     ? "shadow-[0_0_80px_rgba(34,211,238,0.35)]"
                     : "shadow-[0_0_45px_rgba(34,211,238,0.18)]"
                 }`}
@@ -1064,17 +1325,29 @@ export default function TranslatorPage() {
             </h2>
 
             <p className="mt-3 text-sm text-slate-400">
+
               {isListening
-                ? "Mendengarkan..."
+                ? locale === "id"
+                  ? `Mendengarkan dalam ${speechLanguage}...`
+                  : `Listening in ${speechLanguage}...`
                 : isSpeaking
-                  ? "Sedang berbicara..."
-                  : `Bahasa tujuan: ${language}`}
+                  ? locale === "id"
+                    ? `Berbicara dalam ${language}...`
+                    : `Speaking in ${language}...`
+                  : locale === "id"
+                    ? `Bicara: ${speechLanguage} • Tujuan: ${language}`
+                    : `Speech: ${speechLanguage} • Target: ${language}`}
+
             </p>
 
             <button
               type="button"
-              onClick={startVoice}
-              disabled={loading}
+              onClick={
+                startVoice
+              }
+              disabled={
+                loading
+              }
               className={`mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-full text-white transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${
                 isListening
                   ? "bg-red-500 hover:bg-red-600"
@@ -1083,9 +1356,13 @@ export default function TranslatorPage() {
             >
 
               {isListening ? (
-                <MicOff size={24} />
+                <MicOff
+                  size={24}
+                />
               ) : (
-                <Mic size={24} />
+                <Mic
+                  size={24}
+                />
               )}
 
             </button>
@@ -1094,25 +1371,36 @@ export default function TranslatorPage() {
               type="button"
               onClick={() => {
                 if (
-                  typeof window !== "undefined" &&
-                  "speechSynthesis" in window
+                  typeof window !==
+                    "undefined" &&
+                  "speechSynthesis" in
+                    window
                 ) {
                   window.speechSynthesis.cancel();
                 }
 
-                setIsSpeaking(false);
+                setIsSpeaking(
+                  false
+                );
 
-                if (isListening) {
+                if (
+                  isListening
+                ) {
                   return;
                 }
 
-                setVoiceMode(false);
+                setVoiceMode(
+                  false
+                );
               }}
               className="mx-auto mt-6 block text-sm text-slate-500 transition hover:text-white"
             >
-              {t.clear === "Clear"
+
+              {t.clear ===
+              "Clear"
                 ? "Close"
                 : "Tutup"}
+
             </button>
 
           </div>

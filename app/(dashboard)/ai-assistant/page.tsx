@@ -76,6 +76,7 @@ export default function Page() {
       setCameraLoading(true);
 
       if (
+        typeof window === "undefined" ||
         !navigator.mediaDevices ||
         !navigator.mediaDevices.getUserMedia
       ) {
@@ -90,41 +91,54 @@ export default function Page() {
             facingMode: {
               ideal: "environment",
             },
+            width: {
+              ideal: 1920,
+            },
+            height: {
+              ideal: 1080,
+            },
           },
           audio: false,
         });
 
       cameraStreamRef.current = stream;
-
       setCameraOpen(true);
-
-      /*
-       * Video element baru tersedia setelah
-       * cameraOpen berubah menjadi true.
-       * Binding stream dilakukan setelah render.
-       */
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 0);
     } catch (error) {
       console.error(
         "CAMERA ERROR:",
         error
       );
 
-      const message =
+      const errorName =
+        error instanceof DOMException
+          ? error.name
+          : "";
+
+      let message =
         error instanceof Error
           ? error.message
           : "Tidak dapat mengakses kamera.";
+
+      if (errorName === "NotAllowedError") {
+        message =
+          "Izin kamera ditolak. Izinkan kamera untuk situs ini lalu coba lagi.";
+      } else if (errorName === "NotFoundError") {
+        message =
+          "Kamera tidak ditemukan pada perangkat ini.";
+      } else if (errorName === "NotReadableError") {
+        message =
+          "Kamera sedang digunakan aplikasi lain.";
+      } else if (errorName === "SecurityError") {
+        message =
+          "Akses kamera diblokir oleh browser atau pengaturan keamanan.";
+      }
 
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now(),
           role: "assistant",
-          content: `⚠️ ${message}\n\nPastikan izin kamera sudah diberikan kepada browser.`,
+          content: `⚠️ ${message}`,
         },
       ]);
     } finally {
@@ -210,6 +224,42 @@ export default function Page() {
   }
 
   useEffect(() => {
+    if (!cameraOpen) {
+      return;
+    }
+
+    const video = videoRef.current;
+    const stream = cameraStreamRef.current;
+
+    if (!video || !stream) {
+      return;
+    }
+
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    video.autoplay = true;
+
+    const startVideo = async () => {
+      try {
+        await video.play();
+      } catch (error) {
+        console.error(
+          "VIDEO PLAY ERROR:",
+          error
+        );
+      }
+    };
+
+    startVideo();
+
+    return () => {
+      video.pause();
+      video.srcObject = null;
+    };
+  }, [cameraOpen]);
+
+  useEffect(() => {
     return () => {
       if (cameraStreamRef.current) {
         cameraStreamRef.current
@@ -217,6 +267,8 @@ export default function Page() {
           .forEach((track) =>
             track.stop()
           );
+
+        cameraStreamRef.current = null;
       }
     };
   }, []);
@@ -433,7 +485,9 @@ export default function Page() {
                 autoPlay
                 playsInline
                 muted
-                className="max-h-[65vh] w-full object-contain"
+                controls={false}
+                disablePictureInPicture
+                className="block min-h-[280px] max-h-[65vh] w-full object-contain"
               />
 
             </div>

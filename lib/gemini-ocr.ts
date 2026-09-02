@@ -1,4 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  DEFAULT_AI_MODEL,
+  type AIModelId,
+} from "@/lib/ai-models";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_OCR_API_KEY!,
@@ -10,6 +14,7 @@ type OCRInput = {
     mimeType: string;
     data: string;
   };
+  model?: AIModelId;
 };
 
 const SYSTEM_PROMPT = `
@@ -35,9 +40,10 @@ Aturan:
 export async function askOCR({
   prompt,
   image,
+  model = DEFAULT_AI_MODEL,
 }: OCRInput) {
   const result = await ai.models.generateContent({
-    model: "gemini-3.6-flash",
+    model,
 
     contents: [
       {

@@ -1,4 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  DEFAULT_AI_MODEL,
+  type AIModelId,
+} from "@/lib/ai-models";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_IMAGE_PROMPT_API_KEY!,
@@ -10,6 +14,7 @@ type ImagePromptInput = {
     mimeType: string;
     data: string;
   };
+  model?: AIModelId;
 };
 
 const SYSTEM_PROMPT = `
@@ -53,9 +58,10 @@ Output hanya berupa satu paragraf prompt lengkap dalam Bahasa Indonesia.
 export async function askImagePrompt({
   prompt,
   image,
+  model = DEFAULT_AI_MODEL,
 }: ImagePromptInput) {
   const result = await ai.models.generateContent({
-    model: "gemini-3.6-flash",
+    model,
     contents: [
       {
         inlineData: {

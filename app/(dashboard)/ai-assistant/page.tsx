@@ -9,16 +9,42 @@ import {
   Image as ImageIcon,
   Sparkles,
   Camera,
+  Link2,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 
 import { addNotification } from "@/components/notifications/notification-store";
+
+import {
+  AI_MODELS,
+  DEFAULT_AI_MODEL,
+  type AIModelId,
+} from "@/lib/ai-models";
 
 type Message = {
   id: number;
   role: "user" | "assistant";
   content: string;
   fileName?: string;
+  imagePreview?: string;
 };
+
+
+type ModelOption = {
+  id: AIModelId;
+  name: string;
+  description: string;
+};
+
+const MODEL_OPTIONS: ModelOption[] = AI_MODELS.map(
+  (model) => ({
+    id: model.id,
+    name: model.name,
+    description:
+      "Model Gemini yang dikonfigurasi untuk AI Asisten",
+  })
+);
 
 function formatResetTime(resetAt: string) {
   const date = new Date(resetAt);
@@ -48,6 +74,13 @@ export default function Page() {
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageUrlOpen, setImageUrlOpen] = useState(false);
+
+  const [selectedModel, setSelectedModel] =
+    useState<AIModelId>(DEFAULT_AI_MODEL);
+  const [modelMenuOpen, setModelMenuOpen] =
+    useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -276,18 +309,30 @@ export default function Page() {
   async function sendMessage() {
     const text = input.trim();
 
-    if (!text && !file) {
+    const currentImageUrl = imageUrl.trim();
+
+    if (!text && !file && !currentImageUrl) {
       return;
     }
 
     const currentFile = file;
+
+    const imagePreview =
+      currentFile && currentFile.type.startsWith("image/")
+        ? URL.createObjectURL(currentFile)
+        : undefined;
 
     const userMessage: Message = {
       id: Date.now(),
       role: "user",
       content:
         text || "Mengirim foto...",
-      fileName: currentFile?.name,
+      fileName:
+        currentFile?.name ||
+        (currentImageUrl
+          ? currentImageUrl
+          : undefined),
+      imagePreview,
     };
 
     setMessages((prev) => [
@@ -313,6 +358,18 @@ export default function Page() {
           currentFile
         );
       }
+
+      if (currentImageUrl) {
+        formData.append(
+          "imageUrl",
+          currentImageUrl
+        );
+      }
+
+      formData.append(
+        "model",
+        selectedModel
+      );
 
       const response =
         await fetch(
@@ -390,6 +447,8 @@ export default function Page() {
       });
 
       setFile(null);
+      setImageUrl("");
+      setImageUrlOpen(false);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -675,6 +734,16 @@ export default function Page() {
                       }`}
                     >
 
+                      {message.imagePreview && (
+                        <div className="mb-3 overflow-hidden rounded-2xl">
+                          <img
+                            src={message.imagePreview}
+                            alt={message.fileName || "Foto yang dikirim"}
+                            className="max-h-[420px] max-w-full rounded-2xl object-contain"
+                          />
+                        </div>
+                      )}
+
                       {message.fileName && (
 
                         <div className="mb-3 flex items-center gap-2 rounded-xl bg-black/20 px-3 py-2 text-sm">
@@ -759,6 +828,32 @@ export default function Page() {
 
           <div className="mx-auto max-w-4xl">
 
+            {imageUrl.trim() && (
+
+              <div className="mb-3 flex items-center justify-between rounded-2xl border border-cyan-500/30 bg-slate-900 px-4 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Link2
+                    size={18}
+                    className="shrink-0 text-cyan-400"
+                  />
+                  <span className="truncate text-sm text-slate-300">
+                    {imageUrl}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageUrl("");
+                    setImageUrlOpen(false);
+                  }}
+                  className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            )}
+
             {file && (
 
               <div className="mb-3 flex items-center justify-between rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3">
@@ -803,6 +898,30 @@ export default function Page() {
             )}
 
 
+            {imageUrlOpen && (
+              <div className="mb-3 hidden rounded-2xl border border-slate-700 bg-slate-900 p-3 md:block">
+                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300">
+                  <Link2 size={16} className="text-cyan-400" />
+                  Link Foto
+                </div>
+
+                <input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(event) =>
+                    setImageUrl(event.target.value)
+                  }
+                  disabled={loading}
+                  placeholder="https://contoh.com/foto.jpg"
+                  className="w-full rounded-xl border border-slate-700 bg-[#111827] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-500 disabled:opacity-60"
+                />
+
+                <p className="mt-2 text-xs text-slate-600">
+                  Desktop hanya mengirim URL gambar. Upload file dan kamera tersedia di HP.
+                </p>
+              </div>
+            )}
+
             <div className="rounded-3xl border border-slate-700 bg-[#111827] p-2 shadow-lg focus-within:border-cyan-500">
 
               <textarea
@@ -820,6 +939,97 @@ export default function Page() {
               />
 
 
+            <div className="relative mb-2 px-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setModelMenuOpen((prev) => !prev)
+                }
+                disabled={loading}
+                className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-left transition hover:border-slate-600 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-slate-200">
+                    {
+                      MODEL_OPTIONS.find(
+                        (option) =>
+                          option.id ===
+                          selectedModel
+                      )?.name ?? "Auto"
+                    }
+                  </div>
+                  <div className="hidden text-[11px] text-slate-500 sm:block">
+                    {
+                      MODEL_OPTIONS.find(
+                        (option) =>
+                          option.id ===
+                          selectedModel
+                      )?.description ??
+                      "Pilih model terbaik yang masih tersedia"
+                    }
+                  </div>
+                </div>
+
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 text-slate-500 transition-transform ${
+                    modelMenuOpen
+                      ? "rotate-180"
+                      : ""
+                  }`}
+                />
+              </button>
+
+              {modelMenuOpen && (
+                <div className="absolute bottom-full left-2 z-50 mb-2 w-[290px] overflow-hidden rounded-2xl border border-slate-700 bg-[#111827] p-2 shadow-2xl">
+                  {MODEL_OPTIONS.map(
+                    (option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedModel(
+                            option.id
+                          );
+                          setModelMenuOpen(
+                            false
+                          );
+                        }}
+                        className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-200">
+                              {option.name}
+                            </span>
+                            {option.id ===
+                              "gemini-3.7-flash" && (
+                              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-300">
+                                Baru
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="mt-1 text-xs text-slate-500">
+                            {option.description}
+                          </p>
+                        </div>
+
+                        {selectedModel ===
+                          option.id && (
+                          <Check
+                            size={17}
+                            className="mt-0.5 shrink-0 text-cyan-400"
+                          />
+                        )}
+                      </button>
+                    )
+                  )}
+
+                </div>
+              )}
+            </div>
+
               <div className="flex items-center justify-between px-2 pb-1">
 
                 <div className="flex items-center gap-1">
@@ -834,6 +1044,7 @@ export default function Page() {
                   />
 
 
+                  {/* MOBILE: upload file */}
                   <button
                     type="button"
                     onClick={() =>
@@ -845,8 +1056,27 @@ export default function Page() {
 
                     <Paperclip size={18} />
 
-                    <span className="hidden text-sm sm:inline">
+                    <span className="text-sm">
                       Lampirkan
+                    </span>
+
+                  </button>
+
+
+                  {/* DESKTOP: image URL only */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setImageUrlOpen((prev) => !prev)
+                    }
+                    disabled={loading}
+                    className="hidden items-center gap-2 rounded-xl px-3 py-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 md:flex"
+                  >
+
+                    <Link2 size={18} />
+
+                    <span className="text-sm">
+                      Link Foto
                     </span>
 
                   </button>
@@ -859,12 +1089,12 @@ export default function Page() {
                       loading ||
                       cameraLoading
                     }
-                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 md:hidden"
                   >
 
                     <Camera size={18} />
 
-                    <span className="hidden text-sm sm:inline">
+                    <span className="text-sm">
                       Kamera
                     </span>
 
@@ -879,7 +1109,8 @@ export default function Page() {
                   disabled={
                     loading ||
                     (!input.trim() &&
-                      !file)
+                      !file &&
+                      !imageUrl.trim())
                   }
                   className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
                 >

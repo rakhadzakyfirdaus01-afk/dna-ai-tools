@@ -1,4 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  DEFAULT_AI_MODEL,
+  type AIModelId,
+} from "@/lib/ai-models";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_TRANSLATOR_API_KEY!,
@@ -20,9 +24,12 @@ Aturan:
 7. Jangan memberikan penjelasan kecuali diminta.
 `;
 
-export async function askTranslator(prompt: string) {
+export async function askTranslator(
+  prompt: string,
+  model: AIModelId = DEFAULT_AI_MODEL
+) {
   const result = await ai.models.generateContent({
-    model: "gemini-3.6-flash",
+    model,
     contents: `
 ${SYSTEM_PROMPT}
 

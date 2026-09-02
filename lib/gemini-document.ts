@@ -1,7 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  DEFAULT_AI_MODEL,
+  type AIModelId,
+} from "@/lib/ai-models";
 
 const ai = new GoogleGenAI({
- apiKey: process.env.GEMINI_DOCUMENT_API_KEY!,
+  apiKey: process.env.GEMINI_DOCUMENT_API_KEY!,
 });
 
 type DocumentInput = {
@@ -10,6 +14,7 @@ type DocumentInput = {
     mimeType: string;
     data: string;
   };
+  model?: AIModelId;
 };
 
 const SYSTEM_PROMPT = `
@@ -37,9 +42,10 @@ Aturan:
 export async function askDocument({
   prompt,
   document,
+  model = DEFAULT_AI_MODEL,
 }: DocumentInput) {
   const result = await ai.models.generateContent({
-    model: "gemini-3.6-flash",
+    model,
 
     contents: [
       {

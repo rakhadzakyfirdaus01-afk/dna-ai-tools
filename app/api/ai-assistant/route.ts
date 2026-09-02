@@ -3,6 +3,11 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/auth";
 import prisma from "@/lib/prisma";
+import {
+  DEFAULT_AI_MODEL,
+  AI_MODELS,
+  type AIModelId,
+} from "@/lib/ai-models";
 
 import { askDebugger } from "@/lib/gemini-debugger";
 import { askImagePrompt } from "@/lib/gemini-image";
@@ -248,6 +253,16 @@ export async function POST(req: Request) {
     const messageValue = formData.get("message");
     const fileValue = formData.get("file");
 
+    const modelValue = formData.get("model");
+
+const model: AIModelId =
+  typeof modelValue === "string" &&
+  AI_MODELS.some(
+    (item) => item.id === modelValue
+  )
+    ? (modelValue as AIModelId)
+    : DEFAULT_AI_MODEL;
+
     const message =
       typeof messageValue === "string"
         ? messageValue.trim()
@@ -274,11 +289,18 @@ export async function POST(req: Request) {
     let result = "";
 
     if (feature === "AI Tech Assistant") {
-      result = await askDebugger(message, "id");
+      result = await askDebugger(
+  message,
+  "id",
+  model
+);
     }
 
     if (feature === "AI Translator") {
-      result = await askTranslator(message);
+      result = await askTranslator(
+  message,
+  model
+);
     }
 
     if (feature === "AI OCR") {
@@ -307,14 +329,15 @@ export async function POST(req: Request) {
       const base64 = await fileToBase64(file);
 
       result = await askOCR({
-        prompt:
-          message ||
-          "Baca dan salin seluruh teks yang terdapat pada gambar.",
-        image: {
-          mimeType: file.type,
-          data: base64,
-        },
-      });
+  prompt:
+    message ||
+    "Analisis gambar secara menyeluruh. Jika gambar berisi soal, pertanyaan, latihan, tugas, atau masalah yang harus diselesaikan, kerjakan dan berikan jawabannya secara lengkap. Jika gambar hanya berisi teks biasa, jelaskan atau salin isi pentingnya.",
+  image: {
+    mimeType: file.type,
+    data: base64,
+  },
+  model,
+});
     }
 
     if (feature === "Image Prompt") {
@@ -344,12 +367,13 @@ export async function POST(req: Request) {
       const base64 = await fileToBase64(file);
 
       result = await askImagePrompt({
-        prompt: message,
-        image: {
-          mimeType: file.type,
-          data: base64,
-        },
-      });
+  prompt: message,
+  image: {
+    mimeType: file.type,
+    data: base64,
+  },
+  model,
+});
     }
 
     if (feature === "AI Document") {
@@ -378,15 +402,13 @@ export async function POST(req: Request) {
       const base64 = await fileToBase64(file);
 
       result = await askDocument({
-        prompt:
-          message ||
-          "Analisis dokumen ini dan jelaskan poin-poin pentingnya.",
-        document: {
-          mimeType:
-            file.type || "application/octet-stream",
-          data: base64,
-        },
-      });
+  prompt: message,
+  document: {
+    mimeType: file.type,
+    data: base64,
+  },
+  model,
+});
     }
 
     if (!result.trim()) {

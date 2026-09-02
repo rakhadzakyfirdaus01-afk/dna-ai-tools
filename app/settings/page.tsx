@@ -377,10 +377,10 @@ export default function SettingsPage() {
       <div className="mt-8 flex justify-end gap-4">
 
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push("/ai-assistant")}
           className="rounded-xl border border-cyan-500 px-6 py-3 text-cyan-400 transition hover:bg-cyan-500 hover:text-white"
         >
-          Back to Dashboard
+          Back to AI Asisten
         </button>
 
       </div>

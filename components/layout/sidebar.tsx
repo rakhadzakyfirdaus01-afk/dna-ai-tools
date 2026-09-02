@@ -5,14 +5,9 @@ import { usePathname } from "next/navigation";
 import { useLanguage } from "@/components/shared/language-provider";
 
 import {
-  LayoutDashboard,
   Bug,
-  ImageIcon,
   Palette,
   Clapperboard,
-  FileText,
-  ScanText,
-  Languages,
   History,
   Settings,
 } from "lucide-react";
@@ -29,20 +24,10 @@ export default function Sidebar({
   const { t } = useLanguage();
 
   const menus = [
-        {
-      title: t.dashboard,
-      href: "/dashboard",
-      icon: LayoutDashboard,
-    },
     {
-      title: t.debugger,
-      href: "/ai-debugger",
+      title: "AI Asisten",
+      href: "/ai-assistant",
       icon: Bug,
-    },
-    {
-      title: t.imagePrompt,
-      href: "/image-prompt",
-      icon: ImageIcon,
     },
     {
       title: t.design,
@@ -53,21 +38,6 @@ export default function Sidebar({
       title: t.animation,
       href: "/ai-animation",
       icon: Clapperboard,
-    },
-    {
-      title: t.document,
-      href: "/ai-document",
-      icon: FileText,
-    },
-    {
-      title: t.ocr,
-      href: "/ai-ocr",
-      icon: ScanText,
-    },
-    {
-      title: t.translator,
-      href: "/ai-translator",
-      icon: Languages,
     },
     {
       title: t.history,
@@ -86,10 +56,11 @@ export default function Sidebar({
       <div className="border-b border-slate-800 p-4 lg:p-6">
         <div className="flex items-center gap-2 lg:gap-3">
           <img
-  src="/logo-dna.png"
-  alt="DNA Logo"
-  className="h-10 w-10 rounded-xl object-cover transition duration-300 hover:scale-110 lg:h-12 lg:w-12 lg:rounded-2xl"
-/>
+            src="/logo-dna.png"
+            alt="DNA Logo"
+            className="h-10 w-10 rounded-xl object-cover transition duration-300 hover:scale-110 lg:h-12 lg:w-12 lg:rounded-2xl"
+          />
+
           <div>
             <h1 className="text-lg font-bold text-white lg:text-xl">
               DNA AI
@@ -103,9 +74,12 @@ export default function Sidebar({
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 lg:space-y-2 lg:p-4">
-                {menus.map((menu) => {
+        {menus.map((menu) => {
           const Icon = menu.icon;
-          const active = pathname === menu.href;
+
+          const active =
+            pathname === menu.href ||
+            pathname.startsWith(`${menu.href}/`);
 
           return (
             <Link

@@ -12,7 +12,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useLanguage } from "@/components/shared/language-provider";
+import { useLanguage,type Locale } from "@/components/shared/language-provider";
 import { addNotification } from "@/components/notifications/notification-store";
 
 export default function DebuggerPage() {
@@ -28,6 +28,40 @@ export default function DebuggerPage() {
 
   const recognitionRef = useRef<any>(null);
   const voiceQuestionRef = useRef(false);
+
+  function detectSpokenLocale(text: string): Locale {
+    const lower = text.toLowerCase();
+
+    const englishWords = [
+      "what", "why", "how", "when", "where", "which",
+      "who", "can", "could", "would", "should", "is",
+      "are", "the", "this", "that", "please", "help",
+      "with", "from", "about", "error", "problem",
+      "code", "javascript", "typescript", "react", "next"
+    ];
+
+    const indonesianWords = [
+      "apa", "kenapa", "mengapa", "bagaimana", "kapan",
+      "dimana", "di mana", "yang", "ini", "itu", "saya",
+      "aku", "kamu", "tolong", "bisa", "untuk", "dengan",
+      "dari", "tentang", "masalah", "kesalahan", "kode",
+      "jelaskan", "cara", "apakah"
+    ];
+
+    const englishScore = englishWords.reduce(
+      (score, word) => score + (lower.includes(` ${word} `) || lower.startsWith(`${word} `) || lower.endsWith(` ${word}`) ? 1 : 0),
+      0
+    );
+
+    const indonesianScore = indonesianWords.reduce(
+      (score, word) => score + (lower.includes(` ${word} `) || lower.startsWith(`${word} `) || lower.endsWith(` ${word}`) ? 1 : 0),
+      0
+    );
+
+    if (englishScore > indonesianScore) return "en";
+    if (indonesianScore > englishScore) return "id";
+    return locale;
+  }
 
   /*
    * Chrome/Windows dapat menjaga SpeechSynthesis dalam keadaan
@@ -367,35 +401,60 @@ export default function DebuggerPage() {
     }, 700);
   }
 
-  function playServerAudio(audioData: string, fallbackText: string) {
-    if (typeof window === "undefined" || !audioData) return;
-
-    if (audioPlayer) {
-      audioPlayer.pause();
-      audioPlayer.currentTime = 0;
+  function playServerAudio(audioData: string) {
+    if (typeof window === "undefined" || !audioData) {
+      return;
     }
+
+    stopSpeaking();
 
     try {
       const player = new Audio(audioData);
+      player.preload = "auto";
       player.volume = 1;
-      player.onplay = () => setIsSpeaking(true);
-      player.onended = () => { setIsSpeaking(false); setAudioPlayer(null); };
+
+      player.onplay = () => {
+        setIsSpeaking(true);
+        console.log("DNA AI: Gemini TTS mulai berbicara");
+      };
+
+      player.onended = () => {
+        setIsSpeaking(false);
+        setAudioPlayer(null);
+      };
+
       player.onerror = (event) => {
         console.error("DNA AI AUDIO ERROR:", event);
         setIsSpeaking(false);
         setAudioPlayer(null);
-        speakResult(fallbackText);
+        toast.error(
+          locale === "id"
+            ? "Suara AI gagal diputar."
+            : "AI voice could not be played."
+        );
       };
+
       setAudioPlayer(player);
-      player.play().catch((error) => {
+
+      void player.play().catch((error) => {
         console.error("DNA AI AUDIO PLAY ERROR:", error);
         setAudioPlayer(null);
         setIsSpeaking(false);
-        speakResult(fallbackText);
+        toast.error(
+          locale === "id"
+            ? "Suara AI gagal diputar."
+            : "AI voice could not be played."
+        );
       });
     } catch (error) {
       console.error("DNA AI AUDIO EXCEPTION:", error);
-      speakResult(fallbackText);
+      setAudioPlayer(null);
+      setIsSpeaking(false);
+      toast.error(
+        locale === "id"
+          ? "Suara AI gagal diputar."
+          : "AI voice could not be played."
+      );
     }
   }
 
@@ -412,12 +471,6 @@ export default function DebuggerPage() {
       setAudioPlayer(null);
     }
 
-    if (
-      "speechSynthesis" in window
-    ) {
-      window.speechSynthesis.cancel();
-    }
-
     setIsSpeaking(false);
   }
 
@@ -429,13 +482,6 @@ export default function DebuggerPage() {
     }
 
     setVoiceMode(true);
-
-    /*
-     * Aktifkan SpeechSynthesis dalam konteks user gesture.
-     * Ini penting untuk Chrome yang dapat menolak output
-     * speech setelah proses async/fetch selesai.
-     */
-    unlockSpeechSynthesis();
 
     if (isSpeaking) {
       stopSpeaking();
@@ -649,7 +695,10 @@ export default function DebuggerPage() {
           },
           body: JSON.stringify({
             code: textToAnalyze,
-            locale,
+            locale: fromVoice
+              ? detectSpokenLocale(textToAnalyze)
+              : locale,
+            fromVoice,
           }),
         }
       );
@@ -684,12 +733,14 @@ export default function DebuggerPage() {
       if (fromVoice) {
         if (data.audio) {
           setTimeout(() => {
-            playServerAudio(data.audio, data.result);
+            playServerAudio(data.audio);
           }, 150);
         } else {
-          setTimeout(() => {
-            speakResult(data.result);
-          }, 150);
+          toast.error(
+            locale === "id"
+              ? "Jawaban suara AI tidak tersedia."
+              : "AI voice response is not available."
+          );
         }
       }
 

@@ -1,0 +1,855 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  Paperclip,
+  Send,
+  X,
+  FileText,
+  Image as ImageIcon,
+  Sparkles,
+  Camera,
+} from "lucide-react";
+
+import { addNotification } from "@/components/notifications/notification-store";
+
+type Message = {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  fileName?: string;
+};
+
+function formatResetTime(resetAt: string) {
+  const date = new Date(resetAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "waktu reset tidak diketahui";
+  }
+
+  return (
+    new Intl.DateTimeFormat("id-ID", {
+      timeZone: "Asia/Jakarta",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date) + " WIB"
+  );
+}
+
+export default function Page() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef =
+    useRef<MediaStream | null>(null);
+
+  function handleFileChange(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const selectedFile =
+      event.target.files?.[0] || null;
+
+    setFile(selectedFile);
+  }
+
+  function removeFile() {
+    setFile(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  async function openCamera() {
+    try {
+      setCameraLoading(true);
+
+      if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+      ) {
+        throw new Error(
+          "Browser ini tidak mendukung akses kamera."
+        );
+      }
+
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: {
+              ideal: "environment",
+            },
+          },
+          audio: false,
+        });
+
+      cameraStreamRef.current = stream;
+
+      setCameraOpen(true);
+
+      /*
+       * Video element baru tersedia setelah
+       * cameraOpen berubah menjadi true.
+       * Binding stream dilakukan setelah render.
+       */
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 0);
+    } catch (error) {
+      console.error(
+        "CAMERA ERROR:",
+        error
+      );
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Tidak dapat mengakses kamera.";
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          role: "assistant",
+          content: `⚠️ ${message}\n\nPastikan izin kamera sudah diberikan kepada browser.`,
+        },
+      ]);
+    } finally {
+      setCameraLoading(false);
+    }
+  }
+
+  function closeCamera() {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current
+        .getTracks()
+        .forEach((track) => track.stop());
+
+      cameraStreamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    setCameraOpen(false);
+  }
+
+  function capturePhoto() {
+    const video = videoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    if (
+      video.readyState <
+      HTMLMediaElement.HAVE_CURRENT_DATA
+    ) {
+      return;
+    }
+
+    const canvas =
+      document.createElement("canvas");
+
+    canvas.width =
+      video.videoWidth || 1280;
+
+    canvas.height =
+      video.videoHeight || 720;
+
+    const context =
+      canvas.getContext("2d");
+
+    if (!context) {
+      return;
+    }
+
+    context.drawImage(
+      video,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          return;
+        }
+
+        const photo = new File(
+          [blob],
+          `kamera-${Date.now()}.jpg`,
+          {
+            type: "image/jpeg",
+          }
+        );
+
+        setFile(photo);
+
+        closeCamera();
+      },
+      "image/jpeg",
+      0.92
+    );
+  }
+
+  useEffect(() => {
+    return () => {
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current
+          .getTracks()
+          .forEach((track) =>
+            track.stop()
+          );
+      }
+    };
+  }, []);
+
+  async function sendMessage() {
+    const text = input.trim();
+
+    if (!text && !file) {
+      return;
+    }
+
+    const currentFile = file;
+
+    const userMessage: Message = {
+      id: Date.now(),
+      role: "user",
+      content:
+        text || "Mengirim foto...",
+      fileName: currentFile?.name,
+    };
+
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+    ]);
+
+    setInput("");
+    setLoading(true);
+
+    try {
+      const formData =
+        new FormData();
+
+      formData.append(
+        "message",
+        text
+      );
+
+      if (currentFile) {
+        formData.append(
+          "file",
+          currentFile
+        );
+      }
+
+      const response =
+        await fetch(
+          "/api/ai-assistant",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        if (
+          response.status === 429 &&
+          data?.quota?.exhausted
+        ) {
+          const resetAt =
+            data.quota.resetAt;
+
+          const resetText =
+            resetAt
+              ? formatResetTime(
+                  resetAt
+                )
+              : "waktu reset tidak diketahui";
+
+          const quotaMessage: Message = {
+            id: Date.now() + 1,
+            role: "assistant",
+            content:
+              `⚠️ Kuota AI hari ini sudah habis.\n\n` +
+              `Silakan coba lagi setelah ${resetText}.`,
+          };
+
+          setMessages((prev) => [
+            ...prev,
+            quotaMessage,
+          ]);
+
+          return;
+        }
+
+        throw new Error(
+          data.error ||
+            "Terjadi kesalahan saat menghubungi AI."
+        );
+      }
+
+      const assistantMessage: Message = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content:
+          data.result ||
+          "AI tidak memberikan jawaban.",
+      };
+
+      setMessages((prev) => [
+        ...prev,
+        assistantMessage,
+      ]);
+
+      addNotification({
+        feature:
+          data.feature ||
+          "AI Asisten",
+        title:
+          "AI Asisten selesai",
+        message:
+          "Permintaan berhasil diproses dan jawaban AI sudah tersedia.",
+        type: "success",
+        result:
+          data.result || "",
+      });
+
+      setFile(null);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error(
+        "AI ASSISTANT ERROR:",
+        error
+      );
+
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content:
+          error instanceof Error
+            ? error.message
+            : "Terjadi kesalahan saat memproses permintaan.",
+      };
+
+      setMessages((prev) => [
+        ...prev,
+        errorMessage,
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>
+  ) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+      sendMessage();
+    }
+  }
+
+  return (
+    <div className="flex min-h-[calc(100vh-2rem)] flex-col">
+
+      {/* CAMERA MODAL */}
+
+      {cameraOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+
+          <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-700 bg-[#0B1120] shadow-2xl">
+
+            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+
+              <div className="flex items-center gap-3">
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600">
+
+                  <Camera
+                    size={20}
+                    className="text-white"
+                  />
+
+                </div>
+
+                <div>
+
+                  <h2 className="font-semibold text-white">
+                    Kamera
+                  </h2>
+
+                  <p className="text-xs text-slate-500">
+                    Ambil foto untuk dikirim ke AI Asisten
+                  </p>
+
+                </div>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+
+            <div className="bg-black">
+
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="max-h-[65vh] w-full object-contain"
+              />
+
+            </div>
+
+
+            <div className="flex items-center justify-center gap-4 px-5 py-5">
+
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="rounded-2xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+              >
+                Batal
+              </button>
+
+
+              <button
+                type="button"
+                onClick={capturePhoto}
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-slate-950 shadow-lg transition hover:scale-105"
+                aria-label="Ambil foto"
+              >
+
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-slate-900">
+
+                  <Camera size={22} />
+
+                </div>
+
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+
+      {/* HEADER */}
+
+      <div className="mb-6 flex items-center gap-3">
+
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg">
+
+          <Sparkles
+            size={22}
+            className="text-white"
+          />
+
+        </div>
+
+        <div>
+
+          <h1 className="text-2xl font-bold text-white">
+            AI Asisten
+          </h1>
+
+          <p className="text-sm text-slate-400">
+            Satu AI untuk berbagai kebutuhanmu
+          </p>
+
+        </div>
+
+      </div>
+
+
+      {/* CHAT AREA */}
+
+      <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-slate-800 bg-[#0B1120] shadow-xl">
+
+        {/* MESSAGES */}
+
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+
+          {messages.length === 0 ? (
+
+            <div className="flex min-h-[500px] items-center justify-center">
+
+              <div className="max-w-2xl text-center">
+
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20">
+
+                  <Sparkles
+                    size={38}
+                    className="text-cyan-400"
+                  />
+
+                </div>
+
+
+                <h2 className="text-3xl font-bold text-white">
+                  Apa yang bisa saya bantu?
+                </h2>
+
+
+                <p className="mx-auto mt-4 max-w-xl text-slate-400">
+                  Tanyakan apa saja. AI Asisten dapat
+                  membantu pemrograman, membuat prompt
+                  gambar, mengolah dokumen, membaca teks
+                  dari gambar, dan menerjemahkan bahasa.
+                </p>
+
+
+                <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
+
+                    <p className="font-semibold text-white">
+                      🤖 AI Tech Assistant
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Debug kode dan bantu masalah teknologi.
+                    </p>
+
+                  </div>
+
+
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
+
+                    <p className="font-semibold text-white">
+                      🖼️ Prompt Gambar
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Buat prompt gambar sesuai kebutuhan.
+                    </p>
+
+                  </div>
+
+
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
+
+                    <p className="font-semibold text-white">
+                      📄 Dokumen AI
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Analisis dan olah berbagai dokumen.
+                    </p>
+
+                  </div>
+
+
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
+
+                    <p className="font-semibold text-white">
+                      🔎 Pengenal Teks & 🌐 Penerjemah
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Baca teks dari gambar dan terjemahkan.
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          ) : (
+
+            <div className="mx-auto max-w-4xl space-y-6">
+
+              {messages.map(
+                (message) => (
+
+                  <div
+                    key={message.id}
+                    className={`flex ${
+                      message.role === "user"
+                        ? "justify-end"
+                        : "justify-start"
+                    }`}
+                  >
+
+                    <div
+                      className={`max-w-[85%] rounded-3xl px-5 py-4 ${
+                        message.role === "user"
+                          ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white"
+                          : "border border-slate-800 bg-[#111827] text-slate-200"
+                      }`}
+                    >
+
+                      {message.fileName && (
+
+                        <div className="mb-3 flex items-center gap-2 rounded-xl bg-black/20 px-3 py-2 text-sm">
+
+                          {message.fileName.match(
+                            /\.(png|jpe?g|webp)$/i
+                          ) ? (
+
+                            <ImageIcon size={16} />
+
+                          ) : (
+
+                            <FileText size={16} />
+
+                          )}
+
+                          <span className="truncate">
+                            {message.fileName}
+                          </span>
+
+                        </div>
+
+                      )}
+
+
+                      <div className="whitespace-pre-wrap leading-7">
+                        {message.content}
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                )
+              )}
+
+
+              {loading && (
+
+                <div className="flex justify-start">
+
+                  <div className="rounded-3xl border border-slate-800 bg-[#111827] px-5 py-4">
+
+                    <div className="flex items-center gap-2">
+
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-400" />
+
+                      <span
+                        className="h-2 w-2 animate-bounce rounded-full bg-cyan-400"
+                        style={{
+                          animationDelay:
+                            "120ms",
+                        }}
+                      />
+
+                      <span
+                        className="h-2 w-2 animate-bounce rounded-full bg-cyan-400"
+                        style={{
+                          animationDelay:
+                            "240ms",
+                        }}
+                      />
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              )}
+
+            </div>
+
+          )}
+
+        </div>
+
+
+        {/* INPUT AREA */}
+
+        <div className="border-t border-slate-800 bg-[#0B1120] p-4 lg:p-6">
+
+          <div className="mx-auto max-w-4xl">
+
+            {file && (
+
+              <div className="mb-3 flex items-center justify-between rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3">
+
+                <div className="flex min-w-0 items-center gap-3">
+
+                  {file.type.startsWith("image/") ? (
+
+                    <ImageIcon
+                      size={18}
+                      className="shrink-0 text-cyan-400"
+                    />
+
+                  ) : (
+
+                    <FileText
+                      size={18}
+                      className="shrink-0 text-cyan-400"
+                    />
+
+                  )}
+
+                  <span className="truncate text-sm text-slate-300">
+                    {file.name}
+                  </span>
+
+                </div>
+
+
+                <button
+                  type="button"
+                  onClick={removeFile}
+                  className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-white"
+                >
+
+                  <X size={18} />
+
+                </button>
+
+              </div>
+
+            )}
+
+
+            <div className="rounded-3xl border border-slate-700 bg-[#111827] p-2 shadow-lg focus-within:border-cyan-500">
+
+              <textarea
+                value={input}
+                onChange={(event) =>
+                  setInput(
+                    event.target.value
+                  )
+                }
+                onKeyDown={handleKeyDown}
+                placeholder="Tanyakan apa saja..."
+                rows={3}
+                disabled={loading}
+                className="w-full resize-none bg-transparent px-4 py-3 text-white outline-none placeholder:text-slate-500 disabled:opacity-60"
+              />
+
+
+              <div className="flex items-center justify-between px-2 pb-1">
+
+                <div className="flex items-center gap-1">
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    hidden
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp"
+                    onChange={handleFileChange}
+                    disabled={loading}
+                  />
+
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fileInputRef.current?.click()
+                    }
+                    disabled={loading}
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+
+                    <Paperclip size={18} />
+
+                    <span className="hidden text-sm sm:inline">
+                      Lampirkan
+                    </span>
+
+                  </button>
+
+
+                  <button
+                    type="button"
+                    onClick={openCamera}
+                    disabled={
+                      loading ||
+                      cameraLoading
+                    }
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+
+                    <Camera size={18} />
+
+                    <span className="hidden text-sm sm:inline">
+                      Kamera
+                    </span>
+
+                  </button>
+
+                </div>
+
+
+                <button
+                  type="button"
+                  onClick={sendMessage}
+                  disabled={
+                    loading ||
+                    (!input.trim() &&
+                      !file)
+                  }
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+
+                  <Send size={18} />
+
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <p className="mt-3 text-center text-xs text-slate-600">
+              AI Asisten dapat menggunakan beberapa fungsi
+              berdasarkan kebutuhan percakapan.
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  );
+}

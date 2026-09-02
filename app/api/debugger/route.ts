@@ -36,6 +36,9 @@ export async function POST(req: Request) {
         ? "en"
         : "id";
 
+    const fromVoice =
+      body.fromVoice === true;
+
     if (!code) {
       return NextResponse.json(
         {
@@ -64,11 +67,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const audio =
-      await generateDebuggerSpeech(
-        result,
-        locale
-      );
+    let audio: string | null = null;
+
+    if (fromVoice) {
+      audio =
+        await generateDebuggerSpeech(
+          result,
+          locale
+        );
+    }
 
     await prisma.history.create({
       data: {

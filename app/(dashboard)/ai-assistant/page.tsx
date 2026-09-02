@@ -318,7 +318,8 @@ export default function Page() {
     const currentFile = file;
 
     const imagePreview =
-      currentFile && currentFile.type.startsWith("image/")
+      currentFile &&
+      currentFile.type.startsWith("image/")
         ? URL.createObjectURL(currentFile)
         : undefined;
 
@@ -388,22 +389,19 @@ export default function Page() {
           response.status === 429 &&
           data?.quota?.exhausted
         ) {
-          const resetAt =
-            data.quota.resetAt;
+          const retryAt =
+            data.quota.retryAt;
 
-          const resetText =
-            resetAt
-              ? formatResetTime(
-                  resetAt
-                )
-              : "waktu reset tidak diketahui";
+          const retryText = retryAt
+            ? formatResetTime(retryAt)
+            : "beberapa saat lagi";
 
           const quotaMessage: Message = {
             id: Date.now() + 1,
             role: "assistant",
             content:
-              `⚠️ Kuota AI hari ini sudah habis.\n\n` +
-              `Silakan coba lagi setelah ${resetText}.`,
+              `⚠️ Batas penggunaan AI sedang tercapai.\n\n` +
+              `Silakan coba lagi setelah ${retryText}.`,
           };
 
           setMessages((prev) => [
@@ -738,7 +736,10 @@ export default function Page() {
                         <div className="mb-3 overflow-hidden rounded-2xl">
                           <img
                             src={message.imagePreview}
-                            alt={message.fileName || "Foto yang dikirim"}
+                            alt={
+                              message.fileName ||
+                              "Foto yang dikirim"
+                            }
                             className="max-h-[420px] max-w-full rounded-2xl object-contain"
                           />
                         </div>
@@ -1025,7 +1026,6 @@ export default function Page() {
                       </button>
                     )
                   )}
-
                 </div>
               )}
             </div>

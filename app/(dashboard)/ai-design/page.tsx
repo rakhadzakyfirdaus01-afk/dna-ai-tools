@@ -7,24 +7,132 @@ import {
   Palette,
   Sparkles,
 } from "lucide-react";
+import { useLanguage } from "@/components/shared/language-provider";
 
 export default function AIDesignPage() {
+  const { locale } = useLanguage();
+  const isEnglish = locale === "en";
+
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
+  const ui = {
+    headerDescription: isEnglish
+      ? "Create any design using AI."
+      : "Buat desain apa saja menggunakan AI.",
+
+    createTitle: isEnglish
+      ? "Create Design"
+      : "Buat Desain",
+
+    createDescription: isEnglish
+      ? "Describe the design you want AI to create."
+      : "Jelaskan desain yang ingin dibuat oleh AI.",
+
+    placeholder: isEnglish
+      ? "Example: Create a Crispy Chicken advertising poster with the title CRISPY CHICKEN, price Rp10,000, appetizing crispy chicken photo, red and yellow colors, and a professional design."
+      : "Contoh: Buat poster iklan Ayam Crispy dengan judul AYAM CRISPY, harga Rp10.000, foto ayam crispy yang menggugah selera, warna merah dan kuning, desain profesional.",
+
+    emptyPrompt: isEnglish
+      ? "Please enter a design prompt first."
+      : "Masukkan prompt desain terlebih dahulu.",
+
+    sending: isEnglish
+      ? "Sending prompt to AI..."
+      : "Mengirim prompt ke AI...",
+
+    creating: isEnglish
+      ? "AI is creating the design visual..."
+      : "AI sedang membuat visual desain...",
+
+    created: isEnglish
+      ? "Visual created successfully."
+      : "Visual berhasil dibuat.",
+
+    tooLong: isEnglish
+      ? "Design creation took too long. Please try again."
+      : "Waktu pembuatan desain terlalu lama. Silakan coba lagi.",
+
+    noProjectId: isEnglish
+      ? "Project ID was not received from the server."
+      : "Project ID tidak diterima dari server.",
+
+    generateFailed: isEnglish
+      ? "Failed to start design creation."
+      : "Gagal memulai pembuatan desain.",
+
+    statusFailed: isEnglish
+      ? "Failed to retrieve the design result."
+      : "Gagal mengambil hasil desain.",
+
+    missingUrl: isEnglish
+      ? "The design is complete, but the image URL was not found."
+      : "Desain selesai, tetapi URL gambar tidak ditemukan.",
+
+    aiFailed: isEnglish
+      ? "AI failed to create the design visual."
+      : "AI gagal membuat visual desain.",
+
+    canceled: isEnglish
+      ? "Design creation was canceled."
+      : "Pembuatan desain dibatalkan.",
+
+    queued: isEnglish
+      ? "Visual added to the AI queue..."
+      : "Visual masuk antrean AI...",
+
+    rendering: isEnglish
+      ? "AI is rendering the visual..."
+      : "AI sedang merender visual...",
+
+    unknownError: isEnglish
+      ? "An error occurred while creating the design."
+      : "Terjadi kesalahan saat membuat desain.",
+
+    resultTitle: isEnglish
+      ? "Design Result"
+      : "Hasil Desain",
+
+    resultDescription: isEnglish
+      ? "The AI-generated design visual will appear here."
+      : "Visual desain yang dibuat AI akan muncul di sini.",
+
+    download: "Download",
+
+    alt: isEnglish
+      ? "AI design visual"
+      : "Visual desain AI",
+
+    noDesign: isEnglish
+      ? "No design yet"
+      : "Belum ada desain",
+
+    noDesignDescription: isEnglish
+      ? "Enter a prompt, then press Generate Design."
+      : "Masukkan prompt lalu tekan Generate Desain.",
+
+    makeDesign: isEnglish
+      ? "Creating Design..."
+      : "Membuat Desain...",
+
+    generateDesign: isEnglish
+      ? "Generate Design"
+      : "Generate Desain",
+  };
+
   async function generateDesign() {
     if (!prompt.trim()) {
-      setError("Masukkan prompt desain terlebih dahulu.");
+      setError(ui.emptyPrompt);
       return;
     }
 
     setLoading(true);
     setError("");
     setImageUrl("");
-    setStatus("Mengirim prompt ke AI...");
+    setStatus(ui.sending);
 
     try {
       const generateResponse = await fetch("/api/ai-design", {
@@ -41,20 +149,17 @@ export default function AIDesignPage() {
 
       if (!generateResponse.ok) {
         throw new Error(
-          generateData?.error ||
-            "Gagal memulai pembuatan desain."
+          generateData?.error || ui.generateFailed
         );
       }
 
       const projectId = generateData.projectId;
 
       if (!projectId) {
-        throw new Error(
-          "Project ID tidak diterima dari server."
-        );
+        throw new Error(ui.noProjectId);
       }
 
-      setStatus("AI sedang membuat visual desain...");
+      setStatus(ui.creating);
 
       for (let attempt = 0; attempt < 60; attempt++) {
         await new Promise((resolve) =>
@@ -74,60 +179,47 @@ export default function AIDesignPage() {
 
         if (!statusResponse.ok) {
           throw new Error(
-            statusData?.error ||
-              "Gagal mengambil hasil desain."
+            statusData?.error || ui.statusFailed
           );
         }
 
         if (statusData.status === "complete") {
           if (!statusData.imageUrl) {
-            throw new Error(
-              "Desain selesai, tetapi URL gambar tidak ditemukan."
-            );
+            throw new Error(ui.missingUrl);
           }
 
           setImageUrl(statusData.imageUrl);
-          setStatus("Visual berhasil dibuat.");
+          setStatus(ui.created);
           setLoading(false);
 
           return;
         }
 
         if (statusData.status === "error") {
-          throw new Error(
-            "AI gagal membuat visual desain."
-          );
+          throw new Error(ui.aiFailed);
         }
 
         if (statusData.status === "canceled") {
-          throw new Error(
-            "Pembuatan desain dibatalkan."
-          );
+          throw new Error(ui.canceled);
         }
 
         if (statusData.status === "queued") {
-          setStatus(
-            "Visual masuk antrean AI..."
-          );
+          setStatus(ui.queued);
         } else if (
           statusData.status === "rendering"
         ) {
-          setStatus(
-            "AI sedang merender visual..."
-          );
+          setStatus(ui.rendering);
         }
       }
 
-      throw new Error(
-        "Waktu pembuatan desain terlalu lama. Silakan coba lagi."
-      );
+      throw new Error(ui.tooLong);
     } catch (err) {
       console.error(err);
 
       setError(
         err instanceof Error
           ? err.message
-          : "Terjadi kesalahan saat membuat desain."
+          : ui.unknownError
       );
 
       setStatus("");
@@ -153,7 +245,7 @@ export default function AIDesignPage() {
               </h1>
 
               <p className="mt-1 text-white/80">
-                Buat desain apa saja menggunakan AI.
+                {ui.headerDescription}
               </p>
             </div>
           </div>
@@ -170,11 +262,11 @@ export default function AIDesignPage() {
 
             <div>
               <h2 className="text-2xl font-bold text-white">
-                Buat Desain
+                {ui.createTitle}
               </h2>
 
               <p className="mt-1 text-sm text-slate-400">
-                Jelaskan desain yang ingin dibuat oleh AI.
+                {ui.createDescription}
               </p>
             </div>
           </div>
@@ -187,7 +279,7 @@ export default function AIDesignPage() {
               setError("");
             }}
             disabled={loading}
-            placeholder="Contoh: Buat poster iklan Ayam Crispy dengan judul AYAM CRISPY, harga Rp10.000, foto ayam crispy yang menggugah selera, warna merah dan kuning, desain profesional."
+            placeholder={ui.placeholder}
             className="min-h-[220px] w-full resize-y rounded-xl border border-slate-700 bg-slate-950 p-5 text-white outline-none transition placeholder:text-slate-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 disabled:cursor-not-allowed disabled:opacity-60"
           />
 
@@ -227,12 +319,12 @@ export default function AIDesignPage() {
                   size={21}
                   className="animate-spin"
                 />
-                Membuat Desain...
+                {ui.makeDesign}
               </>
             ) : (
               <>
                 <Palette size={21} />
-                Generate Desain
+                {ui.generateDesign}
               </>
             )}
           </button>
@@ -244,11 +336,11 @@ export default function AIDesignPage() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-bold text-white">
-                Hasil Desain
+                {ui.resultTitle}
               </h2>
 
               <p className="mt-1 text-sm text-slate-400">
-                Visual desain yang dibuat AI akan muncul di sini.
+                {ui.resultDescription}
               </p>
             </div>
 
@@ -261,7 +353,7 @@ export default function AIDesignPage() {
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-5 py-3 font-semibold text-white transition hover:bg-slate-700"
               >
                 <Download size={18} />
-                Download
+                {ui.download}
               </a>
             )}
           </div>
@@ -272,7 +364,7 @@ export default function AIDesignPage() {
             {imageUrl ? (
               <img
                 src={imageUrl}
-                alt="Visual desain AI"
+                alt={ui.alt}
                 className="max-h-[900px] w-auto max-w-full rounded-lg object-contain"
               />
             ) : (
@@ -283,11 +375,11 @@ export default function AIDesignPage() {
                 />
 
                 <p className="text-lg font-medium">
-                  Belum ada desain
+                  {ui.noDesign}
                 </p>
 
                 <p className="mt-2 text-sm">
-                  Masukkan prompt lalu tekan Generate Desain.
+                  {ui.noDesignDescription}
                 </p>
               </div>
             )}

@@ -15,6 +15,11 @@ import { askDocument } from "@/lib/gemini-document";
 import { askOCR } from "@/lib/gemini-ocr";
 import { askTranslator } from "@/lib/gemini-translator";
 
+import {
+  transcribeVoice,
+  generateVoiceAudio,
+} from "@/lib/gemini-voice";
+
 type Feature =
   | "AI Tech Assistant"
   | "Image Prompt"
@@ -194,7 +199,8 @@ function parseApiError(error: unknown): ParsedApiError {
   }
 
   try {
-    const jsonStart = fallbackMessage.indexOf("{");
+    const jsonStart =
+      fallbackMessage.indexOf("{");
 
     if (jsonStart === -1) {
       return {
@@ -207,11 +213,14 @@ function parseApiError(error: unknown): ParsedApiError {
     );
 
     const apiError =
-      parsed?.error && typeof parsed.error === "object"
+      parsed?.error &&
+      typeof parsed.error === "object"
         ? parsed.error
         : parsed;
 
-    const details = Array.isArray(apiError?.details)
+    const details = Array.isArray(
+      apiError?.details
+    )
       ? apiError.details
       : [];
 
@@ -221,7 +230,9 @@ function parseApiError(error: unknown): ParsedApiError {
         typeof detail === "object" &&
         "@type" in detail &&
         String(
-          (detail as Record<string, unknown>)["@type"]
+          (detail as Record<string, unknown>)[
+            "@type"
+          ]
         ).includes("RetryInfo")
     ) as
       | Record<string, unknown>
@@ -232,7 +243,9 @@ function parseApiError(error: unknown): ParsedApiError {
         ? retryInfo.retryDelay
         : undefined;
 
-    let retryDelaySeconds: number | undefined;
+    let retryDelaySeconds:
+      | number
+      | undefined;
 
     if (retryDelay) {
       const secondsMatch =
@@ -253,7 +266,9 @@ function parseApiError(error: unknown): ParsedApiError {
         typeof detail === "object" &&
         "@type" in detail &&
         String(
-          (detail as Record<string, unknown>)["@type"]
+          (detail as Record<string, unknown>)[
+            "@type"
+          ]
         ).includes("ErrorInfo")
     ) as
       | Record<string, unknown>
@@ -304,9 +319,10 @@ function getRetryAt(
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(
-      authOptions
-    );
+    const session =
+      await getServerSession(
+        authOptions
+      );
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -319,21 +335,31 @@ export async function POST(req: Request) {
       );
     }
 
-    const formData = await req.formData();
+    const formData =
+      await req.formData();
 
-    const messageValue = formData.get("message");
-    const fileValue = formData.get("file");
-    const modelValue = formData.get("model");
+    const messageValue =
+      formData.get("message");
+
+    const fileValue =
+      formData.get("file");
+
+    const voiceValue =
+      formData.get("voice");
+
+    const modelValue =
+      formData.get("model");
 
     const model: AIModelId =
       typeof modelValue === "string" &&
       AI_MODELS.some(
-        (item) => item.id === modelValue
+        (item) =>
+          item.id === modelValue
       )
         ? (modelValue as AIModelId)
         : DEFAULT_AI_MODEL;
 
-    const message =
+    let message =
       typeof messageValue === "string"
         ? messageValue.trim()
         : "";
@@ -343,7 +369,67 @@ export async function POST(req: Request) {
         ? fileValue
         : null;
 
-    if (!message && !file) {
+    const voiceFile =
+      voiceValue instanceof File
+        ? voiceValue
+        : null;
+
+    /*
+     * VOICE INPUT
+     *
+     * Suara ditranskripsikan terlebih dahulu.
+     * Setelah itu hasil transkripsi diproses
+     * oleh model yang dipilih pengguna.
+     */
+    if (voiceFile) {
+      if (
+        !voiceFile.type.startsWith(
+          "audio/"
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "File voice harus berupa audio.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      const voiceBase64 =
+        await fileToBase64(
+          voiceFile
+        );
+
+      const transcription =
+        await transcribeVoice({
+          mimeType:
+            voiceFile.type,
+          data: voiceBase64,
+        });
+
+      message =
+        transcription.trim();
+
+      if (!message) {
+        return NextResponse.json(
+          {
+            error:
+              "Suara tidak berhasil ditranskripsikan.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+    }
+
+    if (
+      !message &&
+      !file
+    ) {
       return NextResponse.json(
         {
           error:
@@ -355,29 +441,40 @@ export async function POST(req: Request) {
       );
     }
 
-    const feature = detectFeature(
-      message,
-      file
-    );
+    const feature =
+      detectFeature(
+        message,
+        file
+      );
 
     let result = "";
 
-    if (feature === "AI Tech Assistant") {
-      result = await askDebugger(
-        message,
-        "id",
-        model
-      );
+    if (
+      feature ===
+      "AI Tech Assistant"
+    ) {
+      result =
+        await askDebugger(
+          message,
+          "id",
+          model
+        );
     }
 
-    if (feature === "AI Translator") {
-      result = await askTranslator(
-        message,
-        model
-      );
+    if (
+      feature ===
+      "AI Translator"
+    ) {
+      result =
+        await askTranslator(
+          message,
+          model
+        );
     }
 
-    if (feature === "AI OCR") {
+    if (
+      feature === "AI OCR"
+    ) {
       if (!file) {
         return NextResponse.json(
           {
@@ -390,7 +487,11 @@ export async function POST(req: Request) {
         );
       }
 
-      if (!file.type.startsWith("image/")) {
+      if (
+        !file.type.startsWith(
+          "image/"
+        )
+      ) {
         return NextResponse.json(
           {
             error:
@@ -403,21 +504,28 @@ export async function POST(req: Request) {
       }
 
       const base64 =
-        await fileToBase64(file);
+        await fileToBase64(
+          file
+        );
 
-      result = await askOCR({
-        prompt:
-          message ||
-          "Analisis gambar secara menyeluruh. Jika gambar berisi soal, pertanyaan, latihan, tugas, atau masalah yang harus diselesaikan, kerjakan dan berikan jawabannya secara lengkap. Jika gambar hanya berisi teks biasa, jelaskan atau salin isi pentingnya.",
-        image: {
-          mimeType: file.type,
-          data: base64,
-        },
-        model,
-      });
+      result =
+        await askOCR({
+          prompt:
+            message ||
+            "Analisis gambar secara menyeluruh. Jika gambar berisi soal, pertanyaan, latihan, tugas, atau masalah yang harus diselesaikan, kerjakan dan berikan jawabannya secara lengkap. Jika gambar hanya berisi teks biasa, jelaskan atau salin isi pentingnya.",
+          image: {
+            mimeType:
+              file.type,
+            data: base64,
+          },
+          model,
+        });
     }
 
-    if (feature === "Image Prompt") {
+    if (
+      feature ===
+      "Image Prompt"
+    ) {
       if (!file) {
         return NextResponse.json(
           {
@@ -430,7 +538,11 @@ export async function POST(req: Request) {
         );
       }
 
-      if (!file.type.startsWith("image/")) {
+      if (
+        !file.type.startsWith(
+          "image/"
+        )
+      ) {
         return NextResponse.json(
           {
             error:
@@ -443,19 +555,26 @@ export async function POST(req: Request) {
       }
 
       const base64 =
-        await fileToBase64(file);
+        await fileToBase64(
+          file
+        );
 
-      result = await askImagePrompt({
-        prompt: message,
-        image: {
-          mimeType: file.type,
-          data: base64,
-        },
-        model,
-      });
+      result =
+        await askImagePrompt({
+          prompt: message,
+          image: {
+            mimeType:
+              file.type,
+            data: base64,
+          },
+          model,
+        });
     }
 
-    if (feature === "AI Document") {
+    if (
+      feature ===
+      "AI Document"
+    ) {
       if (!file) {
         return NextResponse.json(
           {
@@ -468,7 +587,11 @@ export async function POST(req: Request) {
         );
       }
 
-      if (file.type.startsWith("image/")) {
+      if (
+        file.type.startsWith(
+          "image/"
+        )
+      ) {
         return NextResponse.json(
           {
             error:
@@ -481,16 +604,20 @@ export async function POST(req: Request) {
       }
 
       const base64 =
-        await fileToBase64(file);
+        await fileToBase64(
+          file
+        );
 
-      result = await askDocument({
-        prompt: message,
-        document: {
-          mimeType: file.type,
-          data: base64,
-        },
-        model,
-      });
+      result =
+        await askDocument({
+          prompt: message,
+          document: {
+            mimeType:
+              file.type,
+            data: base64,
+          },
+          model,
+        });
     }
 
     if (!result.trim()) {
@@ -505,10 +632,25 @@ export async function POST(req: Request) {
       );
     }
 
+    /*
+     * Jika input berasal dari voice,
+     * buat audio jawaban AI.
+     */
+    let audio: string | null =
+      null;
+
+    if (voiceFile) {
+      audio =
+        await generateVoiceAudio(
+          result
+        );
+    }
+
     const history =
       await prisma.history.create({
         data: {
-          userId: session.user.id,
+          userId:
+            session.user.id,
           title: feature,
           feature,
           prompt:
@@ -523,6 +665,11 @@ export async function POST(req: Request) {
       success: true,
       feature,
       result,
+      audio,
+      voice: Boolean(
+        voiceFile
+      ),
+      model,
       history,
     });
   } catch (error) {
@@ -577,9 +724,10 @@ export async function POST(req: Request) {
       );
 
     if (isRateLimitError) {
-      const retryAt = getRetryAt(
-        parsedError.retryDelaySeconds
-      );
+      const retryAt =
+        getRetryAt(
+          parsedError.retryDelaySeconds
+        );
 
       if (retryAt) {
         return NextResponse.json(

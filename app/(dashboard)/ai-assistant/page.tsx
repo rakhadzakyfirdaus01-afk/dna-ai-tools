@@ -12,6 +12,9 @@ import {
   Link2,
   ChevronDown,
   Check,
+  Mic,
+  MicOff,
+  Volume2,
 } from "lucide-react";
 
 import { addNotification } from "@/components/notifications/notification-store";
@@ -86,6 +89,16 @@ export default function Page() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraStreamRef =
     useRef<MediaStream | null>(null);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const mediaRecorderRef =
+    useRef<MediaRecorder | null>(null);
+  const audioChunksRef =
+    useRef<Blob[]>([]);
+  const audioPlayerRef =
+    useRef<HTMLAudioElement | null>(null);
 
   function handleFileChange(
     event: React.ChangeEvent<HTMLInputElement>
@@ -302,6 +315,368 @@ export default function Page() {
           );
 
         cameraStreamRef.current = null;
+      }
+    };
+  }, []);
+
+  function stopAiSpeaking() {
+    const player = audioPlayerRef.current;
+
+    if (player) {
+      player.pause();
+      player.currentTime = 0;
+      audioPlayerRef.current = null;
+    }
+
+    setIsSpeaking(false);
+  }
+
+  function playAiVoice(base64Audio: string) {
+    if (!base64Audio) {
+      return;
+    }
+
+    stopAiSpeaking();
+
+    const audio = new Audio(
+      `data:audio/wav;base64,${base64Audio}`
+    );
+
+    audio.volume = 1;
+
+    audio.onplay = () => {
+      setIsSpeaking(true);
+    };
+
+    audio.onended = () => {
+      setIsSpeaking(false);
+      audioPlayerRef.current = null;
+    };
+
+    audio.onerror = (event) => {
+      console.error(
+        "AI VOICE AUDIO ERROR:",
+        event
+      );
+
+      setIsSpeaking(false);
+      audioPlayerRef.current = null;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 2,
+          role: "assistant",
+          content:
+            "⚠️ Suara AI gagal diputar.",
+        },
+      ]);
+    };
+
+    audioPlayerRef.current = audio;
+
+    void audio.play().catch((error) => {
+      console.error(
+        "AI VOICE PLAY ERROR:",
+        error
+      );
+
+      setIsSpeaking(false);
+      audioPlayerRef.current = null;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 2,
+          role: "assistant",
+          content:
+            "⚠️ Suara AI diblokir browser. Coba ketuk layar lalu ulangi.",
+        },
+      ]);
+    });
+  }
+
+  async function startVoiceRecording() {
+    if (loading || isRecording) {
+      return;
+    }
+
+    try {
+      if (
+        typeof navigator === "undefined" ||
+        !navigator.mediaDevices?.getUserMedia
+      ) {
+        throw new Error(
+          "Browser ini tidak mendukung mikrofon."
+        );
+      }
+
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+
+      const mimeTypes = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/mp4",
+      ];
+
+      const supportedMimeType =
+        mimeTypes.find((type) =>
+          MediaRecorder.isTypeSupported(type)
+        ) ?? "";
+
+      const recorder = supportedMimeType
+        ? new MediaRecorder(
+            stream,
+            {
+              mimeType:
+                supportedMimeType,
+            }
+          )
+        : new MediaRecorder(stream);
+
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (
+        event
+      ) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(
+            event.data
+          );
+        }
+      };
+
+      recorder.onstop = async () => {
+        stream
+          .getTracks()
+          .forEach((track) =>
+            track.stop()
+          );
+
+        const mimeType =
+          recorder.mimeType ||
+          "audio/webm";
+
+        const blob = new Blob(
+          audioChunksRef.current,
+          {
+            type: mimeType,
+          }
+        );
+
+        audioChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        setIsRecording(false);
+
+        if (!blob.size) {
+          setLoading(false);
+          return;
+        }
+
+        const extension =
+          mimeType.includes("ogg")
+            ? "ogg"
+            : mimeType.includes("mp4")
+              ? "mp4"
+              : "webm";
+
+        const voiceFile = new File(
+          [blob],
+          `voice-${Date.now()}.${extension}`,
+          {
+            type: mimeType,
+          }
+        );
+
+        await sendVoiceMessage(
+          voiceFile
+        );
+      };
+
+      mediaRecorderRef.current =
+        recorder;
+
+      recorder.start();
+
+      setIsRecording(true);
+    } catch (error) {
+      console.error(
+        "VOICE RECORDING ERROR:",
+        error
+      );
+
+      setIsRecording(false);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          role: "assistant",
+          content:
+            error instanceof Error
+              ? `⚠️ ${error.message}`
+              : "⚠️ Mikrofon tidak dapat digunakan.",
+        },
+      ]);
+    }
+  }
+
+  function stopVoiceRecording() {
+    const recorder =
+      mediaRecorderRef.current;
+
+    if (!recorder) {
+      return;
+    }
+
+    if (recorder.state === "recording") {
+      recorder.stop();
+    }
+  }
+
+  async function sendVoiceMessage(
+    voiceFile: File
+  ) {
+    setLoading(true);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        role: "user",
+        content: "🎤 Pesan suara",
+      },
+    ]);
+
+    try {
+      const formData =
+        new FormData();
+
+      formData.append(
+        "message",
+        ""
+      );
+
+      formData.append(
+        "voice",
+        voiceFile
+      );
+
+      formData.append(
+        "model",
+        selectedModel
+      );
+
+      const response =
+        await fetch(
+          "/api/ai-assistant",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        if (
+          response.status === 429 &&
+          data?.quota?.exhausted
+        ) {
+          const retryAt =
+            data.quota.retryAt;
+
+          const retryText = retryAt
+            ? formatResetTime(retryAt)
+            : "beberapa saat lagi";
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now() + 1,
+              role: "assistant",
+              content:
+                `⚠️ Batas penggunaan AI sedang tercapai.\n\n` +
+                `Silakan coba lagi setelah ${retryText}.`,
+            },
+          ]);
+
+          return;
+        }
+
+        throw new Error(
+          data.error ||
+            "Gagal memproses suara."
+        );
+      }
+
+      if (!data.audio) {
+        throw new Error(
+          "AI tidak menghasilkan suara."
+        );
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          role: "assistant",
+          content:
+            "🔊 AI sedang berbicara...",
+        },
+      ]);
+
+      playAiVoice(data.audio);
+
+      addNotification({
+        feature:
+          data.feature ||
+          "AI Asisten",
+        title:
+          "AI Voice selesai",
+        message:
+          "Jawaban AI berhasil dibuat dan diputar.",
+        type: "success",
+        result:
+          data.result || "",
+      });
+    } catch (error) {
+      console.error(
+        "AI VOICE ERROR:",
+        error
+      );
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 2,
+          role: "assistant",
+          content:
+            error instanceof Error
+              ? error.message
+              : "Gagal memproses suara AI.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      stopAiSpeaking();
+
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !==
+          "inactive"
+      ) {
+        mediaRecorderRef.current.stop();
       }
     };
   }, []);
@@ -782,6 +1157,13 @@ export default function Page() {
               )}
 
 
+              {isSpeaking && (
+                <div className="mb-3 flex items-center gap-2 text-sm text-cyan-400">
+                  <Volume2 size={16} />
+                  <span>AI sedang berbicara...</span>
+                </div>
+              )}
+
               {loading && (
 
                 <div className="flex justify-start">
@@ -956,7 +1338,7 @@ export default function Page() {
                         (option) =>
                           option.id ===
                           selectedModel
-                      )?.name ?? "Auto"
+                      )?.name ?? "Model"
                     }
                   </div>
                   <div className="hidden text-[11px] text-slate-500 sm:block">
@@ -966,7 +1348,7 @@ export default function Page() {
                           option.id ===
                           selectedModel
                       )?.description ??
-                      "Pilih model terbaik yang masih tersedia"
+                      "Model Gemini untuk AI Asisten"
                     }
                   </div>
                 </div>
@@ -1003,11 +1385,6 @@ export default function Page() {
                             <span className="text-sm font-semibold text-slate-200">
                               {option.name}
                             </span>
-                            <div className="flex items-center gap-2">
-  <span className="text-sm font-semibold text-slate-200">
-    {option.name}
-  </span>
-</div>
                           </div>
 
                           <p className="mt-1 text-xs text-slate-500">
@@ -1101,6 +1478,32 @@ export default function Page() {
 
                 </div>
 
+
+                <button
+                  type="button"
+                  onClick={
+                    isRecording
+                      ? stopVoiceRecording
+                      : startVoiceRecording
+                  }
+                  disabled={loading}
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                    isRecording
+                      ? "bg-red-500 text-white"
+                      : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
+                  aria-label={
+                    isRecording
+                      ? "Hentikan rekaman"
+                      : "Mulai rekaman"
+                  }
+                >
+                  {isRecording ? (
+                    <MicOff size={18} />
+                  ) : (
+                    <Mic size={18} />
+                  )}
+                </button>
 
                 <button
                   type="button"

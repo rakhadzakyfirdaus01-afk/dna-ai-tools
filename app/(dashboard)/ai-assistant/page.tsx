@@ -1003,12 +1003,11 @@ export default function Page() {
                             <span className="text-sm font-semibold text-slate-200">
                               {option.name}
                             </span>
-                            {option.id ===
-                              "gemini-3.7-flash" && (
-                              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-300">
-                                Baru
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2">
+  <span className="text-sm font-semibold text-slate-200">
+    {option.name}
+  </span>
+</div>
                           </div>
 
                           <p className="mt-1 text-xs text-slate-500">

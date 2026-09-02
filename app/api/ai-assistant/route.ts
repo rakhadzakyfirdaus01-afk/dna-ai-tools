@@ -22,7 +22,10 @@ type Feature =
   | "AI OCR"
   | "AI Translator";
 
-function detectFeature(message: string, file: File | null): Feature {
+function detectFeature(
+  message: string,
+  file: File | null
+): Feature {
   const text = message.toLowerCase();
 
   if (file) {
@@ -56,12 +59,18 @@ function detectFeature(message: string, file: File | null): Feature {
         "deskripsikan gambar untuk prompt",
       ];
 
-      if (ocrKeywords.some((keyword) => text.includes(keyword))) {
+      if (
+        ocrKeywords.some((keyword) =>
+          text.includes(keyword)
+        )
+      ) {
         return "AI OCR";
       }
 
       if (
-        imagePromptKeywords.some((keyword) => text.includes(keyword))
+        imagePromptKeywords.some((keyword) =>
+          text.includes(keyword)
+        )
       ) {
         return "Image Prompt";
       }
@@ -99,7 +108,9 @@ function detectFeature(message: string, file: File | null): Feature {
   ];
 
   if (
-    translatorKeywords.some((keyword) => text.includes(keyword))
+    translatorKeywords.some((keyword) =>
+      text.includes(keyword)
+    )
   ) {
     return "AI Translator";
   }
@@ -148,7 +159,9 @@ function detectFeature(message: string, file: File | null): Feature {
   ];
 
   if (
-    debuggerKeywords.some((keyword) => text.includes(keyword))
+    debuggerKeywords.some((keyword) =>
+      text.includes(keyword)
+    )
   ) {
     return "AI Tech Assistant";
   }
@@ -162,80 +175,138 @@ async function fileToBase64(file: File) {
   return Buffer.from(bytes).toString("base64");
 }
 
-/**
- * Gemini menggunakan reset RPD pada pukul 00:00
- * berdasarkan Pacific Time.
- *
- * Fungsi ini menghitung waktu reset berikutnya
- * secara otomatis dan mengembalikannya sebagai Date.
- */
-function getNextPacificMidnight(): Date {
-  const now = new Date();
+type ParsedApiError = {
+  code?: number;
+  message?: string;
+  status?: string;
+  retryDelaySeconds?: number;
+  reason?: string;
+};
 
-  const pacificDateParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
+function parseApiError(error: unknown): ParsedApiError {
+  const fallbackMessage =
+    error instanceof Error
+      ? error.message
+      : String(error);
 
-  const year = Number(
-    pacificDateParts.find((part) => part.type === "year")?.value
-  );
-
-  const month = Number(
-    pacificDateParts.find((part) => part.type === "month")?.value
-  );
-
-  const day = Number(
-    pacificDateParts.find((part) => part.type === "day")?.value
-  );
-
-  /**
-   * Ambil tanggal besok dalam kalender Pacific.
-   */
-  const nextDayUtc = new Date(
-    Date.UTC(year, month - 1, day + 1, 12, 0, 0)
-  );
-
-  /**
-   * Cari offset Pacific pada tanggal tersebut.
-   * Bisa GMT-7 atau GMT-8 tergantung daylight saving time.
-   */
-  const offsetParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    timeZoneName: "shortOffset",
-  }).formatToParts(nextDayUtc);
-
-  const offsetText =
-    offsetParts.find((part) => part.type === "timeZoneName")?.value ?? "GMT-8";
-
-  const offsetMatch = offsetText.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
-
-  let offsetMinutes = -8 * 60;
-
-  if (offsetMatch) {
-    const sign = offsetMatch[1] === "+" ? 1 : -1;
-    const hours = Number(offsetMatch[2]);
-    const minutes = Number(offsetMatch[3] ?? "0");
-
-    offsetMinutes = sign * (hours * 60 + minutes);
+  if (!fallbackMessage) {
+    return {};
   }
 
-  /**
-   * 00:00 Pacific pada hari berikutnya.
-   */
-  const resetTime = new Date(
-    Date.UTC(year, month - 1, day + 1, 0, 0, 0) -
-      offsetMinutes * 60 * 1000
-  );
+  try {
+    const jsonStart = fallbackMessage.indexOf("{");
 
-  return resetTime;
+    if (jsonStart === -1) {
+      return {
+        message: fallbackMessage,
+      };
+    }
+
+    const parsed = JSON.parse(
+      fallbackMessage.slice(jsonStart)
+    );
+
+    const apiError =
+      parsed?.error && typeof parsed.error === "object"
+        ? parsed.error
+        : parsed;
+
+    const details = Array.isArray(apiError?.details)
+      ? apiError.details
+      : [];
+
+    const retryInfo = details.find(
+      (detail: unknown) =>
+        detail &&
+        typeof detail === "object" &&
+        "@type" in detail &&
+        String(
+          (detail as Record<string, unknown>)["@type"]
+        ).includes("RetryInfo")
+    ) as
+      | Record<string, unknown>
+      | undefined;
+
+    const retryDelay =
+      typeof retryInfo?.retryDelay === "string"
+        ? retryInfo.retryDelay
+        : undefined;
+
+    let retryDelaySeconds: number | undefined;
+
+    if (retryDelay) {
+      const secondsMatch =
+        retryDelay.match(
+          /^([\d.]+)s$/
+        );
+
+      if (secondsMatch) {
+        retryDelaySeconds = Number(
+          secondsMatch[1]
+        );
+      }
+    }
+
+    const errorInfo = details.find(
+      (detail: unknown) =>
+        detail &&
+        typeof detail === "object" &&
+        "@type" in detail &&
+        String(
+          (detail as Record<string, unknown>)["@type"]
+        ).includes("ErrorInfo")
+    ) as
+      | Record<string, unknown>
+      | undefined;
+
+    return {
+      code:
+        typeof apiError?.code === "number"
+          ? apiError.code
+          : undefined,
+      message:
+        typeof apiError?.message === "string"
+          ? apiError.message
+          : fallbackMessage,
+      status:
+        typeof apiError?.status === "string"
+          ? apiError.status
+          : undefined,
+      retryDelaySeconds,
+      reason:
+        typeof errorInfo?.reason === "string"
+          ? errorInfo.reason
+          : undefined,
+    };
+  } catch {
+    return {
+      message: fallbackMessage,
+    };
+  }
+}
+
+function getRetryAt(
+  retryDelaySeconds?: number
+): string | null {
+  if (
+    typeof retryDelaySeconds !== "number" ||
+    !Number.isFinite(retryDelaySeconds) ||
+    retryDelaySeconds < 0
+  ) {
+    return null;
+  }
+
+  return new Date(
+    Date.now() +
+      retryDelaySeconds * 1000
+  ).toISOString();
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(
+      authOptions
+    );
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -252,16 +323,15 @@ export async function POST(req: Request) {
 
     const messageValue = formData.get("message");
     const fileValue = formData.get("file");
-
     const modelValue = formData.get("model");
 
-const model: AIModelId =
-  typeof modelValue === "string" &&
-  AI_MODELS.some(
-    (item) => item.id === modelValue
-  )
-    ? (modelValue as AIModelId)
-    : DEFAULT_AI_MODEL;
+    const model: AIModelId =
+      typeof modelValue === "string" &&
+      AI_MODELS.some(
+        (item) => item.id === modelValue
+      )
+        ? (modelValue as AIModelId)
+        : DEFAULT_AI_MODEL;
 
     const message =
       typeof messageValue === "string"
@@ -276,7 +346,8 @@ const model: AIModelId =
     if (!message && !file) {
       return NextResponse.json(
         {
-          error: "Pesan atau file diperlukan.",
+          error:
+            "Pesan atau file diperlukan.",
         },
         {
           status: 400,
@@ -284,30 +355,34 @@ const model: AIModelId =
       );
     }
 
-    const feature = detectFeature(message, file);
+    const feature = detectFeature(
+      message,
+      file
+    );
 
     let result = "";
 
     if (feature === "AI Tech Assistant") {
       result = await askDebugger(
-  message,
-  "id",
-  model
-);
+        message,
+        "id",
+        model
+      );
     }
 
     if (feature === "AI Translator") {
       result = await askTranslator(
-  message,
-  model
-);
+        message,
+        model
+      );
     }
 
     if (feature === "AI OCR") {
       if (!file) {
         return NextResponse.json(
           {
-            error: "AI OCR membutuhkan gambar.",
+            error:
+              "AI OCR membutuhkan gambar.",
           },
           {
             status: 400,
@@ -318,7 +393,8 @@ const model: AIModelId =
       if (!file.type.startsWith("image/")) {
         return NextResponse.json(
           {
-            error: "AI OCR hanya dapat memproses gambar.",
+            error:
+              "AI OCR hanya dapat memproses gambar.",
           },
           {
             status: 400,
@@ -326,25 +402,27 @@ const model: AIModelId =
         );
       }
 
-      const base64 = await fileToBase64(file);
+      const base64 =
+        await fileToBase64(file);
 
       result = await askOCR({
-  prompt:
-    message ||
-    "Analisis gambar secara menyeluruh. Jika gambar berisi soal, pertanyaan, latihan, tugas, atau masalah yang harus diselesaikan, kerjakan dan berikan jawabannya secara lengkap. Jika gambar hanya berisi teks biasa, jelaskan atau salin isi pentingnya.",
-  image: {
-    mimeType: file.type,
-    data: base64,
-  },
-  model,
-});
+        prompt:
+          message ||
+          "Analisis gambar secara menyeluruh. Jika gambar berisi soal, pertanyaan, latihan, tugas, atau masalah yang harus diselesaikan, kerjakan dan berikan jawabannya secara lengkap. Jika gambar hanya berisi teks biasa, jelaskan atau salin isi pentingnya.",
+        image: {
+          mimeType: file.type,
+          data: base64,
+        },
+        model,
+      });
     }
 
     if (feature === "Image Prompt") {
       if (!file) {
         return NextResponse.json(
           {
-            error: "Prompt Gambar membutuhkan gambar.",
+            error:
+              "Prompt Gambar membutuhkan gambar.",
           },
           {
             status: 400,
@@ -364,23 +442,25 @@ const model: AIModelId =
         );
       }
 
-      const base64 = await fileToBase64(file);
+      const base64 =
+        await fileToBase64(file);
 
       result = await askImagePrompt({
-  prompt: message,
-  image: {
-    mimeType: file.type,
-    data: base64,
-  },
-  model,
-});
+        prompt: message,
+        image: {
+          mimeType: file.type,
+          data: base64,
+        },
+        model,
+      });
     }
 
     if (feature === "AI Document") {
       if (!file) {
         return NextResponse.json(
           {
-            error: "AI Document membutuhkan dokumen.",
+            error:
+              "AI Document membutuhkan dokumen.",
           },
           {
             status: 400,
@@ -391,7 +471,8 @@ const model: AIModelId =
       if (file.type.startsWith("image/")) {
         return NextResponse.json(
           {
-            error: "File gambar bukan dokumen.",
+            error:
+              "File gambar bukan dokumen.",
           },
           {
             status: 400,
@@ -399,22 +480,24 @@ const model: AIModelId =
         );
       }
 
-      const base64 = await fileToBase64(file);
+      const base64 =
+        await fileToBase64(file);
 
       result = await askDocument({
-  prompt: message,
-  document: {
-    mimeType: file.type,
-    data: base64,
-  },
-  model,
-});
+        prompt: message,
+        document: {
+          mimeType: file.type,
+          data: base64,
+        },
+        model,
+      });
     }
 
     if (!result.trim()) {
       return NextResponse.json(
         {
-          error: "AI tidak memberikan jawaban.",
+          error:
+            "AI tidak memberikan jawaban.",
         },
         {
           status: 500,
@@ -422,15 +505,19 @@ const model: AIModelId =
       );
     }
 
-    const history = await prisma.history.create({
-      data: {
-        userId: session.user.id,
-        title: feature,
-        feature,
-        prompt: message || file?.name || "",
-        result,
-      },
-    });
+    const history =
+      await prisma.history.create({
+        data: {
+          userId: session.user.id,
+          title: feature,
+          feature,
+          prompt:
+            message ||
+            file?.name ||
+            "",
+          result,
+        },
+      });
 
     return NextResponse.json({
       success: true,
@@ -439,36 +526,88 @@ const model: AIModelId =
       history,
     });
   } catch (error) {
-    console.error("AI ASSISTANT ERROR:", error);
+    console.error(
+      "AI ASSISTANT ERROR:",
+      error
+    );
+
+    const parsedError =
+      parseApiError(error);
 
     const errorMessage =
-      error instanceof Error
+      parsedError.message ||
+      (error instanceof Error
         ? error.message
-        : String(error);
+        : String(error));
 
-    /**
-     * Gemini mengembalikan 429 ketika quota habis.
-     */
-    const isQuotaError =
-      errorMessage.includes("429") ||
-      errorMessage.includes("RESOURCE_EXHAUSTED") ||
-      errorMessage.toLowerCase().includes("quota") ||
-      errorMessage
-        .toLowerCase()
-        .includes("exceeded your current quota") ||
-      errorMessage
-        .toLowerCase()
-        .includes("rate limit");
+    const errorLower =
+      errorMessage.toLowerCase();
 
-    if (isQuotaError) {
-      const resetAt = getNextPacificMidnight();
+    const isApiKeyError =
+      parsedError.reason ===
+        "API_KEY_INVALID" ||
+      errorLower.includes(
+        "api key not valid"
+      ) ||
+      errorLower.includes(
+        "api_key_invalid"
+      );
+
+    if (isApiKeyError) {
+      return NextResponse.json(
+        {
+          error:
+            "API key Gemini tidak valid. Periksa environment variable di Vercel.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const isRateLimitError =
+      parsedError.code === 429 ||
+      parsedError.status ===
+        "RESOURCE_EXHAUSTED" ||
+      errorLower.includes(
+        "resource_exhausted"
+      ) ||
+      errorLower.includes(
+        "rate limit"
+      );
+
+    if (isRateLimitError) {
+      const retryAt = getRetryAt(
+        parsedError.retryDelaySeconds
+      );
+
+      if (retryAt) {
+        return NextResponse.json(
+          {
+            error:
+              "Batas penggunaan AI sedang tercapai. Silakan coba lagi setelah waktu yang diberikan oleh API.",
+            quota: {
+              exhausted: true,
+              retryAt,
+              source:
+                "gemini-api",
+            },
+          },
+          {
+            status: 429,
+          }
+        );
+      }
 
       return NextResponse.json(
         {
-          error: "Kuota AI hari ini sudah habis.",
+          error:
+            "Batas penggunaan AI sedang tercapai. Silakan coba lagi beberapa saat lagi.",
           quota: {
             exhausted: true,
-            resetAt: resetAt.toISOString(),
+            retryAt: null,
+            source:
+              "gemini-api",
           },
         },
         {
@@ -476,6 +615,11 @@ const model: AIModelId =
         }
       );
     }
+
+    console.error(
+      "AI ASSISTANT PARSED ERROR:",
+      parsedError
+    );
 
     return NextResponse.json(
       {

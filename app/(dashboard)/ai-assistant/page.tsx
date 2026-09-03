@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { useLanguage } from "@/components/shared/language-provider";
 import {
   Paperclip,
   Send,
@@ -70,6 +72,9 @@ function formatResetTime(resetAt: string) {
 }
 
 export default function Page() {
+  const { locale } = useLanguage();
+  const isEnglish = locale === "en";
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -100,6 +105,110 @@ export default function Page() {
   const audioPlayerRef =
     useRef<HTMLAudioElement | null>(null);
 
+  const ui = {
+    title: isEnglish ? "AI Assistant" : "AI Asisten",
+    subtitle: isEnglish
+      ? "One AI for all your needs"
+      : "Satu AI untuk berbagai kebutuhanmu",
+    camera: isEnglish ? "Camera" : "Kamera",
+    cameraDescription: isEnglish
+      ? "Take a photo to send to AI Assistant"
+      : "Ambil foto untuk dikirim ke AI Asisten",
+    cancel: isEnglish ? "Cancel" : "Batal",
+    takePhoto: isEnglish ? "Take photo" : "Ambil foto",
+    upload: isEnglish ? "Attach" : "Lampirkan",
+    photoLink: isEnglish ? "Photo Link" : "Link Foto",
+    cameraDesktopNote: isEnglish
+      ? "Desktop only sends image URLs. File upload and camera are available on mobile."
+      : "Desktop hanya mengirim URL gambar. Upload file dan kamera tersedia di HP.",
+    placeholder: isEnglish ? "Ask anything..." : "Tanyakan apa saja...",
+    heroTitle: isEnglish ? "How can I help?" : "Apa yang bisa saya bantu?",
+    heroDescription: isEnglish
+      ? "Ask anything. AI Assistant can help with programming, image prompts, documents, text recognition from images, and translation."
+      : "Tanyakan apa saja. AI Asisten dapat membantu pemrograman, membuat prompt gambar, mengolah dokumen, membaca teks dari gambar, dan menerjemahkan bahasa.",
+    techTitle: "🤖 AI Tech Assistant",
+    techDescription: isEnglish
+      ? "Debug code and solve technology problems."
+      : "Debug kode dan bantu masalah teknologi.",
+    imagePromptTitle: "🖼️ Image Prompt",
+    imagePromptDescription: isEnglish
+      ? "Create image prompts to match your needs."
+      : "Buat prompt gambar sesuai kebutuhan.",
+    documentTitle: isEnglish ? "📄 AI Document" : "📄 Dokumen AI",
+    documentDescription: isEnglish
+      ? "Analyze and work with various documents."
+      : "Analisis dan olah berbagai dokumen.",
+    ocrTranslatorTitle: isEnglish
+      ? "🔎 Text Recognition & 🌐 Translator"
+      : "🔎 Pengenal Teks & 🌐 Penerjemah",
+    ocrTranslatorDescription: isEnglish
+      ? "Read text from images and translate it."
+      : "Baca teks dari gambar dan terjemahkan.",
+    speaking: isEnglish ? "AI is speaking..." : "AI sedang berbicara...",
+    attach: isEnglish ? "Attach" : "Lampirkan",
+    askAnything: isEnglish ? "Ask anything..." : "Tanyakan apa saja...",
+    aiNoAnswer: isEnglish ? "AI did not provide an answer." : "AI tidak memberikan jawaban.",
+    sendPhoto: isEnglish ? "Sending photo..." : "Mengirim foto...",
+    sentPhotoAlt: isEnglish ? "Sent photo" : "Foto yang dikirim",
+    startRecording: isEnglish ? "Start recording" : "Mulai rekaman",
+    stopRecording: isEnglish ? "Stop recording" : "Hentikan rekaman",
+    voiceMessage: isEnglish ? "🎤 Voice message" : "🎤 Pesan suara",
+    voiceProcessingError: isEnglish
+      ? "Failed to process voice."
+      : "Gagal memproses suara.",
+    aiNoVoice: isEnglish
+      ? "AI did not generate audio."
+      : "AI tidak menghasilkan suara.",
+    aiSpeakingStatus: isEnglish
+      ? "🔊 AI is speaking..."
+      : "🔊 AI sedang berbicara...",
+    voiceFinishedTitle: isEnglish ? "AI Voice finished" : "AI Voice selesai",
+    voiceFinishedMessage: isEnglish
+      ? "The AI answer was successfully generated and played."
+      : "Jawaban AI berhasil dibuat dan diputar.",
+    voiceAudioFailed: isEnglish
+      ? "⚠️ AI voice could not be played."
+      : "⚠️ Suara AI gagal diputar.",
+    voiceBlocked: isEnglish
+      ? "⚠️ AI voice was blocked by the browser. Tap the screen and try again."
+      : "⚠️ Suara AI diblokir browser. Coba ketuk layar lalu ulangi.",
+    voiceGeneralError: isEnglish
+      ? "Failed to process AI voice."
+      : "Gagal memproses suara AI.",
+    aiFinishedTitle: isEnglish ? "AI Assistant finished" : "AI Asisten selesai",
+    aiFinishedMessage: isEnglish
+      ? "The request was processed successfully and the AI answer is available."
+      : "Permintaan berhasil diproses dan jawaban AI sudah tersedia.",
+    aiGeneralError: isEnglish
+      ? "An error occurred while processing the request."
+      : "Terjadi kesalahan saat memproses permintaan.",
+    cameraUnsupported: isEnglish
+      ? "This browser does not support camera access."
+      : "Browser ini tidak mendukung akses kamera.",
+    micUnsupported: isEnglish
+      ? "This browser does not support microphone access."
+      : "Browser ini tidak mendukung mikrofon.",
+    cameraDenied: isEnglish
+      ? "Camera permission was denied. Allow camera access for this site and try again."
+      : "Izin kamera ditolak. Izinkan kamera untuk situs ini lalu coba lagi.",
+    cameraNotFound: isEnglish
+      ? "No camera was found on this device."
+      : "Kamera tidak ditemukan pada perangkat ini.",
+    cameraBusy: isEnglish
+      ? "The camera is being used by another application."
+      : "Kamera sedang digunakan aplikasi lain.",
+    cameraSecurity: isEnglish
+      ? "Camera access is blocked by the browser or security settings."
+      : "Akses kamera diblokir oleh browser atau pengaturan keamanan.",
+    cameraGeneric: isEnglish
+      ? "Could not access the camera."
+      : "Tidak dapat mengakses kamera.",
+    quotaMessage: isEnglish
+      ? "⚠️ AI usage limit is currently reached.\\n\\nPlease try again after"
+      : "⚠️ Batas penggunaan AI sedang tercapai.\n\nSilakan coba lagi setelah",
+    voiceFeature: isEnglish ? "AI Assistant" : "AI Asisten",
+  };
+
   function handleFileChange(
     event: React.ChangeEvent<HTMLInputElement>
   ) {
@@ -127,7 +236,7 @@ export default function Page() {
         !navigator.mediaDevices.getUserMedia
       ) {
         throw new Error(
-          "Browser ini tidak mendukung akses kamera."
+          ui.cameraUnsupported
         );
       }
 
@@ -163,20 +272,20 @@ export default function Page() {
       let message =
         error instanceof Error
           ? error.message
-          : "Tidak dapat mengakses kamera.";
+          : ui.cameraGeneric;
 
       if (errorName === "NotAllowedError") {
         message =
-          "Izin kamera ditolak. Izinkan kamera untuk situs ini lalu coba lagi.";
+          ui.cameraDenied;
       } else if (errorName === "NotFoundError") {
         message =
-          "Kamera tidak ditemukan pada perangkat ini.";
+          ui.cameraNotFound;
       } else if (errorName === "NotReadableError") {
         message =
-          "Kamera sedang digunakan aplikasi lain.";
+          ui.cameraBusy;
       } else if (errorName === "SecurityError") {
         message =
-          "Akses kamera diblokir oleh browser atau pengaturan keamanan.";
+          ui.cameraSecurity;
       }
 
       setMessages((prev) => [
@@ -368,7 +477,7 @@ export default function Page() {
           id: Date.now() + 2,
           role: "assistant",
           content:
-            "⚠️ Suara AI gagal diputar.",
+            ui.voiceAudioFailed,
         },
       ]);
     };
@@ -390,7 +499,7 @@ export default function Page() {
           id: Date.now() + 2,
           role: "assistant",
           content:
-            "⚠️ Suara AI diblokir browser. Coba ketuk layar lalu ulangi.",
+            ui.voiceBlocked,
         },
       ]);
     });
@@ -407,7 +516,7 @@ export default function Page() {
         !navigator.mediaDevices?.getUserMedia
       ) {
         throw new Error(
-          "Browser ini tidak mendukung mikrofon."
+          ui.micUnsupported
         );
       }
 
@@ -548,7 +657,7 @@ export default function Page() {
       {
         id: Date.now(),
         role: "user",
-        content: "🎤 Pesan suara",
+        content: ui.voiceMessage,
       },
     ]);
 
@@ -611,13 +720,13 @@ export default function Page() {
 
         throw new Error(
           data.error ||
-            "Gagal memproses suara."
+            ui.voiceProcessingError
         );
       }
 
       if (!data.audio) {
         throw new Error(
-          "AI tidak menghasilkan suara."
+          ui.aiNoVoice
         );
       }
 
@@ -627,7 +736,7 @@ export default function Page() {
           id: Date.now() + 1,
           role: "assistant",
           content:
-            "🔊 AI sedang berbicara...",
+            ui.aiSpeakingStatus,
         },
       ]);
 
@@ -638,9 +747,9 @@ export default function Page() {
           data.feature ||
           "AI Asisten",
         title:
-          "AI Voice selesai",
+          ui.voiceFinishedTitle,
         message:
-          "Jawaban AI berhasil dibuat dan diputar.",
+          ui.voiceFinishedMessage,
         type: "success",
         result:
           data.result || "",
@@ -659,7 +768,7 @@ export default function Page() {
           content:
             error instanceof Error
               ? error.message
-              : "Gagal memproses suara AI.",
+              : ui.voiceGeneralError,
         },
       ]);
     } finally {
@@ -702,7 +811,7 @@ export default function Page() {
       id: Date.now(),
       role: "user",
       content:
-        text || "Mengirim foto...",
+        text || ui.sendPhoto,
       fileName:
         currentFile?.name ||
         (currentImageUrl
@@ -789,7 +898,7 @@ export default function Page() {
 
         throw new Error(
           data.error ||
-            "Terjadi kesalahan saat menghubungi AI."
+            isEnglish ? "An error occurred while contacting AI." : "Terjadi kesalahan saat menghubungi AI."
         );
       }
 
@@ -798,7 +907,7 @@ export default function Page() {
         role: "assistant",
         content:
           data.result ||
-          "AI tidak memberikan jawaban.",
+          ui.aiNoAnswer,
       };
 
       setMessages((prev) => [
@@ -811,9 +920,9 @@ export default function Page() {
           data.feature ||
           "AI Asisten",
         title:
-          "AI Asisten selesai",
+          ui.aiFinishedTitle,
         message:
-          "Permintaan berhasil diproses dan jawaban AI sudah tersedia.",
+          ui.aiFinishedMessage,
         type: "success",
         result:
           data.result || "",
@@ -838,7 +947,7 @@ export default function Page() {
         content:
           error instanceof Error
             ? error.message
-            : "Terjadi kesalahan saat memproses permintaan.",
+            : ui.aiGeneralError,
       };
 
       setMessages((prev) => [
@@ -888,11 +997,11 @@ export default function Page() {
                 <div>
 
                   <h2 className="font-semibold text-white">
-                    Kamera
+                    {ui.camera}
                   </h2>
 
                   <p className="text-xs text-slate-500">
-                    Ambil foto untuk dikirim ke AI Asisten
+                    {ui.cameraDescription}
                   </p>
 
                 </div>
@@ -932,7 +1041,7 @@ export default function Page() {
                 onClick={closeCamera}
                 className="rounded-2xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
               >
-                Batal
+                {ui.cancel}
               </button>
 
 
@@ -940,7 +1049,7 @@ export default function Page() {
                 type="button"
                 onClick={capturePhoto}
                 className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-slate-950 shadow-lg transition hover:scale-105"
-                aria-label="Ambil foto"
+                aria-label={ui.takePhoto}
               >
 
                 <div className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-slate-900">
@@ -963,23 +1072,25 @@ export default function Page() {
 
       <div className="mb-6 flex items-center gap-3">
 
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg">
-
-          <Sparkles
-            size={22}
-            className="text-white"
-          />
-
-        </div>
+        <div className="flex h-11 w-11 items-center justify-center">
+  <Image
+    src="/logo-dna.png"
+    alt="DNA AI"
+    width={44}
+    height={44}
+    priority
+    className="object-contain"
+  />
+</div>
 
         <div>
 
           <h1 className="text-2xl font-bold text-white">
-            AI Asisten
+            {ui.title}
           </h1>
 
           <p className="text-sm text-slate-400">
-            Satu AI untuk berbagai kebutuhanmu
+            {ui.subtitle}
           </p>
 
         </div>
@@ -1002,25 +1113,24 @@ export default function Page() {
               <div className="max-w-2xl text-center">
 
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20">
-
-                  <Sparkles
-                    size={38}
-                    className="text-cyan-400"
-                  />
-
-                </div>
+  <Image
+    src="/logo-dna.png"
+    alt="DNA AI"
+    width={56}
+    height={56}
+    priority
+    className="object-contain"
+  />
+</div>
 
 
                 <h2 className="text-3xl font-bold text-white">
-                  Apa yang bisa saya bantu?
+                  {ui.heroTitle}
                 </h2>
 
 
                 <p className="mx-auto mt-4 max-w-xl text-slate-400">
-                  Tanyakan apa saja. AI Asisten dapat
-                  membantu pemrograman, membuat prompt
-                  gambar, mengolah dokumen, membaca teks
-                  dari gambar, dan menerjemahkan bahasa.
+                  {ui.heroDescription}
                 </p>
 
 
@@ -1029,11 +1139,11 @@ export default function Page() {
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
 
                     <p className="font-semibold text-white">
-                      🤖 AI Tech Assistant
+                      {ui.techTitle}
                     </p>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Debug kode dan bantu masalah teknologi.
+                      {ui.techDescription}
                     </p>
 
                   </div>
@@ -1042,11 +1152,11 @@ export default function Page() {
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
 
                     <p className="font-semibold text-white">
-                      🖼️ Prompt Gambar
+                      {ui.imagePromptTitle}
                     </p>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Buat prompt gambar sesuai kebutuhan.
+                      {ui.imagePromptDescription}
                     </p>
 
                   </div>
@@ -1055,11 +1165,11 @@ export default function Page() {
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
 
                     <p className="font-semibold text-white">
-                      📄 Dokumen AI
+                      {ui.documentTitle}
                     </p>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Analisis dan olah berbagai dokumen.
+                      {ui.documentDescription}
                     </p>
 
                   </div>
@@ -1068,11 +1178,11 @@ export default function Page() {
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
 
                     <p className="font-semibold text-white">
-                      🔎 Pengenal Teks & 🌐 Penerjemah
+                      {ui.ocrTranslatorTitle}
                     </p>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Baca teks dari gambar dan terjemahkan.
+                      {ui.ocrTranslatorDescription}
                     </p>
 
                   </div>
@@ -1113,7 +1223,7 @@ export default function Page() {
                             src={message.imagePreview}
                             alt={
                               message.fileName ||
-                              "Foto yang dikirim"
+                              ui.sentPhotoAlt
                             }
                             className="max-h-[420px] max-w-full rounded-2xl object-contain"
                           />
@@ -1160,7 +1270,7 @@ export default function Page() {
               {isSpeaking && (
                 <div className="mb-3 flex items-center gap-2 text-sm text-cyan-400">
                   <Volume2 size={16} />
-                  <span>AI sedang berbicara...</span>
+                  <span>{ui.speaking}</span>
                 </div>
               )}
 
@@ -1300,7 +1410,7 @@ export default function Page() {
                 />
 
                 <p className="mt-2 text-xs text-slate-600">
-                  Desktop hanya mengirim URL gambar. Upload file dan kamera tersedia di HP.
+                  {ui.cameraDesktopNote}
                 </p>
               </div>
             )}
@@ -1315,7 +1425,7 @@ export default function Page() {
                   )
                 }
                 onKeyDown={handleKeyDown}
-                placeholder="Tanyakan apa saja..."
+                placeholder={ui.placeholder}
                 rows={3}
                 disabled={loading}
                 className="w-full resize-none bg-transparent px-4 py-3 text-white outline-none placeholder:text-slate-500 disabled:opacity-60"
@@ -1343,12 +1453,9 @@ export default function Page() {
                   </div>
                   <div className="hidden text-[11px] text-slate-500 sm:block">
                     {
-                      MODEL_OPTIONS.find(
-                        (option) =>
-                          option.id ===
-                          selectedModel
-                      )?.description ??
-                      "Model Gemini untuk AI Asisten"
+                      isEnglish
+                        ? "Gemini model for AI Assistant"
+                        : "Model Gemini untuk AI Asisten"
                     }
                   </div>
                 </div>
@@ -1433,7 +1540,7 @@ export default function Page() {
                     <Paperclip size={18} />
 
                     <span className="text-sm">
-                      Lampirkan
+                      {ui.attach}
                     </span>
 
                   </button>
@@ -1452,7 +1559,7 @@ export default function Page() {
                     <Link2 size={18} />
 
                     <span className="text-sm">
-                      Link Foto
+                      {ui.photoLink}
                     </span>
 
                   </button>
@@ -1494,8 +1601,8 @@ export default function Page() {
                   } disabled:cursor-not-allowed disabled:opacity-40`}
                   aria-label={
                     isRecording
-                      ? "Hentikan rekaman"
-                      : "Mulai rekaman"
+                      ? ui.stopRecording
+                      : ui.startRecording
                   }
                 >
                   {isRecording ? (
@@ -1527,8 +1634,9 @@ export default function Page() {
 
 
             <p className="mt-3 text-center text-xs text-slate-600">
-              AI Asisten dapat menggunakan beberapa fungsi
-              berdasarkan kebutuhan percakapan.
+              {isEnglish
+                ? "AI Assistant can use different functions based on the needs of the conversation."
+                : "AI Asisten dapat menggunakan beberapa fungsi berdasarkan kebutuhan percakapan."}
             </p>
 
           </div>

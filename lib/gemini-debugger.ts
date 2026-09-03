@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { getLanguageInstruction } from "@/lib/language";
 import type { Locale } from "@/components/shared/language-provider";
 import { DEFAULT_AI_MODEL, type AIModelId } from "@/lib/ai-models";
+import { generateVoiceAudio } from "@/lib/gemini-voice";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_DEBUGGER_API_KEY!,
@@ -54,4 +55,16 @@ export async function askDebugger(
   });
 
   return result.text?.trim() ?? "";
+}
+
+
+/**
+ * Compatibility export for the legacy /api/debugger route.
+ * The main AI Assistant uses gemini-voice directly, but the old
+ * debugger endpoint still imports this helper during the Vercel build.
+ */
+export async function generateDebuggerSpeech(
+  text: string
+) {
+  return generateVoiceAudio(text);
 }

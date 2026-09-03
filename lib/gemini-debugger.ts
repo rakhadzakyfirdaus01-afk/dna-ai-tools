@@ -64,7 +64,8 @@ export async function askDebugger(
  * debugger endpoint still imports this helper during the Vercel build.
  */
 export async function generateDebuggerSpeech(
-  text: string
+  text: string,
+  _locale?: Locale
 ) {
   return generateVoiceAudio(text);
 }

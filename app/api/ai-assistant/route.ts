@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/auth";
 import prisma from "@/lib/prisma";
+import { checkUserQuota, getUserQuota } from "@/lib/user-quota";
 import {
   DEFAULT_AI_MODEL,
   AI_MODELS,
@@ -317,6 +318,42 @@ function getRetryAt(
   ).toISOString();
 }
 
+
+function isModelUnavailable(error: unknown): boolean {
+  const parsed = parseApiError(error);
+  const message = (
+    parsed.message ||
+    (error instanceof Error ? error.message : String(error))
+  ).toLowerCase();
+
+  return (
+    parsed.code === 503 ||
+    parsed.code === 504 ||
+    parsed.status === "UNAVAILABLE" ||
+    parsed.status === "DEADLINE_EXCEEDED" ||
+    message.includes("currently experiencing high demand") ||
+    message.includes("service unavailable") ||
+    message.includes("connect timeout") ||
+    message.includes("und_err_connect_timeout") ||
+    message.includes("fetch failed") ||
+    message.includes("network error") ||
+    message.includes("timed out") ||
+    message.includes("deadline exceeded") ||
+    message.includes("deadline expired") ||
+    message.includes("operation was aborted") ||
+    message.includes("aborterror")
+  );
+}
+
+function getFallbackModels(selectedModel: AIModelId): AIModelId[] {
+  return [
+    selectedModel,
+    ...AI_MODELS
+      .map((item) => item.id)
+      .filter((item) => item !== selectedModel),
+  ];
+}
+
 export async function POST(req: Request) {
   try {
     const session =
@@ -335,6 +372,28 @@ export async function POST(req: Request) {
       );
     }
 
+    const userQuota = await checkUserQuota(session.user.id);
+
+    if (!userQuota.allowed) {
+      return NextResponse.json(
+        {
+          error:
+            "Kuota AI harian akun kamu sudah habis. Coba lagi setelah reset kuota.",
+          quota: {
+            exhausted: true,
+            source: "dna-ai-user",
+            limit: userQuota.limit,
+            used: userQuota.used,
+            remaining: userQuota.remaining,
+            resetAt: userQuota.resetAt.toISOString(),
+          },
+        },
+        {
+          status: 429,
+        }
+      );
+    }
+
     const formData =
       await req.formData();
 
@@ -349,6 +408,14 @@ export async function POST(req: Request) {
 
     const modelValue =
       formData.get("model");
+
+    const conversationValue =
+      formData.get("conversation");
+
+    const conversation =
+      typeof conversationValue === "string"
+        ? conversationValue.trim().slice(0, 12000)
+        : "";
 
     const model: AIModelId =
       typeof modelValue === "string" &&
@@ -447,29 +514,83 @@ export async function POST(req: Request) {
         file
       );
 
+    const contextualMessage = conversation
+      ? `Kamu adalah AI Assistant umum milik DNA AI Tools.
+Kamu dapat membantu berbagai topik umum dan teknis. Pahami percakapan sebelumnya sebelum menjawab pesan terbaru.
+Jangan menganggap semua pertanyaan sebagai coding/debugging.
+Untuk pertanyaan lanjutan, gunakan konteks sebelumnya untuk memahami kata seperti "itu", "yang tadi", "dia", "tapi", "kalau yang ini", dan sejenisnya.
+Jawab natural, langsung, dan relevan.
+Jika pengguna meminta perbandingan, jelaskan pilihan berdasarkan kebutuhan, lalu sebutkan kelebihan dan kekurangannya.
+Jangan mengarang fakta. Jika data tidak cukup atau kamu tidak yakin, katakan dengan jujur.
+Gunakan bahasa pengguna.
+
+Konteks percakapan:
+${conversation}
+
+Pesan terbaru:
+${message}`.trim()
+      : message;
+
+    const fallbackModels =
+      getFallbackModels(model);
+
     let result = "";
 
     if (
       feature ===
       "AI Tech Assistant"
     ) {
-      result =
-        await askDebugger(
-          message,
-          "id",
-          model
-        );
+      let lastError: unknown = null;
+
+      for (const candidateModel of fallbackModels) {
+        try {
+          result =
+            await askDebugger(
+              contextualMessage,
+              "id",
+              candidateModel
+            );
+          break;
+        } catch (error) {
+          lastError = error;
+
+          if (!isModelUnavailable(error)) {
+            throw error;
+          }
+        }
+      }
+
+      if (!result.trim() && lastError) {
+        throw lastError;
+      }
     }
 
     if (
       feature ===
       "AI Translator"
     ) {
-      result =
-        await askTranslator(
-          message,
-          model
-        );
+      let lastError: unknown = null;
+
+      for (const candidateModel of fallbackModels) {
+        try {
+          result =
+            await askTranslator(
+              contextualMessage,
+              candidateModel
+            );
+          break;
+        } catch (error) {
+          lastError = error;
+
+          if (!isModelUnavailable(error)) {
+            throw error;
+          }
+        }
+      }
+
+      if (!result.trim() && lastError) {
+        throw lastError;
+      }
     }
 
     if (
@@ -508,18 +629,35 @@ export async function POST(req: Request) {
           file
         );
 
-      result =
-        await askOCR({
-          prompt:
-            message ||
-            "Analisis gambar secara menyeluruh. Jika gambar berisi soal, pertanyaan, latihan, tugas, atau masalah yang harus diselesaikan, kerjakan dan berikan jawabannya secara lengkap. Jika gambar hanya berisi teks biasa, jelaskan atau salin isi pentingnya.",
-          image: {
-            mimeType:
-              file.type,
-            data: base64,
-          },
-          model,
-        });
+      let lastError: unknown = null;
+
+      for (const candidateModel of fallbackModels) {
+        try {
+          result =
+            await askOCR({
+              prompt:
+                contextualMessage ||
+                "Analisis gambar secara menyeluruh. Jika gambar berisi soal, pertanyaan, latihan, tugas, atau masalah yang harus diselesaikan, kerjakan dan berikan jawabannya secara lengkap. Jika gambar hanya berisi teks biasa, jelaskan atau salin isi pentingnya.",
+              image: {
+                mimeType:
+                  file.type,
+                data: base64,
+              },
+              model: candidateModel,
+            });
+          break;
+        } catch (error) {
+          lastError = error;
+
+          if (!isModelUnavailable(error)) {
+            throw error;
+          }
+        }
+      }
+
+      if (!result.trim() && lastError) {
+        throw lastError;
+      }
     }
 
     if (
@@ -559,16 +697,33 @@ export async function POST(req: Request) {
           file
         );
 
-      result =
-        await askImagePrompt({
-          prompt: message,
-          image: {
-            mimeType:
-              file.type,
-            data: base64,
-          },
-          model,
-        });
+      let lastError: unknown = null;
+
+      for (const candidateModel of fallbackModels) {
+        try {
+          result =
+            await askImagePrompt({
+              prompt: message,
+              image: {
+                mimeType:
+                  file.type,
+                data: base64,
+              },
+              model: candidateModel,
+            });
+          break;
+        } catch (error) {
+          lastError = error;
+
+          if (!isModelUnavailable(error)) {
+            throw error;
+          }
+        }
+      }
+
+      if (!result.trim() && lastError) {
+        throw lastError;
+      }
     }
 
     if (
@@ -608,16 +763,33 @@ export async function POST(req: Request) {
           file
         );
 
-      result =
-        await askDocument({
-          prompt: message,
-          document: {
-            mimeType:
-              file.type,
-            data: base64,
-          },
-          model,
-        });
+      let lastError: unknown = null;
+
+      for (const candidateModel of fallbackModels) {
+        try {
+          result =
+            await askDocument({
+              prompt: message,
+              document: {
+                mimeType:
+                  file.type,
+                data: base64,
+              },
+              model: candidateModel,
+            });
+          break;
+        } catch (error) {
+          lastError = error;
+
+          if (!isModelUnavailable(error)) {
+            throw error;
+          }
+        }
+      }
+
+      if (!result.trim() && lastError) {
+        throw lastError;
+      }
     }
 
     if (!result.trim()) {
@@ -661,6 +833,9 @@ export async function POST(req: Request) {
         },
       });
 
+    const updatedQuota =
+      await getUserQuota(session.user.id);
+
     return NextResponse.json({
       success: true,
       feature,
@@ -671,6 +846,13 @@ export async function POST(req: Request) {
       ),
       model,
       history,
+      userQuota: {
+        limit: updatedQuota.limit,
+        used: updatedQuota.used,
+        remaining: updatedQuota.remaining,
+        resetAt:
+          updatedQuota.resetAt.toISOString(),
+      },
     });
   } catch (error) {
     console.error(
@@ -722,6 +904,40 @@ export async function POST(req: Request) {
       errorLower.includes(
         "rate limit"
       );
+
+    const isModelUnavailableError =
+      parsedError.code === 503 ||
+      parsedError.code === 504 ||
+      parsedError.status === "UNAVAILABLE" ||
+      parsedError.status === "DEADLINE_EXCEEDED" ||
+      errorLower.includes(
+        "currently experiencing high demand"
+      ) ||
+      errorLower.includes("connect timeout") ||
+      errorLower.includes("und_err_connect_timeout") ||
+      errorLower.includes("fetch failed") ||
+      errorLower.includes("timed out") ||
+      errorLower.includes("deadline exceeded") ||
+      errorLower.includes("deadline expired") ||
+      errorLower.includes("operation was aborted") ||
+      errorLower.includes("aborterror");
+
+    if (isModelUnavailableError) {
+      return NextResponse.json(
+        {
+          error:
+            "Layanan AI sedang sibuk atau koneksinya timeout. Silakan coba lagi beberapa saat lagi.",
+          quota: {
+            exhausted: false,
+            source: "gemini-api",
+            retryAt: null,
+          },
+        },
+        {
+          status: 503,
+        }
+      );
+    }
 
     if (isRateLimitError) {
       const retryAt =

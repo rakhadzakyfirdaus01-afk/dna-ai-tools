@@ -71,6 +71,33 @@ function formatResetTime(resetAt: string) {
   );
 }
 
+
+function buildConversationContext(messages: Message[]) {
+  const recentMessages = messages.slice(-20);
+
+  const lines = recentMessages.map((message) => {
+    const role =
+      message.role === "user"
+        ? "User"
+        : "Assistant";
+
+    const attachment =
+      message.fileName
+        ? ` [Lampiran: ${message.fileName}]`
+        : "";
+
+    return `${role}${attachment}: ${message.content}`;
+  });
+
+  const context = lines.join("\n\n");
+
+  if (context.length <= 12000) {
+    return context;
+  }
+
+  return context.slice(-12000);
+}
+
 export default function Page() {
   const { locale } = useLanguage();
   const isEnglish = locale === "en";
@@ -665,9 +692,17 @@ export default function Page() {
       const formData =
         new FormData();
 
+      const conversationContext =
+        buildConversationContext(messages);
+
       formData.append(
         "message",
         ""
+      );
+
+      formData.append(
+        "conversation",
+        conversationContext
       );
 
       formData.append(
@@ -832,9 +867,20 @@ export default function Page() {
       const formData =
         new FormData();
 
+      const conversationContext =
+        buildConversationContext([
+          ...messages,
+          userMessage,
+        ]);
+
       formData.append(
         "message",
         text
+      );
+
+      formData.append(
+        "conversation",
+        conversationContext
       );
 
       if (currentFile) {

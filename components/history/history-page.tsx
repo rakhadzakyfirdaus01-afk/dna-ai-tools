@@ -1,4 +1,4 @@
-"use client";
+
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -29,39 +29,19 @@ const featureFilters = [
     en: "All",
   },
   {
-    value: "AI Debugger",
-    id: "AI Debugger",
-    en: "AI Debugger",
-  },
-  {
-    value: "Image Prompt",
-    id: "Image Prompt",
-    en: "Image Prompt",
+    value: "AI Asisten",
+    id: "AI Asisten",
+    en: "AI Assistant",
   },
   {
     value: "AI Design",
-    id: "AI Design",
+    id: "Desain AI",
     en: "AI Design",
   },
   {
     value: "AI Animation",
-    id: "AI Animation",
+    id: "Animasi AI",
     en: "AI Animation",
-  },
-  {
-    value: "AI Document",
-    id: "AI Document",
-    en: "AI Document",
-  },
-  {
-    value: "AI OCR",
-    id: "AI OCR",
-    en: "AI OCR",
-  },
-  {
-    value: "AI Translator",
-    id: "AI Translator",
-    en: "AI Translator",
   },
 ];
 
@@ -132,9 +112,22 @@ export default function HistoryPage() {
           .toLowerCase()
           .includes(searchValue);
 
+      const aiAssistantFeatures = [
+        "AI Asisten",
+        "AI Assistant",
+        "AI Tech Assistant",
+        "AI Debugger",
+        "Image Prompt",
+        "AI Document",
+        "AI OCR",
+        "AI Translator",
+      ];
+
       const matchFilter =
         filter === "All" ||
-        item.feature === filter;
+        (filter === "AI Asisten"
+          ? aiAssistantFeatures.includes(item.feature)
+          : item.feature === filter);
 
       return matchSearch && matchFilter;
     });

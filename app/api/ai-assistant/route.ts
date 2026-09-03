@@ -20,13 +20,13 @@ import {
   transcribeVoice,
   generateVoiceAudio,
 } from "@/lib/gemini-voice";
+import type { Locale } from "@/components/shared/language-provider";
 
 type Feature =
-  | "AI Tech Assistant"
+  | "AI Assistant"
   | "Image Prompt"
   | "AI Document"
-  | "AI OCR"
-  | "AI Translator";
+  | "AI OCR";
 
 function detectFeature(
   message: string,
@@ -34,145 +34,36 @@ function detectFeature(
 ): Feature {
   const text = message.toLowerCase();
 
-  if (file) {
-    const isImage = file.type.startsWith("image/");
+  if (!file) {
+    return "AI Assistant";
+  }
 
-    if (isImage) {
-      const ocrKeywords = [
-        "baca tulisan",
-        "baca teks",
-        "baca tulisan di gambar",
-        "ambil teks",
-        "ambil tulisan",
-        "extract text",
-        "extract teks",
-        "ocr",
-        "salin tulisan",
-        "salin teks",
-        "tuliskan isi gambar",
-        "apa isi tulisan",
-        "apa tulisan",
-      ];
+  const isImage = file.type.startsWith("image/");
 
-      const imagePromptKeywords = [
-        "buat prompt",
-        "buatkan prompt",
-        "prompt gambar",
-        "prompt image",
-        "generate prompt",
-        "jadikan prompt",
-        "ubah menjadi prompt",
-        "deskripsikan gambar untuk prompt",
-      ];
-
-      if (
-        ocrKeywords.some((keyword) =>
-          text.includes(keyword)
-        )
-      ) {
-        return "AI OCR";
-      }
-
-      if (
-        imagePromptKeywords.some((keyword) =>
-          text.includes(keyword)
-        )
-      ) {
-        return "Image Prompt";
-      }
-
-      return "AI OCR";
-    }
-
+  if (!isImage) {
     return "AI Document";
   }
 
-  const translatorKeywords = [
-    "terjemahkan",
-    "translate",
-    "translation",
-    "translatekan",
-    "ubah ke bahasa",
-    "dalam bahasa inggris",
-    "dalam bahasa indonesia",
-    "dalam bahasa jepang",
-    "dalam bahasa korea",
-    "dalam bahasa china",
-    "dalam bahasa mandarin",
-    "dalam bahasa spanyol",
-    "dalam bahasa prancis",
-    "dalam bahasa jerman",
-    "ke bahasa inggris",
-    "ke bahasa indonesia",
-    "ke bahasa jepang",
-    "ke bahasa korea",
-    "ke bahasa china",
-    "ke bahasa mandarin",
-    "ke bahasa spanyol",
-    "ke bahasa prancis",
-    "ke bahasa jerman",
+  const imagePromptKeywords = [
+    "buat prompt",
+    "buatkan prompt",
+    "prompt gambar",
+    "prompt image",
+    "generate prompt",
+    "jadikan prompt",
+    "ubah menjadi prompt",
+    "deskripsikan gambar untuk prompt",
   ];
 
   if (
-    translatorKeywords.some((keyword) =>
+    imagePromptKeywords.some((keyword) =>
       text.includes(keyword)
     )
   ) {
-    return "AI Translator";
+    return "Image Prompt";
   }
 
-  const debuggerKeywords = [
-    "error",
-    "bug",
-    "debug",
-    "debugging",
-    "kode",
-    "code",
-    "coding",
-    "program",
-    "programming",
-    "javascript",
-    "typescript",
-    "react",
-    "next.js",
-    "nextjs",
-    "node.js",
-    "nodejs",
-    "python",
-    "java",
-    "c++",
-    "c#",
-    "html",
-    "css",
-    "sql",
-    "database",
-    "mysql",
-    "postgresql",
-    "mongodb",
-    "git",
-    "github",
-    "docker",
-    "api",
-    "server",
-    "deployment",
-    "windows",
-    "driver",
-    "hardware",
-    "network",
-    "npm",
-    "yarn",
-    "pnpm",
-  ];
-
-  if (
-    debuggerKeywords.some((keyword) =>
-      text.includes(keyword)
-    )
-  ) {
-    return "AI Tech Assistant";
-  }
-
-  return "AI Tech Assistant";
+  return "AI OCR";
 }
 
 async function fileToBase64(file: File) {
@@ -417,6 +308,14 @@ export async function POST(req: Request) {
         ? conversationValue.trim().slice(0, 12000)
         : "";
 
+    const localeValue =
+      formData.get("locale");
+
+    const locale: Locale =
+      localeValue === "en"
+        ? "en"
+        : "id";
+
     const model: AIModelId =
       typeof modelValue === "string" &&
       AI_MODELS.some(
@@ -515,19 +414,15 @@ export async function POST(req: Request) {
       );
 
     const contextualMessage = conversation
-      ? `Kamu adalah AI Assistant umum milik DNA AI Tools.
-Kamu dapat membantu berbagai topik umum dan teknis. Pahami percakapan sebelumnya sebelum menjawab pesan terbaru.
-Jangan menganggap semua pertanyaan sebagai coding/debugging.
-Untuk pertanyaan lanjutan, gunakan konteks sebelumnya untuk memahami kata seperti "itu", "yang tadi", "dia", "tapi", "kalau yang ini", dan sejenisnya.
-Jawab natural, langsung, dan relevan.
-Jika pengguna meminta perbandingan, jelaskan pilihan berdasarkan kebutuhan, lalu sebutkan kelebihan dan kekurangannya.
-Jangan mengarang fakta. Jika data tidak cukup atau kamu tidak yakin, katakan dengan jujur.
-Gunakan bahasa pengguna.
+      ? `Gunakan konteks percakapan berikut sebagai bagian dari percakapan yang sama.
+Pahami referensi seperti "itu", "yang tadi", "dia", "tapi", "kalau yang ini", dan pertanyaan lanjutan lainnya berdasarkan konteks.
+Tetap jawab sebagai satu AI Assistant umum. Jangan mengubah pertanyaan umum menjadi pertanyaan coding hanya karena kamu juga bisa membantu coding.
+Jawab pertanyaan terbaru secara langsung dan natural.
 
 Konteks percakapan:
 ${conversation}
 
-Pesan terbaru:
+Pesan terbaru pengguna:
 ${message}`.trim()
       : message;
 
@@ -538,7 +433,7 @@ ${message}`.trim()
 
     if (
       feature ===
-      "AI Tech Assistant"
+      "AI Assistant"
     ) {
       let lastError: unknown = null;
 
@@ -547,35 +442,7 @@ ${message}`.trim()
           result =
             await askDebugger(
               contextualMessage,
-              "id",
-              candidateModel
-            );
-          break;
-        } catch (error) {
-          lastError = error;
-
-          if (!isModelUnavailable(error)) {
-            throw error;
-          }
-        }
-      }
-
-      if (!result.trim() && lastError) {
-        throw lastError;
-      }
-    }
-
-    if (
-      feature ===
-      "AI Translator"
-    ) {
-      let lastError: unknown = null;
-
-      for (const candidateModel of fallbackModels) {
-        try {
-          result =
-            await askTranslator(
-              contextualMessage,
+              locale,
               candidateModel
             );
           break;

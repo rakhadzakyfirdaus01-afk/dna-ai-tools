@@ -715,6 +715,11 @@ export default function Page() {
         selectedModel
       );
 
+      formData.append(
+        "locale",
+        locale
+      );
+
       const response =
         await fetch(
           "/api/ai-assistant",
@@ -902,6 +907,11 @@ export default function Page() {
         selectedModel
       );
 
+      formData.append(
+        "locale",
+        locale
+      );
+
       const response =
         await fetch(
           "/api/ai-assistant",
@@ -944,7 +954,9 @@ export default function Page() {
 
         throw new Error(
           data.error ||
-            isEnglish ? "An error occurred while contacting AI." : "Terjadi kesalahan saat menghubungi AI."
+            (isEnglish
+              ? "An error occurred while contacting AI."
+              : "Terjadi kesalahan saat menghubungi AI.")
         );
       }
 

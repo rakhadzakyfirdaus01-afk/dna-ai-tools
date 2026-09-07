@@ -265,7 +265,8 @@ export default function Header({
             </p>
 
             <h1 className="mt-1 truncate text-lg font-bold text-white lg:text-2xl">
-              DNA AI Platform
+              <span className="lg:hidden">DNA AI</span>
+              <span className="hidden lg:inline">DNA AI Platform</span>
             </h1>
 
           </div>

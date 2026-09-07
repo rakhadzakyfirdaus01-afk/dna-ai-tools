@@ -1192,7 +1192,7 @@ export default function Page() {
                 </p>
 
 
-                <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="mt-8 hidden grid-cols-1 gap-3 md:grid md:grid-cols-2">
 
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
 

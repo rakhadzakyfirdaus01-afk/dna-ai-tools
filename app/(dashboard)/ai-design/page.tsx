@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ChangeEvent } from "react";
 import {
   Download,
   Loader2,
@@ -15,6 +16,10 @@ export default function AIDesignPage() {
 
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [referenceImage, setReferenceImage] =
+    useState<File | null>(null);
+  const [referencePreview, setReferencePreview] =
+    useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -121,7 +126,72 @@ export default function AIDesignPage() {
     generateDesign: isEnglish
       ? "Generate Design"
       : "Generate Desain",
+
+    editImage: isEnglish
+      ? "Edit Image"
+      : "Edit Gambar",
+
+    attach: isEnglish
+      ? "Attach"
+      : "Lampirkan",
+
+    camera: isEnglish
+      ? "Camera"
+      : "Kamera",
+
+    attachedImage: isEnglish
+      ? "Attached image"
+      : "Gambar terlampir",
+
+    removeImage: isEnglish
+      ? "Remove image"
+      : "Hapus gambar",
   };
+
+  function handleReferenceImage(
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError(
+        isEnglish
+          ? "Please select an image file."
+          : "Pilih file gambar."
+      );
+      return;
+    }
+
+    setError("");
+    setReferenceImage(file);
+
+    const previewUrl =
+      URL.createObjectURL(file);
+
+    setReferencePreview((previous) => {
+      if (previous) {
+        URL.revokeObjectURL(previous);
+      }
+
+      return previewUrl;
+    });
+  }
+
+  function removeReferenceImage() {
+    setReferenceImage(null);
+
+    setReferencePreview((previous) => {
+      if (previous) {
+        URL.revokeObjectURL(previous);
+      }
+
+      return "";
+    });
+  }
 
   async function generateDesign() {
     if (!prompt.trim()) {
@@ -135,15 +205,52 @@ export default function AIDesignPage() {
     setStatus(ui.sending);
 
     try {
-      const generateResponse = await fetch("/api/ai-design", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-        }),
-      });
+      const formData = new FormData();
+
+      formData.append(
+        "prompt",
+        prompt.trim()
+      );
+
+      formData.append(
+        "designType",
+        "Auto"
+      );
+
+      formData.append(
+        "style",
+        "Auto"
+      );
+
+      formData.append(
+        "template",
+        "Auto"
+      );
+
+      formData.append(
+        "size",
+        "Auto"
+      );
+
+      formData.append(
+        "color",
+        "Auto"
+      );
+
+      if (referenceImage) {
+        formData.append(
+          "referenceImage",
+          referenceImage
+        );
+      }
+
+      const generateResponse = await fetch(
+        "/api/ai-design",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       const generateData = await generateResponse.json();
 
@@ -169,6 +276,8 @@ export default function AIDesignPage() {
         const statusResponse = await fetch(
           `/api/ai-design/status?id=${encodeURIComponent(
             projectId
+          )}&prompt=${encodeURIComponent(
+            prompt.trim()
           )}`,
           {
             cache: "no-store",
@@ -283,6 +392,73 @@ export default function AIDesignPage() {
             className="min-h-[220px] w-full resize-y rounded-xl border border-slate-700 bg-slate-950 p-5 text-white outline-none transition placeholder:text-slate-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 disabled:cursor-not-allowed disabled:opacity-60"
           />
 
+          {/* IMAGE INPUT */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <input
+              id="ai-design-attachment"
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              onChange={handleReferenceImage}
+              disabled={loading}
+              className="hidden"
+            />
+
+            <label
+              htmlFor="ai-design-attachment"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              <span>📎</span>
+              {ui.attach}
+            </label>
+
+            <input
+              id="ai-design-camera"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleReferenceImage}
+              disabled={loading}
+              className="hidden"
+            />
+
+            <label
+              htmlFor="ai-design-camera"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 md:hidden"
+            >
+              <span>📷</span>
+              {ui.camera}
+            </label>
+          </div>
+
+          {referencePreview && (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 p-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-slate-300">
+                  {ui.attachedImage}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={removeReferenceImage}
+                  disabled={loading}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"
+                >
+                  {ui.removeImage}
+                </button>
+              </div>
+
+              <img
+                src={referencePreview}
+                alt={ui.attachedImage}
+                className="max-h-80 w-full rounded-xl object-contain"
+              />
+
+              <p className="mt-2 truncate text-xs text-slate-500">
+                {referenceImage?.name}
+              </p>
+            </div>
+          )}
+
           {/* ERROR */}
           {error && (
             <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
@@ -324,7 +500,9 @@ export default function AIDesignPage() {
             ) : (
               <>
                 <Palette size={21} />
-                {ui.generateDesign}
+                {referenceImage
+                  ? ui.editImage
+                  : ui.generateDesign}
               </>
             )}
           </button>

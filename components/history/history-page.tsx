@@ -10,6 +10,7 @@ import {
   Calendar,
   Filter,
   X,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/components/shared/language-provider";
@@ -226,6 +227,11 @@ export default function HistoryPage() {
   function openConversation(item: HistoryItem) {
     setSelected(item);
     setChatInput("");
+
+    if (item.feature === "AI Design") {
+      setChatMessages([]);
+      return;
+    }
 
     try {
       const saved = window.localStorage.getItem(
@@ -637,15 +643,17 @@ export default function HistoryPage() {
             className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* CHAT HEADER */}
+            {/* FEATURE HEADER */}
             <div className="flex items-center justify-between gap-4 border-b border-slate-800 px-4 py-4 lg:px-6">
               <div className="min-w-0">
                 <h2 className="truncate text-lg font-bold text-white lg:text-2xl">
-                  {selected.prompt || (
-                    isIndonesia
-                      ? "Percakapan"
-                      : "Conversation"
-                  )}
+                  {selected.feature === "AI Design"
+                    ? "AI Design"
+                    : selected.prompt || (
+                        isIndonesia
+                          ? "Percakapan"
+                          : "Conversation"
+                      )}
                 </h2>
 
                 <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 lg:text-sm">
@@ -667,93 +675,190 @@ export default function HistoryPage() {
               </button>
             </div>
 
-            {/* CHAT MESSAGES */}
-            <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 lg:px-6 lg:py-6">
-              {chatMessages.map((message, index) => (
-                <div
-                  key={`${message.role}-${index}`}
-                  className={
-                    message.role === "user"
-                      ? "flex justify-end"
-                      : "flex justify-start"
-                  }
-                >
-                  <div
-                    className={
-                      message.role === "user"
-                        ? "max-w-[85%] rounded-2xl rounded-br-md bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-3 text-sm leading-6 text-white lg:max-w-[75%] lg:text-base"
-                        : "max-w-[90%] rounded-2xl rounded-bl-md border border-slate-800 bg-slate-900 px-4 py-3 text-sm leading-6 text-slate-200 lg:max-w-[80%] lg:text-base"
-                    }
-                  >
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide opacity-60">
-                      {message.role === "user"
-                        ? isIndonesia
-                          ? "Anda"
-                          : "You"
-                        : "AI Assistant"}
+            {selected.feature === "AI Design" ? (
+              /* =====================================================
+                 AI DESIGN DETAIL
+                 ===================================================== */
+              <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-6 lg:py-6">
+                <div className="space-y-5 lg:space-y-6">
+                  {/* PROMPT */}
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <h3 className="text-base font-semibold text-cyan-400 lg:text-lg">
+                        Prompt
+                      </h3>
+
+                      <button
+                        type="button"
+                        onClick={() => copyText(selected.prompt)}
+                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-blue-500"
+                      >
+                        <Copy size={14} />
+                        {isIndonesia ? "Salin" : "Copy"}
+                      </button>
                     </div>
 
-                    <div className="whitespace-pre-wrap break-words">
-                      {message.content}
+                    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm leading-6 text-slate-300 lg:text-base">
+                      {selected.prompt || (
+                        isIndonesia
+                          ? "Tidak ada prompt."
+                          : "No prompt."
+                      )}
+                    </div>
+                  </div>
+
+                  {/* RESULT IMAGE */}
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <h3 className="text-base font-semibold text-cyan-400 lg:text-lg">
+                        {isIndonesia ? "Hasil" : "Result"}
+                      </h3>
+
+                      {selected.result && (
+                        <a
+                          href={selected.result}
+                          download="dna-ai-design.png"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-cyan-500"
+                        >
+                          <Download size={14} />
+                          {isIndonesia ? "Download" : "Download"}
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-3 lg:p-4">
+                      {selected.result ? (
+                        <img
+                          src={selected.result}
+                          alt={
+                            isIndonesia
+                              ? "Hasil AI Design"
+                              : "AI Design Result"
+                          }
+                          className="mx-auto max-h-[70vh] w-auto max-w-full rounded-xl object-contain"
+                        />
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center text-sm text-slate-500">
+                          {isIndonesia
+                            ? "Gambar hasil tidak tersedia."
+                            : "Result image is not available."}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
-
-              {chatLoading && (
-                <div className="flex justify-start">
-                  <div className="rounded-2xl rounded-bl-md border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400">
-                    {isIndonesia
-                      ? "AI sedang mengetik..."
-                      : "AI is typing..."}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* CHAT COMPOSER */}
-            <div className="border-t border-slate-800 bg-slate-950 p-3 lg:p-4">
-              <div className="flex items-end gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-2 focus-within:border-cyan-500/60">
-                <textarea
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      !e.shiftKey
-                    ) {
-                      e.preventDefault();
-                      sendConversationMessage();
-                    }
-                  }}
-                  placeholder={
-                    isIndonesia
-                      ? "Kirim pesan..."
-                      : "Send a message..."
-                  }
-                  disabled={chatLoading}
-                  rows={1}
-                  className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 lg:text-base"
-                />
-
-                <button
-                  type="button"
-                  onClick={sendConversationMessage}
-                  disabled={!chatInput.trim() || chatLoading}
-                  className="rounded-xl bg-cyan-600 p-3 text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
-                  title={isIndonesia ? "Kirim" : "Send"}
-                  aria-label={isIndonesia ? "Kirim pesan" : "Send message"}
-                >
-                  <span className="text-sm font-semibold">➤</span>
-                </button>
               </div>
+            ) : (
+              /* =====================================================
+                 AI ASSISTANT DETAIL
+                 Tetap memakai mekanisme chat yang sudah ada.
+                 ===================================================== */
+              <>
+                {/* CHAT MESSAGES */}
+                <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 lg:px-6 lg:py-6">
+                  {chatMessages.map((message, index) => (
+                    <div
+                      key={`${message.role}-${index}`}
+                      className={
+                        message.role === "user"
+                          ? "flex justify-end"
+                          : "flex justify-start"
+                      }
+                    >
+                      <div
+                        className={
+                          message.role === "user"
+                            ? "max-w-[85%] rounded-2xl rounded-br-md bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-3 text-sm leading-6 text-white lg:max-w-[75%] lg:text-base"
+                            : "max-w-[90%] rounded-2xl rounded-bl-md border border-slate-800 bg-slate-900 px-4 py-3 text-sm leading-6 text-slate-200 lg:max-w-[80%] lg:text-base"
+                        }
+                      >
+                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide opacity-60">
+                          {message.role === "user"
+                            ? isIndonesia
+                              ? "Anda"
+                              : "You"
+                            : "AI Assistant"}
+                        </div>
 
-              <p className="mt-2 px-1 text-[11px] text-slate-600">
-                {isIndonesia
-                  ? "Enter untuk kirim • Shift+Enter untuk baris baru"
-                  : "Enter to send • Shift+Enter for a new line"}
-              </p>
-            </div>
+                        <div className="whitespace-pre-wrap break-words">
+                          {message.content}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {chatLoading && (
+                    <div className="flex justify-start">
+                      <div className="rounded-2xl rounded-bl-md border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400">
+                        {isIndonesia
+                          ? "AI sedang mengetik..."
+                          : "AI is typing..."}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* CHAT COMPOSER */}
+                <div className="border-t border-slate-800 bg-slate-950 p-3 lg:p-4">
+                  <div className="flex items-end gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-2 focus-within:border-cyan-500/60">
+                    <textarea
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" &&
+                          !e.shiftKey
+                        ) {
+                          e.preventDefault();
+                          sendConversationMessage();
+                        }
+                      }}
+                      placeholder={
+                        isIndonesia
+                          ? "Kirim pesan..."
+                          : "Send a message..."
+                      }
+                      disabled={chatLoading}
+                      rows={1}
+                      className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 lg:text-base"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={sendConversationMessage}
+                      disabled={
+                        !chatInput.trim() ||
+                        chatLoading
+                      }
+                      className="rounded-xl bg-cyan-600 p-3 text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+                      title={
+                        isIndonesia
+                          ? "Kirim"
+                          : "Send"
+                      }
+                      aria-label={
+                        isIndonesia
+                          ? "Kirim pesan"
+                          : "Send message"
+                      }
+                    >
+                      <span className="text-sm font-semibold">
+                        ➤
+                      </span>
+                    </button>
+                  </div>
+
+                  <p className="mt-2 px-1 text-[11px] text-slate-600">
+                    {isIndonesia
+                      ? "Enter untuk kirim • Shift+Enter untuk baris baru"
+                      : "Enter to send • Shift+Enter for a new line"}
+                  </p>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}

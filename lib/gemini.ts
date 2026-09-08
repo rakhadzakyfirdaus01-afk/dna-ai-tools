@@ -1,4 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  AI_MODELS,
+  DEFAULT_AI_MODEL,
+} from "@/lib/ai-models";
 import { getLanguageInstruction } from "@/lib/language";
 import type { Locale } from "@/components/shared/language-provider";
 
@@ -56,13 +60,86 @@ Aturan menjawab:
 7. Selalu gunakan format yang rapi dan mudah dibaca.
 `;
 
+// ==========================================
+// DETEKSI ERROR YANG BOLEH FALLBACK
+// ==========================================
+
+function isModelFallbackError(
+  error: unknown
+): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : String(error);
+
+  const normalized =
+    message.toLowerCase();
+
+  return (
+    normalized.includes("429") ||
+    normalized.includes(
+      "too many requests"
+    ) ||
+    normalized.includes(
+      "resource_exhausted"
+    ) ||
+    normalized.includes("quota") ||
+    normalized.includes(
+      "rate limit"
+    ) ||
+    normalized.includes(
+      "exceeded your current quota"
+    ) ||
+    normalized.includes("503") ||
+    normalized.includes(
+      "service unavailable"
+    ) ||
+    normalized.includes(
+      "temporarily unavailable"
+    ) ||
+    normalized.includes("404") ||
+    normalized.includes(
+      "not found"
+    ) ||
+    normalized.includes(
+      "no longer available"
+    )
+  );
+}
+
+// ==========================================
+// AI GEMINI DENGAN AUTO FALLBACK
+// ==========================================
+
 export async function askGemini(
   prompt: string,
   locale: Locale = "id"
 ) {
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: `
+  const modelCandidates = [
+    DEFAULT_AI_MODEL,
+    ...AI_MODELS
+      .map((model) => model.id)
+      .filter(
+        (model) =>
+          model !== DEFAULT_AI_MODEL
+      ),
+  ];
+
+  let lastError: unknown = null;
+
+  for (
+    const model of modelCandidates
+  ) {
+    try {
+      console.log(
+        `[AI Assistant] Trying model: ${model}`
+      );
+
+      const response =
+        await ai.models.generateContent({
+          model,
+
+          contents: `
 ${getLanguageInstruction(locale)}
 
 ${SYSTEM_PROMPT}
@@ -70,7 +147,49 @@ ${SYSTEM_PROMPT}
 User:
 ${prompt}
 `,
-  });
+        });
 
-  return response.text ?? "";
+      const result =
+        response.text ?? "";
+
+      if (result.trim()) {
+        console.log(
+          `[AI Assistant] Model succeeded: ${model}`
+        );
+
+        return result;
+      }
+
+      lastError = new Error(
+        `Model ${model} returned an empty response.`
+      );
+
+    } catch (error) {
+      lastError = error;
+
+      console.warn(
+        `[AI Assistant] Model failed: ${model}`,
+        error
+      );
+
+      // Kalau error-nya termasuk quota,
+      // rate limit, unavailable, atau model
+      // sudah tidak tersedia → lanjut model berikutnya.
+      if (
+        isModelFallbackError(error)
+      ) {
+        continue;
+      }
+
+      // Error lain tidak boleh ditutupi.
+      throw error;
+    }
+  }
+
+  throw (
+    lastError ??
+    new Error(
+      "Semua model Gemini tidak dapat memberikan jawaban."
+    )
+  );
 }

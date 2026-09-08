@@ -35,22 +35,26 @@ type Message = {
   imagePreview?: string;
 };
 
-
 type ModelOption = {
   id: AIModelId;
   name: string;
   description: string;
 };
 
-const MODEL_OPTIONS: ModelOption[] = AI_MODELS.map(
-  (model) => ({
+const MODEL_OPTIONS: ModelOption[] = [
+  {
+    id: "auto",
+    name: "Auto",
+    description:
+      "Otomatis berpindah ke model lain jika model utama tidak tersedia",
+  },
+  ...AI_MODELS.map((model) => ({
     id: model.id,
     name: model.name,
     description:
       "Model Gemini yang dikonfigurasi untuk AI Asisten",
-  })
-);
-
+  })),
+];
 function formatResetTime(resetAt: string) {
   const date = new Date(resetAt);
 
@@ -70,7 +74,6 @@ function formatResetTime(resetAt: string) {
     }).format(date) + " WIB"
   );
 }
-
 
 function buildConversationContext(messages: Message[]) {
   const recentMessages = messages.slice(-20);
@@ -1131,15 +1134,15 @@ export default function Page() {
       <div className="mb-6 flex items-center gap-3">
 
         <div className="flex h-11 w-11 items-center justify-center">
-  <Image
-    src="/logo-dna.png"
-    alt="DNA AI"
-    width={44}
-    height={44}
-    priority
-    className="object-contain"
-  />
-</div>
+          <Image
+            src="/logo-dna.png"
+            alt="DNA AI"
+            width={44}
+            height={44}
+            priority
+            className="object-contain"
+          />
+        </div>
 
         <div>
 
@@ -1171,15 +1174,15 @@ export default function Page() {
               <div className="max-w-2xl text-center">
 
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20">
-  <Image
-    src="/logo-dna.png"
-    alt="DNA AI"
-    width={56}
-    height={56}
-    priority
-    className="object-contain"
-  />
-</div>
+                  <Image
+                    src="/logo-dna.png"
+                    alt="DNA AI"
+                    width={56}
+                    height={56}
+                    priority
+                    className="object-contain"
+                  />
+                </div>
 
 
                 <h2 className="text-3xl font-bold text-white">
@@ -1489,87 +1492,86 @@ export default function Page() {
                 className="w-full resize-none bg-transparent px-4 py-3 text-white outline-none placeholder:text-slate-500 disabled:opacity-60"
               />
 
-
-            <div className="relative mb-2 px-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setModelMenuOpen((prev) => !prev)
-                }
-                disabled={loading}
-                className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-left transition hover:border-slate-600 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold text-slate-200">
-                    {
-                      MODEL_OPTIONS.find(
-                        (option) =>
-                          option.id ===
-                          selectedModel
-                      )?.name ?? "Model"
-                    }
+              <div className="relative mb-2 px-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setModelMenuOpen((prev) => !prev)
+                  }
+                  disabled={loading}
+                  className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-left transition hover:border-slate-600 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-slate-200">
+                      {
+                        MODEL_OPTIONS.find(
+                          (option) =>
+                            option.id ===
+                            selectedModel
+                        )?.name ?? "Model"
+                      }
+                    </div>
+                    <div className="hidden text-[11px] text-slate-500 sm:block">
+                      {
+                        isEnglish
+                          ? "Gemini model for AI Assistant"
+                          : "Model Gemini untuk AI Asisten"
+                      }
+                    </div>
                   </div>
-                  <div className="hidden text-[11px] text-slate-500 sm:block">
-                    {
-                      isEnglish
-                        ? "Gemini model for AI Assistant"
-                        : "Model Gemini untuk AI Asisten"
-                    }
-                  </div>
-                </div>
 
-                <ChevronDown
-                  size={16}
-                  className={`shrink-0 text-slate-500 transition-transform ${
-                    modelMenuOpen
-                      ? "rotate-180"
-                      : ""
-                  }`}
-                />
-              </button>
+                  <ChevronDown
+                    size={16}
+                    className={`shrink-0 text-slate-500 transition-transform ${
+                      modelMenuOpen
+                        ? "rotate-180"
+                        : ""
+                    }`}
+                  />
+                </button>
 
-              {modelMenuOpen && (
-                <div className="absolute bottom-full left-2 z-50 mb-2 w-[290px] overflow-hidden rounded-2xl border border-slate-700 bg-[#111827] p-2 shadow-2xl">
-                  {MODEL_OPTIONS.map(
-                    (option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedModel(
-                            option.id
-                          );
-                          setModelMenuOpen(
-                            false
-                          );
-                        }}
-                        className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-slate-200">
-                              {option.name}
-                            </span>
+                {modelMenuOpen && (
+                  <div className="absolute bottom-full left-2 z-50 mb-2 w-[290px] overflow-hidden rounded-2xl border border-slate-700 bg-[#111827] p-2 shadow-2xl">
+                    {MODEL_OPTIONS.map(
+                      (option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedModel(
+                              option.id
+                            );
+                            setModelMenuOpen(
+                              false
+                            );
+                          }}
+                          className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-slate-200">
+                                {option.name}
+                              </span>
+                            </div>
+
+                            <p className="mt-1 text-xs text-slate-500">
+                              {option.description}
+                            </p>
                           </div>
 
-                          <p className="mt-1 text-xs text-slate-500">
-                            {option.description}
-                          </p>
-                        </div>
-
-                        {selectedModel ===
-                          option.id && (
-                          <Check
-                            size={17}
-                            className="mt-0.5 shrink-0 text-cyan-400"
-                          />
-                        )}
-                      </button>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
+                          {selectedModel ===
+                            option.id && (
+                            <Check
+                              size={17}
+                              className="mt-0.5 shrink-0 text-cyan-400"
+                            />
+                          )}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-center justify-between px-2 pb-1">
 

@@ -236,6 +236,26 @@ function isModelUnavailable(error: unknown): boolean {
   );
 }
 
+function isModelFallbackError(error: unknown): boolean {
+  const parsed = parseApiError(error);
+  const message = (
+    parsed.message ||
+    (error instanceof Error ? error.message : String(error))
+  ).toLowerCase();
+
+  return (
+    isModelUnavailable(error) ||
+    parsed.code === 429 ||
+    parsed.status === "RESOURCE_EXHAUSTED" ||
+    message.includes("resource_exhausted") ||
+    message.includes("too many requests") ||
+    message.includes("rate limit") ||
+    message.includes("quota") ||
+    message.includes("exceeded your current quota") ||
+    message.includes("429")
+  );
+}
+
 function getFallbackModels(selectedModel: AIModelId): AIModelId[] {
   return [
     selectedModel,
@@ -430,6 +450,7 @@ ${message}`.trim()
       getFallbackModels(model);
 
     let result = "";
+    let successfulModel: AIModelId | null = null;
 
     if (
       feature ===
@@ -445,13 +466,26 @@ ${message}`.trim()
               locale,
               candidateModel
             );
-          break;
+
+          if (result.trim()) {
+            successfulModel = candidateModel;
+            break;
+          }
+
+          lastError = new Error(
+            `Model ${candidateModel} returned an empty response.`
+          );
         } catch (error) {
           lastError = error;
 
-          if (!isModelUnavailable(error)) {
+          if (!isModelFallbackError(error)) {
             throw error;
           }
+
+          console.warn(
+            `[AI Assistant] Falling back after model failure: ${candidateModel}`,
+            error
+          );
         }
       }
 
@@ -512,13 +546,21 @@ ${message}`.trim()
               },
               model: candidateModel,
             });
-          break;
+          if (result.trim()) {
+            successfulModel = candidateModel;
+            break;
+          }
         } catch (error) {
           lastError = error;
 
-          if (!isModelUnavailable(error)) {
+          if (!isModelFallbackError(error)) {
             throw error;
           }
+
+          console.warn(
+            `[AI Assistant] Falling back after model failure: ${candidateModel}`,
+            error
+          );
         }
       }
 
@@ -578,13 +620,21 @@ ${message}`.trim()
               },
               model: candidateModel,
             });
-          break;
+          if (result.trim()) {
+            successfulModel = candidateModel;
+            break;
+          }
         } catch (error) {
           lastError = error;
 
-          if (!isModelUnavailable(error)) {
+          if (!isModelFallbackError(error)) {
             throw error;
           }
+
+          console.warn(
+            `[AI Assistant] Falling back after model failure: ${candidateModel}`,
+            error
+          );
         }
       }
 
@@ -644,13 +694,21 @@ ${message}`.trim()
               },
               model: candidateModel,
             });
-          break;
+          if (result.trim()) {
+            successfulModel = candidateModel;
+            break;
+          }
         } catch (error) {
           lastError = error;
 
-          if (!isModelUnavailable(error)) {
+          if (!isModelFallbackError(error)) {
             throw error;
           }
+
+          console.warn(
+            `[AI Assistant] Falling back after model failure: ${candidateModel}`,
+            error
+          );
         }
       }
 
@@ -711,7 +769,9 @@ ${message}`.trim()
       voice: Boolean(
         voiceFile
       ),
-      model,
+      model:
+        successfulModel ??
+        model,
       history,
       userQuota: {
         limit: updatedQuota.limit,

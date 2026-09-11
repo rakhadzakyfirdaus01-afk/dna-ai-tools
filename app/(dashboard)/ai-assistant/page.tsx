@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/shared/language-provider";
 import {
   Paperclip,
@@ -17,6 +18,7 @@ import {
   Mic,
   MicOff,
   Volume2,
+  Plus,
 } from "lucide-react";
 
 import { addNotification } from "@/components/notifications/notification-store";
@@ -41,20 +43,14 @@ type ModelOption = {
   description: string;
 };
 
-const MODEL_OPTIONS: ModelOption[] = [
-  {
-    id: "auto",
-    name: "Auto",
-    description:
-      "Otomatis berpindah ke model lain jika model utama tidak tersedia",
-  },
-  ...AI_MODELS.map((model) => ({
+const MODEL_OPTIONS: ModelOption[] = AI_MODELS.map(
+  (model) => ({
     id: model.id,
     name: model.name,
     description:
       "Model Gemini yang dikonfigurasi untuk AI Asisten",
-  })),
-];
+  })
+);
 function formatResetTime(resetAt: string) {
   const date = new Date(resetAt);
 
@@ -104,6 +100,7 @@ function buildConversationContext(messages: Message[]) {
 export default function Page() {
   const { locale } = useLanguage();
   const isEnglish = locale === "en";
+  const router = useRouter();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -118,6 +115,8 @@ export default function Page() {
   const [selectedModel, setSelectedModel] =
     useState<AIModelId>(DEFAULT_AI_MODEL);
   const [modelMenuOpen, setModelMenuOpen] =
+    useState(false);
+  const [toolMenuOpen, setToolMenuOpen] =
     useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -237,6 +236,11 @@ export default function Page() {
       ? "⚠️ AI usage limit is currently reached.\\n\\nPlease try again after"
       : "⚠️ Batas penggunaan AI sedang tercapai.\n\nSilakan coba lagi setelah",
     voiceFeature: isEnglish ? "AI Assistant" : "AI Asisten",
+    tools: isEnglish ? "Tools" : "Fitur",
+    cameraTool: isEnglish ? "Camera" : "Kamera",
+    attachTool: isEnglish ? "Attach" : "Lampirkan",
+    designTool: isEnglish ? "AI Design" : "Desain AI",
+    animationTool: isEnglish ? "AI Animation" : "Animasi AI",
   };
 
   function handleFileChange(
@@ -1436,7 +1440,6 @@ export default function Page() {
 
                 </div>
 
-
                 <button
                   type="button"
                   onClick={removeFile}
@@ -1449,31 +1452,6 @@ export default function Page() {
 
               </div>
 
-            )}
-
-
-            {imageUrlOpen && (
-              <div className="mb-3 hidden rounded-2xl border border-slate-700 bg-slate-900 p-3 md:block">
-                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300">
-                  <Link2 size={16} className="text-cyan-400" />
-                  Link Foto
-                </div>
-
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(event) =>
-                    setImageUrl(event.target.value)
-                  }
-                  disabled={loading}
-                  placeholder="https://contoh.com/foto.jpg"
-                  className="w-full rounded-xl border border-slate-700 bg-[#111827] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-500 disabled:opacity-60"
-                />
-
-                <p className="mt-2 text-xs text-slate-600">
-                  {ui.cameraDesktopNote}
-                </p>
-              </div>
             )}
 
             <div className="rounded-3xl border border-slate-700 bg-[#111827] p-2 shadow-lg focus-within:border-cyan-500">
@@ -1575,7 +1553,7 @@ export default function Page() {
 
               <div className="flex items-center justify-between px-2 pb-1">
 
-                <div className="flex items-center gap-1">
+                <div className="relative">
 
                   <input
                     ref={fileInputRef}
@@ -1586,65 +1564,125 @@ export default function Page() {
                     disabled={loading}
                   />
 
-
-                  {/* MOBILE: upload file */}
                   <button
                     type="button"
                     onClick={() =>
-                      fileInputRef.current?.click()
+                      setToolMenuOpen((prev) => !prev)
                     }
                     disabled={loading}
-                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label={ui.tools}
+                    title={ui.tools}
                   >
-
-                    <Paperclip size={18} />
-
-                    <span className="text-sm">
-                      {ui.attach}
-                    </span>
-
+                    <Plus
+                      size={20}
+                      className={`transition-transform ${
+                        toolMenuOpen
+                          ? "rotate-45"
+                          : ""
+                      }`}
+                    />
                   </button>
 
+                  {toolMenuOpen && (
+                    <div className="absolute bottom-full left-0 z-50 mb-2 w-[270px] overflow-hidden rounded-2xl border border-slate-700 bg-[#111827] p-2 shadow-2xl">
 
-                  {/* DESKTOP: image URL only */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setImageUrlOpen((prev) => !prev)
-                    }
-                    disabled={loading}
-                    className="hidden items-center gap-2 rounded-xl px-3 py-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 md:flex"
-                  >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToolMenuOpen(false);
+                          openCamera();
+                        }}
+                        disabled={loading || cameraLoading}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 md:hidden"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10">
+                          <Camera size={18} className="text-cyan-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-white">
+                            {ui.cameraTool}
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {ui.cameraDescription}
+                          </p>
+                        </div>
+                      </button>
 
-                    <Link2 size={18} />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToolMenuOpen(false);
+                          fileInputRef.current?.click();
+                        }}
+                        disabled={loading}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800">
+                          <Paperclip size={18} className="text-slate-200" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-white">
+                            {ui.attachTool}
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {isEnglish
+                              ? "Upload a file from your device"
+                              : "Unggah file dari perangkat"}
+                          </p>
+                        </div>
+                      </button>
 
-                    <span className="text-sm">
-                      {ui.photoLink}
-                    </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToolMenuOpen(false);
+                          router.push("/ai-animation");
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/10">
+                          <span className="text-lg">🎬</span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-white">
+                            {ui.animationTool}
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {isEnglish
+                              ? "Open AI Animation"
+                              : "Buka fitur Animasi AI"}
+                          </p>
+                        </div>
+                      </button>
 
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToolMenuOpen(false);
+                          router.push("/ai-design");
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-500/10">
+                          <span className="text-lg">🎨</span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-white">
+                            {ui.designTool}
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {isEnglish
+                              ? "Open AI Design"
+                              : "Buka fitur Desain AI"}
+                          </p>
+                        </div>
+                      </button>
 
-
-                  <button
-                    type="button"
-                    onClick={openCamera}
-                    disabled={
-                      loading ||
-                      cameraLoading
-                    }
-                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 md:hidden"
-                  >
-
-                    <Camera size={18} />
-
-                    <span className="text-sm">
-                      Kamera
-                    </span>
-
-                  </button>
+                    </div>
+                  )}
 
                 </div>
-
 
                 <button
                   type="button"
@@ -1691,7 +1729,6 @@ export default function Page() {
               </div>
 
             </div>
-
 
             <p className="mt-3 text-center text-xs text-slate-600">
               {isEnglish

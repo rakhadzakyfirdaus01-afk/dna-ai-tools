@@ -5,9 +5,7 @@ import { usePathname } from "next/navigation";
 import { useLanguage } from "@/components/shared/language-provider";
 
 import {
-  Bug,
-  Palette,
-  Clapperboard,
+  MessageCircle,
   History,
   Settings,
 } from "lucide-react";
@@ -27,17 +25,7 @@ export default function Sidebar({
     {
       title: "AI Asisten",
       href: "/ai-assistant",
-      icon: Bug,
-    },
-    {
-      title: t.design,
-      href: "/ai-design",
-      icon: Palette,
-    },
-    {
-      title: t.animation,
-      href: "/ai-animation",
-      icon: Clapperboard,
+      icon: MessageCircle,
     },
     {
       title: t.history,

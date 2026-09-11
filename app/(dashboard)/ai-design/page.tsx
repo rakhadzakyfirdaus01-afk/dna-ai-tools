@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import type { ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   Download,
   Loader2,
   Palette,
@@ -13,6 +15,7 @@ import { useLanguage } from "@/components/shared/language-provider";
 export default function AIDesignPage() {
   const { locale } = useLanguage();
   const isEnglish = locale === "en";
+  const router = useRouter();
 
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -146,6 +149,10 @@ export default function AIDesignPage() {
     removeImage: isEnglish
       ? "Remove image"
       : "Hapus gambar",
+
+    backToAssistant: isEnglish
+      ? "Back to AI Assistant"
+      : "Kembali ke AI Asisten",
   };
 
   function handleReferenceImage(
@@ -252,15 +259,18 @@ export default function AIDesignPage() {
         }
       );
 
-      const generateData = await generateResponse.json();
+      const generateData =
+        await generateResponse.json();
 
       if (!generateResponse.ok) {
         throw new Error(
-          generateData?.error || ui.generateFailed
+          generateData?.error ||
+            ui.generateFailed
         );
       }
 
-      const projectId = generateData.projectId;
+      const projectId =
+        generateData.projectId;
 
       if (!projectId) {
         throw new Error(ui.noProjectId);
@@ -268,7 +278,11 @@ export default function AIDesignPage() {
 
       setStatus(ui.creating);
 
-      for (let attempt = 0; attempt < 60; attempt++) {
+      for (
+        let attempt = 0;
+        attempt < 60;
+        attempt++
+      ) {
         await new Promise((resolve) =>
           setTimeout(resolve, 2000)
         );
@@ -284,11 +298,13 @@ export default function AIDesignPage() {
           }
         );
 
-        const statusData = await statusResponse.json();
+        const statusData =
+          await statusResponse.json();
 
         if (!statusResponse.ok) {
           throw new Error(
-            statusData?.error || ui.statusFailed
+            statusData?.error ||
+              ui.statusFailed
           );
         }
 
@@ -343,20 +359,35 @@ export default function AIDesignPage() {
 
         {/* HEADER */}
         <div className="mb-6 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white shadow-xl">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
-              <Palette size={30} />
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
+                <Palette size={30} />
+              </div>
+
+              <div>
+                <h1 className="text-3xl font-bold">
+                  AI Design
+                </h1>
+
+                <p className="mt-1 text-white/80">
+                  {ui.headerDescription}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h1 className="text-3xl font-bold">
-                AI Design
-              </h1>
+            <button
+              type="button"
+              onClick={() =>
+                router.push("/ai-assistant")
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+            >
+              <ArrowLeft size={18} />
+              {ui.backToAssistant}
+            </button>
 
-              <p className="mt-1 text-white/80">
-                {ui.headerDescription}
-              </p>
-            </div>
           </div>
         </div>
 

@@ -1,9 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/components/shared/language-provider";
 
 export default function AIAnimationPage() {
   const { locale } = useLanguage();
+  const router = useRouter();
 
   function openVeo() {
     window.open(
@@ -15,19 +18,35 @@ export default function AIAnimationPage() {
   return (
     <div className="min-h-screen bg-[#020617] p-4 text-white lg:p-8">
 
-      <div className="mb-6 lg:mb-8">
+      <div className="mb-6 flex flex-col gap-4 lg:mb-8 lg:flex-row lg:items-center lg:justify-between">
 
-        <h1 className="text-2xl font-bold lg:text-3xl">
-          {locale === "id"
-            ? "Animasi AI"
-            : "AI Animation"}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold lg:text-3xl">
+            {locale === "id"
+              ? "Animasi AI"
+              : "AI Animation"}
+          </h1>
 
-        <p className="mt-2 text-sm text-slate-400 lg:text-base">
+          <p className="mt-2 text-sm text-slate-400 lg:text-base">
+            {locale === "id"
+              ? "Buat video AI profesional menggunakan Google Veo."
+              : "Create professional AI videos using Google Veo."}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            router.push("/ai-assistant")
+          }
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+        >
+          <ArrowLeft size={18} />
+
           {locale === "id"
-            ? "Buat video AI profesional menggunakan Google Veo."
-            : "Create professional AI videos using Google Veo."}
-        </p>
+            ? "Kembali ke AI Asisten"
+            : "Back to AI Assistant"}
+        </button>
 
       </div>
 

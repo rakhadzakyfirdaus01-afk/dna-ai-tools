@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import ThemeProvider from "@/components/theme-provider";
 import SessionWrapper from "@/components/providers/session-provider";
 import { LanguageProvider } from "@/components/shared/language-provider";
+import PWARegister from "@/components/pwa-register";
 
 export const metadata: Metadata = {
   title: "DNA AI Platform",
@@ -23,6 +24,7 @@ export default function RootLayout({
      <body>
   <SplashScreen />
 
+        <PWARegister />
   <LanguageProvider>
           <SessionWrapper>
             <ThemeProvider>

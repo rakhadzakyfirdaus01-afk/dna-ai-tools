@@ -19,6 +19,7 @@ import {
   MicOff,
   Volume2,
   Plus,
+  Download,
 } from "lucide-react";
 
 import { addNotification } from "@/components/notifications/notification-store";
@@ -51,6 +52,14 @@ const MODEL_OPTIONS: ModelOption[] = AI_MODELS.map(
       "Model Gemini yang dikonfigurasi untuk AI Asisten",
   })
 );
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{
+    outcome: "accepted" | "dismissed";
+    platform: string;
+  }>;
+}
 function formatResetTime(resetAt: string) {
   const date = new Date(resetAt);
 
@@ -117,6 +126,11 @@ export default function Page() {
   const [modelMenuOpen, setModelMenuOpen] =
     useState(false);
   const [toolMenuOpen, setToolMenuOpen] =
+    useState(false);
+
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [canInstall, setCanInstall] =
     useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -241,7 +255,50 @@ export default function Page() {
     attachTool: isEnglish ? "Attach" : "Lampirkan",
     designTool: isEnglish ? "AI Design" : "Desain AI",
     animationTool: isEnglish ? "AI Animation" : "Animasi AI",
+    installApp: isEnglish
+      ? "Install DNA AI"
+      : "Install DNA AI",
   };
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+
+      const installEvent =
+        event as BeforeInstallPromptEvent;
+
+      setInstallPrompt(installEvent);
+      setCanInstall(true);
+    };
+
+    window.addEventListener(
+      "beforeinstallprompt",
+      handleBeforeInstallPrompt
+    );
+
+    return () => {
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt
+      );
+    };
+  }, []);
+
+  async function handleInstall() {
+    if (!installPrompt) {
+      return;
+    }
+
+    await installPrompt.prompt();
+
+    const result =
+      await installPrompt.userChoice;
+
+    if (result.outcome === "accepted") {
+      setInstallPrompt(null);
+      setCanInstall(false);
+    }
+  }
 
   function handleFileChange(
     event: React.ChangeEvent<HTMLInputElement>
@@ -1135,30 +1192,47 @@ export default function Page() {
 
       {/* HEADER */}
 
-      <div className="mb-6 flex items-center gap-3">
+      <div className="mb-6 flex items-center justify-between gap-3">
 
-        <div className="flex h-11 w-11 items-center justify-center">
-          <Image
-            src="/logo-dna.png"
-            alt="DNA AI"
-            width={44}
-            height={44}
-            priority
-            className="object-contain"
-          />
+        <div className="flex items-center gap-3">
+
+          <div className="flex h-11 w-11 items-center justify-center">
+            <Image
+              src="/logo-dna.png"
+              alt="DNA AI"
+              width={44}
+              height={44}
+              priority
+              className="object-contain"
+            />
+          </div>
+
+          <div>
+
+            <h1 className="text-2xl font-bold text-white">
+              {ui.title}
+            </h1>
+
+            <p className="text-sm text-slate-400">
+              {ui.subtitle}
+            </p>
+
+          </div>
+
         </div>
 
-        <div>
+        <button
+          type="button"
+          onClick={handleInstall}
+          disabled={!canInstall}
+          className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:scale-105 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+        >
+          <Download size={18} />
 
-          <h1 className="text-2xl font-bold text-white">
-            {ui.title}
-          </h1>
-
-          <p className="text-sm text-slate-400">
-            {ui.subtitle}
-          </p>
-
-        </div>
+          <span className="hidden sm:inline">
+            {ui.installApp}
+          </span>
+        </button>
 
       </div>
 

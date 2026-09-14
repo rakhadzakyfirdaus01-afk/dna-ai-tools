@@ -132,6 +132,8 @@ export default function Page() {
     useState<BeforeInstallPromptEvent | null>(null);
   const [canInstall, setCanInstall] =
     useState(false);
+  const [isInstalled, setIsInstalled] =
+    useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -261,6 +263,26 @@ export default function Page() {
   };
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia(
+      "(display-mode: standalone)"
+    );
+
+    const checkInstalled = () => {
+      const standalone =
+        mediaQuery.matches ||
+        (
+          window.navigator as Navigator & {
+            standalone?: boolean;
+          }
+        ).standalone === true;
+
+      setIsInstalled(standalone);
+
+      if (standalone) {
+        setCanInstall(false);
+      }
+    };
+
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
 
@@ -268,18 +290,49 @@ export default function Page() {
         event as BeforeInstallPromptEvent;
 
       setInstallPrompt(installEvent);
-      setCanInstall(true);
+
+      if (!mediaQuery.matches) {
+        setCanInstall(true);
+      }
     };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setCanInstall(false);
+      setInstallPrompt(null);
+    };
+
+    checkInstalled();
 
     window.addEventListener(
       "beforeinstallprompt",
       handleBeforeInstallPrompt
     );
 
+    window.addEventListener(
+      "appinstalled",
+      handleAppInstalled
+    );
+
+    mediaQuery.addEventListener(
+      "change",
+      checkInstalled
+    );
+
     return () => {
       window.removeEventListener(
         "beforeinstallprompt",
         handleBeforeInstallPrompt
+      );
+
+      window.removeEventListener(
+        "appinstalled",
+        handleAppInstalled
+      );
+
+      mediaQuery.removeEventListener(
+        "change",
+        checkInstalled
       );
     };
   }, []);
@@ -297,6 +350,7 @@ export default function Page() {
     if (result.outcome === "accepted") {
       setInstallPrompt(null);
       setCanInstall(false);
+      setIsInstalled(true);
     }
   }
 
@@ -1221,18 +1275,19 @@ export default function Page() {
 
         </div>
 
-        <button
-          type="button"
-          onClick={handleInstall}
-          disabled={!canInstall}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:scale-105 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-        >
-          <Download size={18} />
+        {!isInstalled && canInstall && (
+          <button
+            type="button"
+            onClick={handleInstall}
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
+          >
+            <Download size={18} />
 
-          <span className="hidden sm:inline">
-            {ui.installApp}
-          </span>
-        </button>
+            <span className="hidden sm:inline">
+              {ui.installApp}
+            </span>
+          </button>
+        )}
 
       </div>
 

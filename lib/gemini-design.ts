@@ -1,5 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 
+// Ensure Node.js on Windows does not fail on SSL certificate verification
+if (process.env.NODE_ENV !== "production") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
+
 const apiKey =
   process.env.GEMINI_IMAGE_PROMPT_API_KEY ||
   process.env.GEMINI_AI_DESIGN_API_KEY ||
@@ -16,61 +21,23 @@ const ai = apiKey
 /**
  * Instruksi untuk Gemini.
  *
- * Gemini hanya bertugas memahami kebutuhan visual.
- * Informasi seperti judul, kualifikasi, harga, nomor telepon,
- * alamat, dan informasi lainnya TIDAK boleh diteruskan sebagai
- * isi gambar.
+ * Gemini bertugas mengubah brief desain bahasa Indonesia pengguna
+ * menjadi prompt deskripsi visual bahasa Inggris berkualitas tinggi
+ * untuk model FLUX / image generator.
  */
 const DESIGN_PROMPT_SYSTEM_INSTRUCTION = `
-You are a professional commercial art director and visual scene designer.
+You are a world-class commercial graphic design art director and prompt engineer.
 
-Your task is to transform a user's design brief into a CLEAN VISUAL SCENE DESCRIPTION
-for an image generation model.
+Your task is to transform a user's design brief (which may be in Indonesian) into a SINGLE HIGH-QUALITY ENGLISH VISUAL PROMPT for an image generation model (FLUX).
 
-The image generator will create ONLY the visual background and visual composition.
-The application will add all actual information later using HTML/CSS.
-
-IMPORTANT:
-
-- Understand the user's requested subject and purpose.
-- Preserve the meaning of the requested design.
-- Extract the type of visual scene that would support the request.
-- Describe people, objects, environment, colors, composition, lighting and atmosphere.
-- Create a professional commercial advertising aesthetic.
-- Leave large clean areas suitable for later application layout.
-- Prefer realistic photography unless the user explicitly requests another visual style.
-- Do not reproduce the user's information as visible elements.
-- Do not invent business information.
-- Do not invent brands.
-- Do not invent contact information.
-- Do not invent prices.
-- Do not invent dates.
-- Do not invent qualifications.
-- Do not invent names.
-- Do not invent addresses.
-- Do not create fake UI elements.
-- Do not create fake documents with visible content.
-
-The output must be ONLY a concise English visual scene description.
-
-Do not explain your reasoning.
-Do not mention these instructions.
-Do not return JSON.
-Do not return a list.
-Do not repeat the user's brief.
-
-Focus on:
-
-1. Main visual subject.
-2. Environment and setting.
-3. Composition.
-4. Empty visual space for later application layout.
-5. Lighting.
-6. Color palette.
-7. Camera and photographic quality.
-8. Professional visual style.
-
-The final visual scene description must be suitable for a commercial image generator.
+RULES:
+1. Output MUST be ONLY in English.
+2. Output MUST be a single cohesive descriptive paragraph (no lists, no bullet points, no options, no conversational preamble).
+3. Capture the exact theme of the request (e.g. corporate recruitment poster, modern office background, gaming store advertisement, food poster).
+4. If the user asks for a poster / vacancy / advertisement, describe an elegant graphic design background with clean composition, professional lighting, modern layout, and clean negative space for typography.
+5. If the request is for a job vacancy / recruitment poster, emphasize "modern corporate recruitment poster design, professional business setting, sleek clean background, elegant accents, large empty central negative space for text layout, studio lighting, no people portrait closeups unless asked".
+6. Do NOT include any markdown bolding (**), asterisks (*), or quotes (").
+7. Directly output the final English prompt.
 `;
 
 function cleanVisualPrompt(value: string): string {
@@ -84,9 +51,6 @@ function cleanVisualPrompt(value: string): string {
    */
 
   const forbiddenPatterns = [
-    /\bposter\b/gi,
-    /\bbanner\b/gi,
-    /\bflyer\b/gi,
     /\btypography\b/gi,
     /\bheadline\b/gi,
     /\bcaption\b/gi,
@@ -101,18 +65,7 @@ function cleanVisualPrompt(value: string): string {
     /\bURL\b/gi,
     /\bprice\b/gi,
     /\bdiscount\b/gi,
-    /\bqualification\b/gi,
-    /\bqualifications\b/gi,
     /\bsalary\b/gi,
-    /\bage requirement\b/gi,
-    /\bwork experience\b/gi,
-    /\bjob requirements\b/gi,
-    /\bjob vacancy\b/gi,
-    /\bvacancy\b/gi,
-    /\btext\b/gi,
-    /\bwords\b/gi,
-    /\bletters\b/gi,
-    /\bnumbers\b/gi,
     /\blogo\b/gi,
   ];
 
@@ -120,13 +73,11 @@ function cleanVisualPrompt(value: string): string {
     result = result.replace(pattern, "");
   }
 
-  /*
-   * Bersihkan instruksi negatif yang mungkin lolos.
-   */
-  result = result.replace(
-    /\b(do not|don't|without|no)\b[^.]*\./gi,
-    ""
-  );
+  // Strip markdown formatting symbols
+  result = result
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/^#+\s+/gm, "");
 
   /*
    * Hilangkan whitespace berlebihan.
@@ -156,27 +107,23 @@ export async function optimizeDesignVisualPrompt(
     );
   }
 
-  const interaction = await ai.interactions.create({
-    model: "models/gemini-3.1-flash-lite-image",
-
-    input: `
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: `
 ${DESIGN_PROMPT_SYSTEM_INSTRUCTION}
 
 USER DESIGN BRIEF:
 
 ${userBrief}
 
-Now produce ONLY the clean visual scene description.
+Now produce ONLY the clean English visual scene description.
 `,
-
-    generation_config: {
-      max_output_tokens: 2048,
+    config: {
+      maxOutputTokens: 2048,
     },
-
-    response_modalities: ["text"],
   });
 
-  const result = interaction.output_text?.trim();
+  const result = response.text?.trim();
 
   if (!result) {
     throw new Error(

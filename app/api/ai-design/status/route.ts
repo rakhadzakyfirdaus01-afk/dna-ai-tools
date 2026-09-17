@@ -4,32 +4,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import prisma from "@/lib/prisma";
 
-const MAGIC_HOUR_API_KEY =
-  process.env.MAGIC_HOUR_API_KEY;
+// ==========================================
+// AI DESIGN STATUS — POLLINATIONS.AI (FREE)
+//
+// The projectId is a base64url-encoded Pollinations URL.
+// We decode it and return "complete" immediately, along
+// with the image URL so the frontend can display it.
+//
+// History is saved on the first successful completion.
+// ==========================================
 
 export async function GET(request: NextRequest) {
   try {
     // ==========================================
-    // 1. CEK API KEY
+    // 1. CEK USER LOGIN
     // ==========================================
 
-    if (!MAGIC_HOUR_API_KEY) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "MAGIC_HOUR_API_KEY belum dikonfigurasi.",
-        },
-        { status: 500 }
-      );
-    }
-
-    // ==========================================
-    // 2. CEK USER LOGIN
-    // ==========================================
-
-    const session =
-      await getServerSession(authOptions);
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json(
@@ -41,247 +32,121 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user =
-      await prisma.user.findUnique({
-        where: {
-          email: session.user.email,
-        },
-      });
+    let user = null;
 
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "User tidak ditemukan.",
-        },
-        { status: 404 }
-      );
+    try {
+      if (session?.user?.email) {
+        user = await prisma.user.findUnique({
+          where: {
+            email: session.user.email,
+          },
+        });
+      }
+    } catch (dbError) {
+      console.warn("DB lookup skipped in status route:", dbError);
     }
 
     // ==========================================
-    // 3. AMBIL PARAMETER
+    // 2. AMBIL PARAMETER
     // ==========================================
 
-    const { searchParams } =
-      new URL(request.url);
+    const { searchParams } = new URL(request.url);
 
-    const projectId =
-      searchParams.get("id");
-
-    const prompt =
-      searchParams.get("prompt")?.trim() || "";
+    const projectId = searchParams.get("id");
+    const prompt = searchParams.get("prompt")?.trim() || "";
 
     if (!projectId) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Project ID wajib diisi.",
+          error: "Project ID wajib diisi.",
         },
         { status: 400 }
       );
     }
 
     // ==========================================
-    // 4. AMBIL STATUS DARI MAGIC HOUR
+    // 3. DECODE POLLINATIONS URL
+    //
+    // The projectId is a base64url string that encodes
+    // the full Pollinations image URL built in route.ts.
     // ==========================================
 
-    const response = await fetch(
-      `https://api.magichour.ai/v1/image-projects/${encodeURIComponent(
-        projectId
-      )}`,
-      {
-        method: "GET",
+    let imageUrl: string;
 
-        headers: {
-          Accept: "application/json",
-          Authorization:
-            `Bearer ${MAGIC_HOUR_API_KEY}`,
-        },
-
-        cache: "no-store",
-      }
-    );
-
-    const data =
-      await response
-        .json()
-        .catch(() => ({}));
-
-    if (!response.ok) {
-      console.error(
-        "Magic Hour Status Error:",
-        data
-      );
-
+    try {
+      imageUrl = Buffer.from(projectId, "base64url").toString("utf8");
+    } catch {
       return NextResponse.json(
         {
           success: false,
-          error:
-            data?.message ||
-            data?.error?.message ||
-            "Gagal mengambil status desain.",
+          error: "Project ID tidak valid.",
         },
+        { status: 400 }
+      );
+    }
+
+    if (
+      !imageUrl.startsWith("https://image.pollinations.ai/")
+    ) {
+      return NextResponse.json(
         {
-          status: response.status,
-        }
+          success: false,
+          error: "Project ID tidak dikenali.",
+        },
+        { status: 400 }
       );
     }
 
     // ==========================================
-    // 5. CARI URL HASIL GAMBAR
-    // ==========================================
-
-    let imageUrl: string | null = null;
-
-    if (
-      Array.isArray(data?.downloads)
-    ) {
-      const firstDownload =
-        data.downloads[0];
-
-      if (
-        typeof firstDownload ===
-        "string"
-      ) {
-        imageUrl = firstDownload;
-      } else if (
-        firstDownload &&
-        typeof firstDownload.url ===
-          "string"
-      ) {
-        imageUrl =
-          firstDownload.url;
-      }
-    }
-
-    if (
-      !imageUrl &&
-      Array.isArray(data?.outputs)
-    ) {
-      const firstOutput =
-        data.outputs[0];
-
-      if (
-        typeof firstOutput ===
-        "string"
-      ) {
-        imageUrl = firstOutput;
-      } else if (
-        firstOutput &&
-        typeof firstOutput.url ===
-          "string"
-      ) {
-        imageUrl =
-          firstOutput.url;
-      }
-    }
-
-    // ==========================================
-    // 6. STATUS
-    // ==========================================
-
-    const status =
-      typeof data?.status ===
-      "string"
-        ? data.status.toLowerCase()
-        : "";
-
-    // ==========================================
-    // 7. SIMPAN AI DESIGN KE HISTORY
-    // ==========================================
+    // 4. SIMPAN KE HISTORY (SEKALI SAJA)
     //
-    // Hanya ketika render sudah selesai.
-    //
-    // Dedup:
-    // polling frontend akan memanggil endpoint
-    // berkali-kali, sehingga kita tidak boleh membuat
-    // history berkali-kali untuk gambar yang sama.
-    //
-    // Prompt dikirim oleh frontend sebagai query param.
+    // Dedup: jangan simpan dua kali untuk URL yang sama.
     // ==========================================
 
-    let history = null;
-
-    const isCompleted =
-      status === "complete" ||
-      status === "completed" ||
-      status === "succeeded";
-
-    if (
-      isCompleted &&
-      imageUrl &&
-      prompt
-    ) {
+    if (prompt) {
       try {
-        const existingHistory =
-          await prisma.history.findFirst({
-            where: {
-              userId: user.id,
-              feature: "AI Design",
-              result: imageUrl,
-            },
-            select: {
-              id: true,
-            },
-          });
+        const existingHistory = await prisma.history.findFirst({
+          where: {
+            userId: user.id,
+            feature: "AI Design",
+            result: imageUrl,
+          },
+          select: { id: true },
+        });
 
         if (!existingHistory) {
-          history =
-            await prisma.history.create({
-              data: {
-                userId: user.id,
-                title: "AI Design",
-                feature: "AI Design",
-                prompt,
-                result: imageUrl,
-              },
-            });
-
-          console.log(
-            "AI Design history saved:",
-            history.id
-          );
+          await prisma.history.create({
+            data: {
+              userId: user.id,
+              title: "AI Design",
+              feature: "AI Design",
+              prompt,
+              result: imageUrl,
+            },
+          });
         }
-      } catch (
-        historyError
-      ) {
-        // History failure should not make
-        // an already completed image fail.
-        console.warn(
-          "Gagal menyimpan history AI Design:",
-          historyError
-        );
+      } catch (historyError) {
+        // History gagal disimpan tidak boleh menggagalkan respons.
+        console.warn("AI Design history save failed:", historyError);
       }
     }
 
     // ==========================================
-    // 8. RESPONSE
+    // 5. RETURN COMPLETE
+    //
+    // Pollinations generates images synchronously via URL.
+    // We immediately return "complete" so the frontend
+    // stops polling and displays the image.
     // ==========================================
 
     return NextResponse.json({
       success: true,
-      id:
-        data?.id ||
-        projectId,
-      status,
+      status: "complete",
       imageUrl,
-      error:
-        data?.error || null,
-
-      // Indicates whether this polling request
-      // created a history record.
-      historySaved:
-        Boolean(history),
-
-      historyId:
-        history?.id || null,
     });
   } catch (error) {
-    console.error(
-      "AI DESIGN STATUS SERVER ERROR:",
-      error
-    );
+    console.error("AI DESIGN STATUS ERROR:", error);
 
     return NextResponse.json(
       {
@@ -289,11 +154,9 @@ export async function GET(request: NextRequest) {
         error:
           error instanceof Error
             ? error.message
-            : "Terjadi kesalahan saat mengambil hasil desain.",
+            : "Terjadi kesalahan pada server.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }

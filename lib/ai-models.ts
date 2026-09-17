@@ -17,6 +17,10 @@ export const AI_MODELS = [
     id: "gemini-3.1-flash-lite",
     name: "Gemini 3.1 Flash Lite",
   },
+  {
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+  },
 ] as const;
 
 export type AIModelId =
@@ -24,4 +28,4 @@ export type AIModelId =
   | (typeof AI_MODELS)[number]["id"];
 
 export const DEFAULT_AI_MODEL: AIModelId =
-  AUTO_MODEL;
+  "gemini-2.5-flash";

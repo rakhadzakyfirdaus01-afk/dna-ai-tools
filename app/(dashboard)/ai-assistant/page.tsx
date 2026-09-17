@@ -20,6 +20,7 @@ import {
   Volume2,
   Plus,
   Download,
+  Code2,
 } from "lucide-react";
 
 import { addNotification } from "@/components/notifications/notification-store";
@@ -1758,6 +1759,32 @@ export default function Page() {
                             {isEnglish
                               ? "Upload a file from your device"
                               : "Unggah file dari perangkat"}
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToolMenuOpen(false);
+                          router.push("/ai-code");
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
+                          <Code2
+                            size={18}
+                            className="text-emerald-400"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-white">
+                            AI Code
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {isEnglish
+                              ? "Coding, web and game development"
+                              : "Coding, pembuatan web, dan game"}
                           </p>
                         </div>
                       </button>

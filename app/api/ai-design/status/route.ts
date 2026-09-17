@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     // Dedup: jangan simpan dua kali untuk URL yang sama.
     // ==========================================
 
-    if (prompt) {
+    if (user && prompt) {
       try {
         const existingHistory = await prisma.history.findFirst({
           where: {

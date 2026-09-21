@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import {
   DEFAULT_AI_MODEL,
   type AIModelId,
+  getActualModelId,
 } from "@/lib/ai-models";
 
 const ai = new GoogleGenAI({
@@ -20,13 +21,12 @@ type DocumentInput = {
 const SYSTEM_PROMPT = `
 Kamu adalah AI Document Analyzer profesional milik DNA AI Platform.
 
-Tugasmu adalah menganalisis dokumen yang diunggah pengguna.
+Tugasmu:
 
-Kemampuanmu:
-
-- Merangkum dokumen
-- Menjelaskan isi dokumen
-- Menjawab pertanyaan berdasarkan dokumen
+- Membaca seluruh isi dokumen.
+- Menganalisis konten dokumen.
+- Menjawab pertanyaan berdasarkan dokumen.
+- Merangkum isi dokumen jika diminta.
 - Menemukan poin-poin penting
 - Memberikan kesimpulan
 
@@ -44,8 +44,10 @@ export async function askDocument({
   document,
   model = DEFAULT_AI_MODEL,
 }: DocumentInput) {
+  const actualModel = getActualModelId(model);
+
   const result = await ai.models.generateContent({
-    model,
+    model: actualModel,
 
     contents: [
       {

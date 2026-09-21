@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import {
-  AI_MODELS,
-  DEFAULT_AI_MODEL,
+  resolveModelCandidates,
+  type AIModelId,
 } from "@/lib/ai-models";
 import { getLanguageInstruction } from "@/lib/language";
 import type { Locale } from "@/components/shared/language-provider";
@@ -113,17 +113,10 @@ function isModelFallbackError(
 
 export async function askGemini(
   prompt: string,
-  locale: Locale = "id"
+  locale: Locale = "id",
+  selectedModel?: AIModelId
 ) {
-  const modelCandidates = [
-    DEFAULT_AI_MODEL,
-    ...AI_MODELS
-      .map((model) => model.id)
-      .filter(
-        (model) =>
-          model !== DEFAULT_AI_MODEL
-      ),
-  ];
+  const modelCandidates = resolveModelCandidates(selectedModel);
 
   let lastError: unknown = null;
 

@@ -5,6 +5,7 @@ import {
   AI_MODELS,
   DEFAULT_AI_MODEL,
   type AIModelId,
+  getActualModelId,
 } from "@/lib/ai-models";
 
 const ai = new GoogleGenAI({
@@ -784,9 +785,11 @@ JSON harus mengikuti format:
 }
 `.trim();
 
+  const actualModel = getActualModelId(model);
+
   const result =
     await ai.models.generateContent({
-      model,
+      model: actualModel,
       contents: userPrompt,
       config: {
         httpOptions: {

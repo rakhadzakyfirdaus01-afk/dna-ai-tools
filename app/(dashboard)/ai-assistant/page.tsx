@@ -27,6 +27,7 @@ import { addNotification } from "@/components/notifications/notification-store";
 
 import {
   AI_MODELS,
+  AUTO_MODEL,
   DEFAULT_AI_MODEL,
   type AIModelId,
 } from "@/lib/ai-models";
@@ -45,14 +46,20 @@ type ModelOption = {
   description: string;
 };
 
-const MODEL_OPTIONS: ModelOption[] = AI_MODELS.map(
-  (model) => ({
+const MODEL_OPTIONS: ModelOption[] = [
+  {
+    id: AUTO_MODEL,
+    name: "Auto (Rekomendasi)",
+    description:
+      "Otomatis beralih model jika kuota habis atau sibuk",
+  },
+  ...AI_MODELS.map((model) => ({
     id: model.id,
     name: model.name,
     description:
       "Model Gemini yang dikonfigurasi untuk AI Asisten",
-  })
-);
+  })),
+];
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -1621,9 +1628,13 @@ export default function Page() {
                     </div>
                     <div className="hidden text-[11px] text-slate-500 sm:block">
                       {
-                        isEnglish
-                          ? "Gemini model for AI Assistant"
-                          : "Model Gemini untuk AI Asisten"
+                        selectedModel === AUTO_MODEL
+                          ? (isEnglish
+                              ? "Auto fallback if quota is busy"
+                              : "Fallback otomatis jika kuota habis")
+                          : (isEnglish
+                              ? "Gemini model for AI Assistant"
+                              : "Model Gemini untuk AI Asisten")
                       }
                     </div>
                   </div>
@@ -1639,7 +1650,7 @@ export default function Page() {
                 </button>
 
                 {modelMenuOpen && (
-                  <div className="absolute bottom-full left-2 z-50 mb-2 w-[290px] overflow-hidden rounded-2xl border border-slate-700 bg-[#111827] p-2 shadow-2xl">
+                  <div className="absolute bottom-full left-2 z-50 mb-2 w-[310px] overflow-hidden rounded-2xl border border-slate-700 bg-[#111827] p-2 shadow-2xl">
                     {MODEL_OPTIONS.map(
                       (option) => (
                         <button
@@ -1653,17 +1664,34 @@ export default function Page() {
                               false
                             );
                           }}
-                          className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
+                          className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition ${
+                            selectedModel === option.id
+                              ? "bg-slate-800/80 border border-cyan-500/30"
+                              : "hover:bg-slate-800"
+                          }`}
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-slate-200">
+                              <span className={`text-sm font-semibold ${
+                                selectedModel === option.id ? "text-cyan-300" : "text-slate-200"
+                              }`}>
                                 {option.name}
                               </span>
+                              {option.id === AUTO_MODEL && (
+                                <span className="rounded-md bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300">
+                                  AUTO
+                                </span>
+                              )}
                             </div>
 
                             <p className="mt-1 text-xs text-slate-500">
-                              {option.description}
+                              {option.id === AUTO_MODEL
+                                ? (isEnglish
+                                    ? "Automatically switch models if quota is exhausted or busy"
+                                    : "Otomatis beralih model jika kuota habis atau sibuk")
+                                : (isEnglish
+                                    ? "Gemini model configured for AI Assistant"
+                                    : "Model Gemini yang dikonfigurasi untuk AI Asisten")}
                             </p>
                           </div>
 

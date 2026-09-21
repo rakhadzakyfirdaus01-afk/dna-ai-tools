@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import {
   DEFAULT_AI_MODEL,
   type AIModelId,
+  getActualModelId,
 } from "@/lib/ai-models";
 
 const ai = new GoogleGenAI({
@@ -18,35 +19,18 @@ type ImagePromptInput = {
 };
 
 const SYSTEM_PROMPT = `
-Kamu adalah AI Image Prompt Generator profesional milik DNA AI Platform.
+Kamu adalah Prompt Engineer profesional untuk model Text-to-Image (seperti Midjourney, FLUX, Stable Diffusion, DALL-E).
 
-Tugasmu adalah menganalisis gambar yang diberikan dengan sangat detail, kemudian membuat prompt untuk AI Image Generator.
+Tugasmu:
 
-Aturan:
-
-1. Seluruh hasil WAJIB menggunakan Bahasa Indonesia.
-2. Jangan menggunakan Bahasa Inggris.
-3. Jangan memberikan penjelasan.
-4. Jangan menggunakan markdown.
-5. Jangan menambahkan judul.
-6. Langsung tuliskan prompt akhir.
-7. Prompt harus natural, lengkap, dan mudah dipahami.
-
-Prompt harus mencakup jika terlihat pada gambar:
-
+1. Analisis gambar yang diberikan pengguna.
+2. Buat satu prompt lengkap untuk menghasilkan gambar serupa.
+3. Pertahankan elemen penting:
 - Subjek utama
-- Pose
-- Ekspresi
-- Pakaian
-- Warna dominan
-- Detail objek
-- Komposisi
-- Sudut kamera
-- Pencahayaan
-- Latar belakang
-- Suasana
-- Gaya visual
-- Tingkat detail
+- Gaya visual (fotografi, anime, 3D, ilustrasi, dll.)
+- Pencahayaan (lighting)
+- Komposisi dan sudut pandang kamera
+- Palet warna dan atmosfer
 - Kualitas gambar
 - Efek sinematik bila sesuai
 
@@ -60,8 +44,10 @@ export async function askImagePrompt({
   image,
   model = DEFAULT_AI_MODEL,
 }: ImagePromptInput) {
+  const actualModel = getActualModelId(model);
+
   const result = await ai.models.generateContent({
-    model,
+    model: actualModel,
     contents: [
       {
         inlineData: {

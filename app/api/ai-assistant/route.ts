@@ -5,9 +5,12 @@ import { authOptions } from "@/auth";
 import prisma from "@/lib/prisma";
 import { checkUserQuota, getUserQuota } from "@/lib/user-quota";
 import {
+  AUTO_MODEL,
   DEFAULT_AI_MODEL,
   AI_MODELS,
   type AIModelId,
+  type ActualAIModelId,
+  resolveModelCandidates,
 } from "@/lib/ai-models";
 
 import { askDebugger } from "@/lib/gemini-debugger";
@@ -256,14 +259,6 @@ function isModelFallbackError(error: unknown): boolean {
   );
 }
 
-function getFallbackModels(selectedModel: AIModelId): AIModelId[] {
-  return [
-    selectedModel,
-    ...AI_MODELS
-      .map((item) => item.id)
-      .filter((item) => item !== selectedModel),
-  ];
-}
 
 export async function POST(req: Request) {
   try {
@@ -338,10 +333,9 @@ export async function POST(req: Request) {
 
     const model: AIModelId =
       typeof modelValue === "string" &&
-      AI_MODELS.some(
-        (item) =>
-          item.id === modelValue
-      )
+      (modelValue === AUTO_MODEL ||
+        modelValue === "auto" ||
+        AI_MODELS.some((item) => item.id === modelValue))
         ? (modelValue as AIModelId)
         : DEFAULT_AI_MODEL;
 
@@ -447,10 +441,10 @@ ${message}`.trim()
       : message;
 
     const fallbackModels =
-      getFallbackModels(model);
+      resolveModelCandidates(model);
 
     let result = "";
-    let successfulModel: AIModelId | null = null;
+    let successfulModel: ActualAIModelId | null = null;
 
     if (
       feature ===
@@ -771,7 +765,15 @@ ${message}`.trim()
       ),
       model:
         successfulModel ??
-        model,
+        (model === AUTO_MODEL
+          ? "gemini-2.5-flash"
+          : model),
+      requestedModel: model,
+      fallbackUsed: Boolean(
+        successfulModel &&
+        model !== AUTO_MODEL &&
+        successfulModel !== model
+      ),
       history,
       userQuota: {
         limit: updatedQuota.limit,

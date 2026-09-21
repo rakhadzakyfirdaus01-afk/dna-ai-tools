@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import {
   DEFAULT_AI_MODEL,
   type AIModelId,
+  getActualModelId,
 } from "@/lib/ai-models";
 
 const ai = new GoogleGenAI({
@@ -28,8 +29,10 @@ export async function askTranslator(
   prompt: string,
   model: AIModelId = DEFAULT_AI_MODEL
 ) {
+  const actualModel = getActualModelId(model);
+
   const result = await ai.models.generateContent({
-    model,
+    model: actualModel,
     contents: `
 ${SYSTEM_PROMPT}
 

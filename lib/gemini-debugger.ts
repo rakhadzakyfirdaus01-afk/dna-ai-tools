@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { getLanguageInstruction } from "@/lib/language";
 import type { Locale } from "@/components/shared/language-provider";
-import { DEFAULT_AI_MODEL, type AIModelId } from "@/lib/ai-models";
+import { DEFAULT_AI_MODEL, type AIModelId, getActualModelId } from "@/lib/ai-models";
 import { generateVoiceAudio } from "@/lib/gemini-voice";
 
 const ai = new GoogleGenAI({
@@ -44,9 +44,10 @@ export async function askDebugger(
   model: AIModelId = DEFAULT_AI_MODEL
 ) {
   const cleanPrompt = prompt.trim();
+  const actualModel = getActualModelId(model);
 
   const result = await ai.models.generateContent({
-    model,
+    model: actualModel,
     contents: [
       getLanguageInstruction(locale),
       SYSTEM_PROMPT,

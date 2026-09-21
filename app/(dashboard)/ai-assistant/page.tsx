@@ -1163,9 +1163,9 @@ export default function Page() {
       {cameraOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
 
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-700 bg-[#0B1120] shadow-2xl">
+          <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
 
-            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
 
               <div className="flex items-center gap-3">
 
@@ -1180,11 +1180,11 @@ export default function Page() {
 
                 <div>
 
-                  <h2 className="font-semibold text-white">
+                  <h2 className="font-semibold text-foreground">
                     {ui.camera}
                   </h2>
 
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {ui.cameraDescription}
                   </p>
 
@@ -1271,11 +1271,11 @@ export default function Page() {
 
           <div>
 
-            <h1 className="text-2xl font-bold text-white">
+            <h1 className="text-2xl font-bold text-foreground">
               {ui.title}
             </h1>
 
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               {ui.subtitle}
             </p>
 
@@ -1302,7 +1302,7 @@ export default function Page() {
 
       {/* CHAT AREA */}
 
-      <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-slate-800 bg-[#0B1120] shadow-xl">
+      <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
 
         {/* MESSAGES */}
 
@@ -1326,64 +1326,64 @@ export default function Page() {
                 </div>
 
 
-                <h2 className="text-3xl font-bold text-white">
+                <h2 className="text-3xl font-bold text-foreground">
                   {ui.heroTitle}
                 </h2>
 
 
-                <p className="mx-auto mt-4 max-w-xl text-slate-400">
+                <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
                   {ui.heroDescription}
                 </p>
 
 
                 <div className="mt-8 hidden grid-cols-1 gap-3 md:grid md:grid-cols-2">
 
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
+                  <div className="rounded-2xl border border-border bg-secondary/70 p-4 text-left">
 
-                    <p className="font-semibold text-white">
+                    <p className="font-semibold text-foreground">
                       {ui.techTitle}
                     </p>
 
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {ui.techDescription}
                     </p>
 
                   </div>
 
 
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
+                  <div className="rounded-2xl border border-border bg-secondary/70 p-4 text-left">
 
-                    <p className="font-semibold text-white">
+                    <p className="font-semibold text-foreground">
                       {ui.imagePromptTitle}
                     </p>
 
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {ui.imagePromptDescription}
                     </p>
 
                   </div>
 
 
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
+                  <div className="rounded-2xl border border-border bg-secondary/70 p-4 text-left">
 
-                    <p className="font-semibold text-white">
+                    <p className="font-semibold text-foreground">
                       {ui.documentTitle}
                     </p>
 
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {ui.documentDescription}
                     </p>
 
                   </div>
 
 
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left">
+                  <div className="rounded-2xl border border-border bg-secondary/70 p-4 text-left">
 
-                    <p className="font-semibold text-white">
+                    <p className="font-semibold text-foreground">
                       {ui.ocrTranslatorTitle}
                     </p>
 
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {ui.ocrTranslatorDescription}
                     </p>
 
@@ -1415,7 +1415,7 @@ export default function Page() {
                       className={`max-w-[85%] rounded-3xl px-5 py-4 ${
                         message.role === "user"
                           ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white"
-                          : "border border-slate-800 bg-[#111827] text-slate-200"
+                          : "border border-border bg-secondary text-foreground"
                       }`}
                     >
 
@@ -1480,7 +1480,7 @@ export default function Page() {
 
                 <div className="flex justify-start">
 
-                  <div className="rounded-3xl border border-slate-800 bg-[#111827] px-5 py-4">
+                  <div className="rounded-3xl border border-border bg-secondary px-5 py-4">
 
                     <div className="flex items-center gap-2">
 
@@ -1519,19 +1519,19 @@ export default function Page() {
 
         {/* INPUT AREA */}
 
-        <div className="border-t border-slate-800 bg-[#0B1120] p-4 lg:p-6">
+        <div className="border-t border-border bg-card p-4 lg:p-6">
 
           <div className="mx-auto max-w-4xl">
 
             {imageUrl.trim() && (
 
-              <div className="mb-3 flex items-center justify-between rounded-2xl border border-cyan-500/30 bg-slate-900 px-4 py-3">
+              <div className="mb-3 flex items-center justify-between rounded-2xl border border-cyan-500/30 bg-secondary px-4 py-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <Link2
                     size={18}
                     className="shrink-0 text-cyan-400"
                   />
-                  <span className="truncate text-sm text-slate-300">
+                  <span className="truncate text-sm text-foreground">
                     {imageUrl}
                   </span>
                 </div>
@@ -1542,7 +1542,7 @@ export default function Page() {
                     setImageUrl("");
                     setImageUrlOpen(false);
                   }}
-                  className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-white"
+                  className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground"
                 >
                   <X size={18} />
                 </button>
@@ -1551,7 +1551,7 @@ export default function Page() {
 
             {file && (
 
-              <div className="mb-3 flex items-center justify-between rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3">
+              <div className="mb-3 flex items-center justify-between rounded-2xl border border-border bg-secondary px-4 py-3">
 
                 <div className="flex min-w-0 items-center gap-3">
 
@@ -1571,7 +1571,7 @@ export default function Page() {
 
                   )}
 
-                  <span className="truncate text-sm text-slate-300">
+                  <span className="truncate text-sm text-foreground">
                     {file.name}
                   </span>
 
@@ -1580,7 +1580,7 @@ export default function Page() {
                 <button
                   type="button"
                   onClick={removeFile}
-                  className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-white"
+                  className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground"
                 >
 
                   <X size={18} />
@@ -1591,7 +1591,7 @@ export default function Page() {
 
             )}
 
-            <div className="rounded-3xl border border-slate-700 bg-[#111827] p-2 shadow-lg focus-within:border-cyan-500">
+            <div className="rounded-3xl border border-border bg-input p-2 shadow-lg focus-within:border-cyan-500">
 
               <textarea
                 value={input}
@@ -1604,7 +1604,7 @@ export default function Page() {
                 placeholder={ui.placeholder}
                 rows={3}
                 disabled={loading}
-                className="w-full resize-none bg-transparent px-4 py-3 text-white outline-none placeholder:text-slate-500 disabled:opacity-60"
+                className="w-full resize-none bg-transparent px-4 py-3 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
               />
 
               <div className="relative mb-2 px-2">
@@ -1614,10 +1614,10 @@ export default function Page() {
                     setModelMenuOpen((prev) => !prev)
                   }
                   disabled={loading}
-                  className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-left transition hover:border-slate-600 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-secondary px-3 py-2 text-left transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <div className="min-w-0">
-                    <div className="text-xs font-semibold text-slate-200">
+                    <div className="text-xs font-semibold text-foreground">
                       {
                         MODEL_OPTIONS.find(
                           (option) =>
@@ -1626,7 +1626,7 @@ export default function Page() {
                         )?.name ?? "Model"
                       }
                     </div>
-                    <div className="hidden text-[11px] text-slate-500 sm:block">
+                    <div className="hidden text-[11px] text-muted-foreground sm:block">
                       {
                         selectedModel === AUTO_MODEL
                           ? (isEnglish

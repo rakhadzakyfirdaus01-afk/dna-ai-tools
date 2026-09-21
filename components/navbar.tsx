@@ -234,7 +234,7 @@ export default function Header({
   // ================================
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800 bg-[#0F172A]/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-border bg-[var(--navbar-bg)] text-foreground backdrop-blur">
       <div className="flex h-14 items-center justify-between gap-3 px-3 lg:h-20 lg:px-8">
 
         {/* =========================================
@@ -248,7 +248,7 @@ export default function Header({
           <button
             type="button"
             onClick={() => setMobileMenu(!mobileMenu)}
-            className="rounded-xl bg-slate-900 p-2 transition hover:bg-slate-800 lg:hidden"
+            className="rounded-xl bg-secondary p-2 text-foreground transition hover:bg-accent lg:hidden"
             aria-label={
               locale === "id"
                 ? "Buka menu"
@@ -260,11 +260,11 @@ export default function Header({
 
           <div className="min-w-0">
 
-            <p className="hidden truncate text-xs text-slate-400 lg:block lg:text-sm">
+            <p className="hidden truncate text-xs text-muted-foreground lg:block lg:text-sm">
               {today}
             </p>
 
-            <h1 className="mt-1 truncate text-lg font-bold text-white lg:text-2xl">
+            <h1 className="mt-1 truncate text-lg font-bold text-foreground lg:text-2xl">
               <span className="lg:hidden">DNA AI</span>
               <span className="hidden lg:inline">DNA AI Platform</span>
             </h1>
@@ -285,11 +285,11 @@ export default function Header({
 
           <div className="relative hidden min-w-0 lg:block">
 
-            <div className="flex h-11 w-64 items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4 xl:w-80">
+            <div className="flex h-11 w-64 items-center gap-3 rounded-xl border border-border bg-secondary px-4 xl:w-80">
 
               <Search
                 size={18}
-                className="shrink-0 text-slate-500"
+                className="shrink-0 text-muted-foreground"
               />
 
               <input
@@ -300,13 +300,13 @@ export default function Header({
                 }}
                 onFocus={() => setOpen(true)}
                 placeholder={t.search}
-                className="w-full min-w-0 bg-transparent text-white outline-none"
+                className="w-full min-w-0 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
               />
 
             </div>
 
             {open && search && (
-              <div className="absolute left-0 top-14 z-50 w-80 overflow-hidden rounded-xl border border-slate-700 bg-[#0F172A] p-2 shadow-2xl">
+              <div className="absolute left-0 top-14 z-50 w-80 overflow-hidden rounded-xl border border-border bg-card p-2 shadow-2xl">
 
                 {searchResults.length > 0 ? (
                   searchResults.map((item) => (
@@ -318,13 +318,13 @@ export default function Header({
                         setSearch("");
                         setOpen(false);
                       }}
-                      className="w-full rounded-lg px-4 py-3 text-left text-white transition hover:bg-slate-800"
+                      className="w-full rounded-lg px-4 py-3 text-left text-foreground transition hover:bg-accent"
                     >
                       {item.name}
                     </button>
                   ))
                 ) : (
-                  <p className="px-4 py-3 text-sm text-slate-500">
+                  <p className="px-4 py-3 text-sm text-muted-foreground">
                     {locale === "id"
                       ? "Menu tidak ditemukan."
                       : "Menu not found."}
@@ -359,7 +359,7 @@ export default function Header({
 
                 setOpen(false);
               }}
-              className="relative rounded-lg bg-slate-900 p-2.5 transition hover:bg-slate-800 lg:rounded-xl lg:p-3"
+              className="relative rounded-lg bg-secondary p-2.5 text-foreground transition hover:bg-accent lg:rounded-xl lg:p-3"
               aria-label={
                 locale === "id"
                   ? "Notifikasi"
@@ -385,21 +385,21 @@ export default function Header({
             ================================== */}
 
             {notificationOpen && (
-              <div className="absolute right-0 top-14 z-50 w-[350px] overflow-hidden rounded-2xl border border-slate-700 bg-[#0F172A] shadow-2xl sm:w-[400px]">
+              <div className="absolute right-0 top-14 z-50 w-[350px] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:w-[400px]">
 
                 {/* PANEL HEADER */}
 
-                <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4">
+                <div className="flex items-center justify-between border-b border-border px-4 py-4">
 
                   <div>
 
-                    <h2 className="font-semibold text-white">
+                    <h2 className="font-semibold text-foreground">
                       {locale === "id"
                         ? "Notifikasi"
                         : "Notifications"}
                     </h2>
 
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {notifications.length}{" "}
                       {locale === "id"
                         ? "notifikasi"
@@ -610,7 +610,7 @@ export default function Header({
           <button
             type="button"
             onClick={() => router.push("/settings")}
-            className="hidden shrink-0 rounded-xl bg-slate-900 p-3 transition hover:bg-slate-800 lg:block"
+            className="hidden shrink-0 rounded-xl bg-secondary p-3 text-foreground transition hover:bg-accent lg:block"
             title={
               locale === "id"
                 ? "Pengaturan"
@@ -631,7 +631,7 @@ export default function Header({
 
           <button
             type="button"
-            className="hidden shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3 font-semibold lg:flex"
+            className="hidden shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3 font-semibold text-white lg:flex"
           >
             <Sparkles size={18} />
             {t.geminiReady}
@@ -645,7 +645,7 @@ export default function Header({
 
             <div className="hidden text-right lg:block">
 
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-foreground">
                 {session?.user?.name ?? "User"}
               </p>
 

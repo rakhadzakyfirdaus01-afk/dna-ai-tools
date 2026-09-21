@@ -15,7 +15,7 @@ export default function AppLayout({
   const [mobileMenu, setMobileMenu] = useState(false);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#0B1120] text-white lg:flex">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground lg:flex">
 
       {/* =========================
           SIDEBAR DESKTOP
@@ -33,7 +33,7 @@ export default function AppLayout({
           onClick={() => setMobileMenu(false)}
         >
           <div
-            className="h-screen w-72 bg-[#0B1120]"
+            className="h-screen w-72 bg-sidebar text-sidebar-foreground"
             onClick={(e) => e.stopPropagation()}
           >
             <Sidebar

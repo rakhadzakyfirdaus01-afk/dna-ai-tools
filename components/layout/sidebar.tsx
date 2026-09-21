@@ -40,8 +40,8 @@ export default function Sidebar({
   ];
 
   return (
-    <aside className="flex h-full w-[280px] flex-col border-r border-slate-800 bg-[#0B1120] shadow-2xl lg:h-screen lg:w-72">
-      <div className="border-b border-slate-800 p-4 lg:p-6">
+    <aside className="flex h-full w-[280px] flex-col border-r border-border bg-sidebar text-sidebar-foreground shadow-2xl lg:h-screen lg:w-72">
+      <div className="border-b border-border p-4 lg:p-6">
         <div className="flex items-center gap-2 lg:gap-3">
           <img
             src="/logo-dna.png"
@@ -50,11 +50,11 @@ export default function Sidebar({
           />
 
           <div>
-            <h1 className="text-lg font-bold text-white lg:text-xl">
+            <h1 className="text-lg font-bold text-foreground lg:text-xl">
               DNA AI
             </h1>
 
-            <p className="text-xs text-slate-400 lg:text-sm">
+            <p className="text-xs text-muted-foreground lg:text-sm">
               {t.advertisingPlatform}
             </p>
           </div>
@@ -77,7 +77,7 @@ export default function Sidebar({
               className={`group flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-300 active:scale-[0.98] lg:gap-4 lg:rounded-2xl lg:px-5 lg:py-4 ${
                 active
                   ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
               <Icon

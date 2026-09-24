@@ -26,6 +26,12 @@ import {
   Pencil,
   Save,
   Undo2,
+  Globe,
+  Wrench,
+  Gamepad2,
+  Smartphone,
+  Tablet,
+  Monitor,
 } from "lucide-react";
 
 import { useLanguage } from "@/components/shared/language-provider";
@@ -72,6 +78,10 @@ export default function AICodePage() {
   const { locale } = useLanguage();
 
   const isEnglish = locale === "en";
+
+  // Codex Modes: web (Modern Web App), fix (Perbaiki Kode), game (Game 2D)
+  const [mode, setMode] = useState<"web" | "fix" | "game">("web");
+  const [deviceMode, setDeviceMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
 
   const [prompt, setPrompt] = useState("");
 
@@ -286,6 +296,8 @@ export default function AICodePage() {
                 locale === "en"
                   ? "en"
                   : "id",
+
+              mode,
 
               // Jika project sudah ada, backend akan memakai
               // project tersebut sebagai source of truth dan
@@ -538,12 +550,19 @@ export default function AICodePage() {
 
       // Kirim notifikasi HP jika pengguna sedang membuka game atau aplikasi lain
       if (typeof document !== "undefined" && document.hidden) {
+        const notifTitle =
+          mode === "game"
+            ? "DNA AI Code - Game Selesai! 🎮"
+            : mode === "fix"
+              ? "DNA AI Code - Kodingan Diperbaiki! 🛠️"
+              : "DNA AI Code - Project Selesai! 💻";
+
         const previewMsg = isEnglish
-          ? `Project "${normalizedProject.projectName}" (${normalizedProject.files.length} files) is ready! Tap to view the code.`
-          : `Project "${normalizedProject.projectName}" (${normalizedProject.files.length} file) sudah siap! Ketuk untuk melihat kodingannya.`;
+          ? `"${normalizedProject.projectName}" (${normalizedProject.files.length} files) is ready! Tap to view.`
+          : `"${normalizedProject.projectName}" (${normalizedProject.files.length} file) sudah siap! Ketuk untuk melihat hasilnya.`;
 
         sendBackgroundNotification({
-          title: "DNA AI Code - Project Selesai! 💻",
+          title: notifTitle,
           body: previewMsg,
           url: "/ai-code",
           tag: "dna-ai-code-done",
@@ -949,11 +968,126 @@ export default function AICodePage() {
               </div>
             </div>
 
-            {/* PROMPT */}
+            {/* CODEX MODE SELECTOR */}
+            <div className="mb-5">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                {isEnglish ? "Codex Engine Mode" : "Mode Kemampuan AI"}
+              </label>
 
+              <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-800 bg-[#060A14] p-1.5">
+                <button
+                  type="button"
+                  onClick={() => setMode("web")}
+                  className={`flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 px-1 text-center transition ${
+                    mode === "web"
+                      ? "bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <Globe size={18} className={mode === "web" ? "text-emerald-400" : "text-slate-400"} />
+                  <span className="text-xs font-medium leading-none">
+                    {isEnglish ? "Web App" : "Buat Web"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMode("fix")}
+                  className={`flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 px-1 text-center transition ${
+                    mode === "fix"
+                      ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <Wrench size={18} className={mode === "fix" ? "text-amber-400" : "text-slate-400"} />
+                  <span className="text-xs font-medium leading-none">
+                    {isEnglish ? "Fix Code" : "Perbaiki Kode"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMode("game")}
+                  className={`flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 px-1 text-center transition ${
+                    mode === "game"
+                      ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-pink-300 border border-pink-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <Gamepad2 size={18} className={mode === "game" ? "text-pink-400" : "text-slate-400"} />
+                  <span className="text-xs font-medium leading-none">
+                    {isEnglish ? "2D Game" : "Buat Game"}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* QUICK PRESET CHIPS */}
+            <div className="mb-4">
+              <label className="mb-1.5 block text-[11px] font-medium text-slate-500">
+                {isEnglish ? "Quick Inspiration" : "Inspirasi Cepat"}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {mode === "web" && [
+                  isEnglish ? "E-Commerce Landing Page" : "Landing Page Toko Online",
+                  isEnglish ? "Interactive Dashboard" : "Dashboard Analytics Dark Mode",
+                  isEnglish ? "Finance Calculator" : "Kalkulator Finansial Interaktif",
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setPrompt(preset)}
+                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-emerald-500/40 hover:text-emerald-300"
+                  >
+                    + {preset}
+                  </button>
+                ))}
+
+                {mode === "fix" && [
+                  isEnglish ? "Fix JavaScript click & DOM error" : "Perbaiki tombol tidak bisa diklik",
+                  isEnglish ? "Fix broken CSS layout on mobile" : "Perbaiki layout CSS rusak di HP",
+                  isEnglish ? "Fix logic bug & undefined error" : "Perbaiki error undefined & bug logika",
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setPrompt(preset)}
+                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-amber-500/40 hover:text-amber-300"
+                  >
+                    + {preset}
+                  </button>
+                ))}
+
+                {mode === "game" && [
+                  isEnglish ? "Snake Game + Touch Controls" : "Game Snake + Kontrol Sentuh HP",
+                  isEnglish ? "Flappy Bird 2D + Sound Effects" : "Flappy Bird + Efek Suara Bawaan",
+                  isEnglish ? "Space Shooter 2D Retro" : "Space Shooter 2D Retro Arcade",
+                  isEnglish ? "Brick Breaker (Breakout)" : "Game Brick Breaker + Skor",
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setPrompt(preset)}
+                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-pink-500/40 hover:text-pink-300"
+                  >
+                    + {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* PROMPT */}
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-300">
-                {isEnglish
+                {mode === "fix"
+                  ? isEnglish
+                    ? "What needs to be fixed?"
+                    : "Apa yang perlu diperbaiki?"
+                  : mode === "game"
+                  ? isEnglish
+                    ? "What game do you want to create?"
+                    : "Game apa yang ingin kamu buat?"
+                  : isEnglish
                   ? "What do you want to build?"
                   : "Apa yang ingin kamu buat?"}
               </label>
@@ -966,21 +1100,28 @@ export default function AICodePage() {
                   )
                 }
                 placeholder={
-                  isEnglish
-                    ? "Example: Build a modern responsive inventory management website..."
-                    : "Contoh: Buatkan website inventaris barang modern dan responsive..."
+                  mode === "game"
+                    ? isEnglish
+                      ? "Example: Build a classic Flappy Bird 2D game with jump sound synthesizer, pipe obstacles, score tracking, and on-screen touch buttons for mobile..."
+                      : "Contoh: Buatkan game Flappy Bird 2D dengan efek suara lompat, rintangan pipa, skor, high score, dan tombol sentuh layar untuk HP..."
+                    : mode === "fix"
+                    ? isEnglish
+                      ? "Example: The function below throws an error when clicked and the layout breaks on mobile. Please analyze and fix all bugs..."
+                      : "Contoh: Tombol pada kodingan di bawah tidak berfungsi dan tampilannya berantakan di HP. Tolong perbaiki semua kesalahannya..."
+                    : isEnglish
+                    ? "Example: Build a modern responsive inventory management website with charts, search filter, and add/edit modals..."
+                    : "Contoh: Buatkan website inventaris barang modern dan responsive dengan filter pencarian, modal tambah barang, dan data tersimpan..."
                 }
-                className="min-h-[180px] w-full resize-y rounded-2xl border border-slate-700 bg-[#020617] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                className="min-h-[160px] w-full resize-y rounded-2xl border border-slate-700 bg-[#020617] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
               />
             </div>
 
             {/* FILE NAME */}
-
-            <div className="mt-5">
-              <label className="mb-2 block text-sm font-medium text-slate-300">
+            <div className="mt-4">
+              <label className="mb-1.5 block text-xs font-medium text-slate-400">
                 {isEnglish
-                  ? "Main File / Context"
-                  : "File Utama / Context"}
+                  ? "Main File / Entrypoint"
+                  : "File Utama / Entrypoint"}
               </label>
 
               <div className="relative">
@@ -997,18 +1138,25 @@ export default function AICodePage() {
                     )
                   }
                   placeholder="index.html"
-                  className="w-full rounded-2xl border border-slate-700 bg-[#020617] py-3 pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                  className="w-full rounded-2xl border border-slate-700 bg-[#020617] py-2.5 pl-10 pr-4 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
                 />
               </div>
             </div>
 
-            {/* EXISTING CODE */}
-
-            <div className="mt-5">
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                {isEnglish
-                  ? "Existing Code / Context"
-                  : "Kode / Context yang Ada"}
+            {/* EXISTING CODE / BROKEN CODE */}
+            <div className={`mt-4 rounded-2xl transition p-3 ${
+              mode === "fix"
+                ? "border-2 border-amber-500/40 bg-amber-500/5 shadow-md"
+                : "border border-slate-800 bg-[#060A14]"
+            }`}>
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+                {mode === "fix"
+                  ? isEnglish
+                    ? "⚠️ Paste Broken / Error Code Here"
+                    : "⚠️ Tempel Kodingan yang Error / Rusak di Sini"
+                  : isEnglish
+                  ? "Existing Code / Context (Optional)"
+                  : "Kode / Context yang Ada (Opsional)"}
               </label>
 
               <textarea
@@ -1019,11 +1167,15 @@ export default function AICodePage() {
                   )
                 }
                 placeholder={
-                  isEnglish
+                  mode === "fix"
+                    ? isEnglish
+                      ? "Paste your broken HTML, CSS, or JS code here. AI will fix syntax, logic, and layout bugs..."
+                      : "Tempel kodinganmu yang rusak/error di sini. AI akan menganalisis dan memperbaikinya secara tuntas..."
+                    : isEnglish
                     ? "Paste existing code if you want AI to modify or extend it..."
                     : "Tempel kode jika ingin AI memperbaiki atau mengembangkannya..."
                 }
-                className="min-h-[180px] w-full resize-y rounded-2xl border border-slate-700 bg-[#020617] px-4 py-3 font-mono text-xs leading-6 text-slate-200 outline-none transition placeholder:font-sans placeholder:text-slate-600 focus:border-emerald-500"
+                className="min-h-[160px] w-full resize-y rounded-xl border border-slate-700 bg-[#020617] px-4 py-3 font-mono text-xs leading-6 text-slate-200 outline-none transition placeholder:font-sans placeholder:text-slate-600 focus:border-emerald-500"
               />
             </div>
 
@@ -1400,13 +1552,55 @@ export default function AICodePage() {
                       </span>
                     </div>
 
-                    {hasPreview && (
-                      <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-400">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <div className="flex items-center gap-2.5">
+                      {/* DEVICE TOGGLE (DESKTOP, TABLET, MOBILE) */}
+                      <div className="hidden sm:flex items-center rounded-xl border border-slate-800 bg-[#060A14] p-0.5">
+                        <button
+                          type="button"
+                          title={isEnglish ? "Desktop View" : "Layar Desktop (100%)"}
+                          onClick={() => setDeviceMode("desktop")}
+                          className={`rounded-lg p-1.5 transition ${
+                            deviceMode === "desktop"
+                              ? "bg-slate-700/60 text-white"
+                              : "text-slate-500 hover:text-slate-300"
+                          }`}
+                        >
+                          <Monitor size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          title={isEnglish ? "Tablet View (768px)" : "Layar Tablet (768px)"}
+                          onClick={() => setDeviceMode("tablet")}
+                          className={`rounded-lg p-1.5 transition ${
+                            deviceMode === "tablet"
+                              ? "bg-slate-700/60 text-white"
+                              : "text-slate-500 hover:text-slate-300"
+                          }`}
+                        >
+                          <Tablet size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          title={isEnglish ? "Mobile View (380px)" : "Layar HP (380px)"}
+                          onClick={() => setDeviceMode("mobile")}
+                          className={`rounded-lg p-1.5 transition ${
+                            deviceMode === "mobile"
+                              ? "bg-slate-700/60 text-white"
+                              : "text-slate-500 hover:text-slate-300"
+                          }`}
+                        >
+                          <Smartphone size={14} />
+                        </button>
+                      </div>
 
-                        LIVE
-                      </span>
-                    )}
+                      {hasPreview && (
+                        <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+
+                          LIVE
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="h-[calc(100%-45px)] p-3 sm:p-5">
@@ -1440,7 +1634,13 @@ export default function AICodePage() {
                         </p>
                       </div>
                     ) : hasPreview ? (
-                      <div className="h-full overflow-hidden rounded-2xl border border-slate-700 bg-white shadow-2xl">
+                      <div className={`h-full transition-all duration-300 overflow-hidden rounded-2xl border border-slate-700 bg-white shadow-2xl ${
+                        deviceMode === "mobile"
+                          ? "max-w-[380px] mx-auto ring-8 ring-slate-800"
+                          : deviceMode === "tablet"
+                            ? "max-w-[768px] mx-auto ring-8 ring-slate-800"
+                            : "w-full"
+                      }`}>
                         <iframe
                           key={
                             previewKey
@@ -1452,7 +1652,8 @@ export default function AICodePage() {
                           srcDoc={
                             previewHtml
                           }
-                          sandbox="allow-scripts allow-modals"
+                          sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
+                          allow="autoplay; fullscreen"
                           className="h-full w-full border-0"
                         />
                       </div>

@@ -616,6 +616,13 @@ export async function POST(
         ? "en"
         : "id";
 
+    const mode =
+      request.mode === "web" ||
+      request.mode === "fix" ||
+      request.mode === "game"
+        ? request.mode
+        : "auto";
+
     const requestedModel =
       typeof request.model ===
       "string"
@@ -762,6 +769,7 @@ export async function POST(
         fileName,
         locale,
         model,
+        mode,
       });
 
     if (

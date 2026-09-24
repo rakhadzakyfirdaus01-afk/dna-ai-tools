@@ -11,6 +11,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useLanguage } from "@/components/shared/language-provider";
+import {
+  requestNotificationPermission,
+  sendBackgroundNotification,
+} from "@/lib/push-notification";
 
 export default function AIDesignPage() {
   const { locale } = useLanguage();
@@ -206,6 +210,9 @@ export default function AIDesignPage() {
       return;
     }
 
+    // Minta izin notifikasi HP agar siap mengirim pemberitahuan saat user buka aplikasi lain
+    requestNotificationPermission().catch(() => {});
+
     setLoading(true);
     setError("");
     setImageUrl("");
@@ -317,6 +324,20 @@ export default function AIDesignPage() {
           setStatus(ui.created);
           setLoading(false);
 
+          // Kirim notifikasi HP jika pengguna sedang membuka game atau aplikasi lain
+          if (typeof document !== "undefined" && document.hidden) {
+            const previewMsg = isEnglish
+              ? "Your AI design visual is ready! Tap to view and download."
+              : "Desain visual AI kamu sudah selesai dibuat! Ketuk untuk melihat hasilnya.";
+
+            sendBackgroundNotification({
+              title: "DNA AI Design - Desain Selesai! 🎨",
+              body: previewMsg,
+              url: "/ai-design",
+              tag: "dna-ai-design-done",
+            }).catch(() => {});
+          }
+
           return;
         }
 
@@ -340,6 +361,17 @@ export default function AIDesignPage() {
       throw new Error(ui.tooLong);
     } catch (err) {
       console.error(err);
+
+      if (typeof document !== "undefined" && document.hidden) {
+        sendBackgroundNotification({
+          title: "DNA AI Design - Pemberitahuan",
+          body: isEnglish
+            ? "An error occurred while generating design visual. Tap to check."
+            : "Terjadi kendala saat membuat desain visual AI. Ketuk untuk memeriksa.",
+          url: "/ai-design",
+          tag: "dna-ai-design-error",
+        }).catch(() => {});
+      }
 
       setError(
         err instanceof Error

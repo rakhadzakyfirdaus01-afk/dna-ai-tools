@@ -1,4 +1,4 @@
-const CACHE_NAME = "dna-ai-v2";
+const CACHE_NAME = "dna-ai-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -38,19 +38,24 @@ self.addEventListener("notificationclick", (event) => {
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
-        // Cari tab DNA AI yang sudah terbuka dan fokuskan
+        // Cari tab DNA AI yang sudah terbuka dan cocok dengan fitur terkait
         for (const client of clientList) {
-          if (client.url.includes("/ai-assistant") && "focus" in client) {
+          if (client.url.includes(targetUrl) && "focus" in client) {
             return client.focus();
           }
         }
+
+        // Jika ada tab DNA AI lain terbuka, navigasikan ke URL fitur dan fokuskan
         for (const client of clientList) {
           if ("focus" in client) {
-            client.navigate(targetUrl);
+            if ("navigate" in client) {
+              client.navigate(targetUrl);
+            }
             return client.focus();
           }
         }
-        // Jika belum ada tab yang terbuka, buka tab baru
+
+        // Jika belum ada tab yang terbuka sama sekali, buka tab baru
         if (self.clients.openWindow) {
           return self.clients.openWindow(targetUrl);
         }

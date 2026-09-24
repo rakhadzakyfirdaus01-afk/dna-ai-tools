@@ -30,6 +30,10 @@ import {
 
 import { useLanguage } from "@/components/shared/language-provider";
 import { addNotification } from "@/components/notifications/notification-store";
+import {
+  requestNotificationPermission,
+  sendBackgroundNotification,
+} from "@/lib/push-notification";
 
 import {
   buildPreviewHtml,
@@ -239,6 +243,9 @@ export default function AICodePage() {
     }
 
     const regenerateMode = Boolean(project);
+
+    // Minta izin notifikasi HP agar siap mengirim pemberitahuan saat user buka aplikasi lain
+    requestNotificationPermission().catch(() => {});
 
     setLoading(true);
     setError("");
@@ -528,7 +535,32 @@ export default function AICodePage() {
 
         result: historyResult,
       });
+
+      // Kirim notifikasi HP jika pengguna sedang membuka game atau aplikasi lain
+      if (typeof document !== "undefined" && document.hidden) {
+        const previewMsg = isEnglish
+          ? `Project "${normalizedProject.projectName}" (${normalizedProject.files.length} files) is ready! Tap to view the code.`
+          : `Project "${normalizedProject.projectName}" (${normalizedProject.files.length} file) sudah siap! Ketuk untuk melihat kodingannya.`;
+
+        sendBackgroundNotification({
+          title: "DNA AI Code - Project Selesai! 💻",
+          body: previewMsg,
+          url: "/ai-code",
+          tag: "dna-ai-code-done",
+        }).catch(() => {});
+      }
     } catch (err) {
+      if (typeof document !== "undefined" && document.hidden) {
+        sendBackgroundNotification({
+          title: "DNA AI Code - Pemberitahuan",
+          body: isEnglish
+            ? "An error occurred while generating code. Tap to check."
+            : "Terjadi kendala saat membuat kodingan AI. Ketuk untuk memeriksa.",
+          url: "/ai-code",
+          tag: "dna-ai-code-error",
+        }).catch(() => {});
+      }
+
       setError(
         err instanceof Error
           ? err.message

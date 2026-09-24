@@ -24,6 +24,10 @@ import {
 } from "lucide-react";
 
 import { addNotification } from "@/components/notifications/notification-store";
+import {
+  requestNotificationPermission,
+  sendBackgroundNotification,
+} from "@/lib/push-notification";
 
 import {
   AI_MODELS,
@@ -803,6 +807,7 @@ export default function Page() {
   async function sendVoiceMessage(
     voiceFile: File
   ) {
+    requestNotificationPermission().catch(() => {});
     setLoading(true);
 
     setMessages((prev) => [
@@ -920,11 +925,35 @@ export default function Page() {
         result:
           data.result || "",
       });
+
+      // Kirim notifikasi HP jika pengguna sedang membuka game atau aplikasi lain
+      if (typeof document !== "undefined" && document.hidden) {
+        const previewText =
+          data.result && typeof data.result === "string"
+            ? data.result.replace(/[#*`_]/g, "").slice(0, 100) + "..."
+            : "Jawaban suara AI untuk tugas Anda sudah siap. Ketuk untuk membuka kembali.";
+
+        sendBackgroundNotification({
+          title: "DNA AI - Jawaban Suara Siap! 🎙️",
+          body: previewText,
+          url: "/ai-assistant",
+          tag: "dna-ai-voice-done",
+        }).catch(() => {});
+      }
     } catch (error) {
       console.error(
         "AI VOICE ERROR:",
         error
       );
+
+      if (typeof document !== "undefined" && document.hidden) {
+        sendBackgroundNotification({
+          title: "DNA AI - Pemberitahuan",
+          body: "Terjadi kendala saat memproses pesan suara AI. Ketuk untuk memeriksa.",
+          url: "/ai-assistant",
+          tag: "dna-ai-voice-error",
+        }).catch(() => {});
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -964,6 +993,9 @@ export default function Page() {
     if (!text && !file && !currentImageUrl) {
       return;
     }
+
+    // Minta izin notifikasi HP agar siap mengirim pemberitahuan saat user buka aplikasi lain
+    requestNotificationPermission().catch(() => {});
 
     const currentFile = file;
 
@@ -1112,6 +1144,21 @@ export default function Page() {
           data.result || "",
       });
 
+      // Kirim notifikasi HP jika pengguna sedang membuka game atau aplikasi lain
+      if (typeof document !== "undefined" && document.hidden) {
+        const previewText =
+          data.result && typeof data.result === "string"
+            ? data.result.replace(/[#*`_]/g, "").slice(0, 100) + "..."
+            : "Jawaban AI untuk tugas Anda sudah siap. Ketuk untuk melihat hasilnya.";
+
+        sendBackgroundNotification({
+          title: "DNA AI - Tugas Selesai! ✨",
+          body: previewText,
+          url: "/ai-assistant",
+          tag: "dna-ai-task-done",
+        }).catch(() => {});
+      }
+
       setFile(null);
       setImageUrl("");
       setImageUrlOpen(false);
@@ -1124,6 +1171,15 @@ export default function Page() {
         "AI ASSISTANT ERROR:",
         error
       );
+
+      if (typeof document !== "undefined" && document.hidden) {
+        sendBackgroundNotification({
+          title: "DNA AI - Pemberitahuan",
+          body: "Terjadi kendala saat memproses jawaban AI. Ketuk untuk memeriksa.",
+          url: "/ai-assistant",
+          tag: "dna-ai-task-error",
+        }).catch(() => {});
+      }
 
       const errorMessage: Message = {
         id: Date.now() + 1,

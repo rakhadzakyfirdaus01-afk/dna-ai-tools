@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
+export const maxDuration = 60;
+
 import { authOptions } from "@/auth";
 import prisma from "@/lib/prisma";
 import { checkUserQuota, getUserQuota } from "@/lib/user-quota";
@@ -535,7 +537,7 @@ ${message}`.trim()
                 "Analisis gambar secara menyeluruh. Jika gambar berisi soal, pertanyaan, latihan, tugas, atau masalah yang harus diselesaikan, kerjakan dan berikan jawabannya secara lengkap. Jika gambar hanya berisi teks biasa, jelaskan atau salin isi pentingnya.",
               image: {
                 mimeType:
-                  file.type,
+                  file.type || "image/jpeg",
                 data: base64,
               },
               model: candidateModel,

@@ -5,10 +5,6 @@ import {
   getActualModelId,
 } from "@/lib/ai-models";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_OCR_API_KEY!,
-});
-
 type OCRInput = {
   prompt: string;
   image: {
@@ -18,25 +14,28 @@ type OCRInput = {
   model?: AIModelId;
 };
 
+function getApiKey() {
+  return (
+    process.env.GEMINI_OCR_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GEMINI_DEBUGGER_API_KEY ||
+    process.env.GEMINI_IMAGE_PROMPT_API_KEY ||
+    ""
+  );
+}
+
 const SYSTEM_PROMPT = `
-Kamu adalah AI OCR profesional milik DNA AI Platform.
+Kamu adalah AI Visual & Analisis Gambar cerdas milik DNA AI Platform.
 
-Tugasmu:
-
-- Membaca seluruh teks pada gambar.
-- Menyalin teks dengan akurat.
-- Menjelaskan isi gambar jika diminta.
-- Merangkum isi gambar jika diminta.
-- Menjawab pertanyaan berdasarkan isi gambar.
-
-Aturan:
-
-1. Gunakan Bahasa Indonesia.
-2. Jangan mengarang teks yang tidak ada pada gambar.
-3. Pertahankan format teks jika memungkinkan.
-4. Jika gambar tidak memiliki teks, jelaskan isi gambarnya.
-5. Jika pengguna memberikan pertanyaan tambahan, jawab berdasarkan isi gambar.
-`;
+Tugas dan Kemampuan Utama:
+1. Analisis Visual & Pengenalan Game/Karakter/Objek:
+   - Kenali karakter, game, film, screenshot, tokoh, tempat, atau objek dari gambar dengan akurat.
+   - Jika pengguna bertanya seperti "coba tebak ini game apa", "siapa karakter ini", "apa ini", sebutkan nama game, karakter, dan konteksnya secara spesifik dan jelas.
+2. Membaca Teks (OCR) & Mengerjakan Tugas:
+   - Jika gambar berisi teks dokumen, soal latihan, atau kode, baca dengan teliti dan berikan penjelasan atau jawaban lengkapnya.
+3. Gaya Jawaban:
+   - Gunakan Bahasa Indonesia yang natural, informatif, dan langsung ke inti jawaban.
+`.trim();
 
 export async function askOCR({
   prompt,
@@ -44,10 +43,17 @@ export async function askOCR({
   model = DEFAULT_AI_MODEL,
 }: OCRInput) {
   const actualModel = getActualModelId(model);
+  const apiKey = getApiKey();
+
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      timeout: 30000,
+    },
+  });
 
   const result = await ai.models.generateContent({
     model: actualModel,
-
     contents: [
       {
         inlineData: {
@@ -60,12 +66,11 @@ export async function askOCR({
 ${SYSTEM_PROMPT}
 
 Instruksi pengguna:
-
 ${prompt}
-`,
+`.trim(),
       },
     ],
   });
 
-  return result.text ?? "";
+  return result.text?.trim() ?? "";
 }

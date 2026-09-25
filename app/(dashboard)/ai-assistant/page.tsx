@@ -37,6 +37,7 @@ import {
   VoiceModeOverlay,
   type VoiceModeStatus,
 } from "@/components/voice/voice-mode-overlay";
+import { compressImageFile } from "@/lib/image-compression";
 
 import {
   AI_MODELS,
@@ -410,11 +411,27 @@ export default function Page() {
     }
   }
 
-  function handleFileChange(
+  async function handleFileChange(
     event: React.ChangeEvent<HTMLInputElement>
   ) {
     const selectedFile =
       event.target.files?.[0] || null;
+
+    if (!selectedFile) {
+      setFile(null);
+      return;
+    }
+
+    if (selectedFile.type.startsWith("image/")) {
+      try {
+        const optimized = await compressImageFile(selectedFile);
+        setFile(optimized);
+        return;
+      } catch {
+        setFile(selectedFile);
+        return;
+      }
+    }
 
     setFile(selectedFile);
   }
@@ -1128,8 +1145,24 @@ export default function Page() {
           }
         );
 
-      const data =
-        await response.json();
+      let data: any = null;
+      const rawText = await response.text();
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        if (
+          response.status === 413 ||
+          rawText.toLowerCase().includes("too large") ||
+          rawText.toLowerCase().includes("request entity")
+        ) {
+          throw new Error(
+            ui.voiceProcessingError
+          );
+        }
+        throw new Error(
+          rawText.slice(0, 180) || ui.voiceProcessingError
+        );
+      }
 
       if (!response.ok) {
         if (
@@ -1324,9 +1357,17 @@ export default function Page() {
       );
 
       if (currentFile) {
+        let fileToSend = currentFile;
+        if (currentFile.type.startsWith("image/")) {
+          try {
+            fileToSend = await compressImageFile(currentFile);
+          } catch {
+            fileToSend = currentFile;
+          }
+        }
         formData.append(
           "file",
-          currentFile
+          fileToSend
         );
       }
 
@@ -1356,8 +1397,31 @@ export default function Page() {
           }
         );
 
-      const data =
-        await response.json();
+      let data: any = null;
+      const rawText = await response.text();
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        if (
+          response.status === 413 ||
+          rawText.toLowerCase().includes("too large") ||
+          rawText.toLowerCase().includes("request entity")
+        ) {
+          throw new Error(
+            isEnglish
+              ? "The uploaded file is too large for the server. DNA AI is automatically optimizing it, please try again."
+              : "Ukuran file terlalu besar untuk diproses server. DNA AI mengoptimalkan gambar secara otomatis, silakan coba kirim lagi."
+          );
+        }
+        if (!response.ok) {
+          throw new Error(
+            rawText.slice(0, 180) ||
+              (isEnglish
+                ? "Server responded with an error."
+                : "Terjadi kesalahan respon dari server.")
+          );
+        }
+      }
 
       if (!response.ok) {
         if (

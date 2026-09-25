@@ -245,6 +245,15 @@ export default function Page() {
     micUnsupported: isEnglish
       ? "This browser does not support microphone access."
       : "Browser ini tidak mendukung mikrofon.",
+    micDenied: isEnglish
+      ? "Microphone access is blocked by Windows or your browser. Please check Windows Settings (Privacy & security > Microphone: ON) and click the lock/settings icon next to the URL to Allow microphone."
+      : "Akses mikrofon diblokir oleh sistem Windows atau browser. Silakan aktifkan izin mikrofon di Pengaturan Windows (Privasi & keamanan > Mikrofon: ON) serta klik ikon gembok/setelan di samping URL browser lalu pilih Izinkan (Allow).",
+    micNotFound: isEnglish
+      ? "No microphone found on this device. Please connect a microphone and try again."
+      : "Mikrofon tidak ditemukan pada perangkat ini. Sambungkan mikrofon lalu coba lagi.",
+    micBusy: isEnglish
+      ? "The microphone is currently in use by another app (e.g. Discord, Zoom, Game). Please close the other app and try again."
+      : "Mikrofon sedang digunakan oleh aplikasi lain (seperti Discord, Zoom, atau Game). Silakan tutup aplikasi tersebut lalu coba lagi.",
     cameraDenied: isEnglish
       ? "Camera permission was denied. Allow camera access for this site and try again."
       : "Izin kamera ditolak. Izinkan kamera untuk situs ini lalu coba lagi.",
@@ -777,15 +786,47 @@ export default function Page() {
 
       setIsRecording(false);
 
+      const errorName =
+        error instanceof DOMException
+          ? error.name
+          : "";
+
+      const rawMsg =
+        error instanceof Error
+          ? error.message.toLowerCase()
+          : "";
+
+      let contentMsg =
+        error instanceof Error
+          ? `⚠️ ${error.message}`
+          : "⚠️ Mikrofon tidak dapat digunakan.";
+
+      if (
+        errorName === "NotAllowedError" ||
+        errorName === "PermissionDeniedError" ||
+        rawMsg.includes("permission") ||
+        rawMsg.includes("denied")
+      ) {
+        contentMsg = `⚠️ ${ui.micDenied}`;
+      } else if (
+        errorName === "NotFoundError" ||
+        rawMsg.includes("not found")
+      ) {
+        contentMsg = `⚠️ ${ui.micNotFound}`;
+      } else if (
+        errorName === "NotReadableError" ||
+        rawMsg.includes("busy") ||
+        rawMsg.includes("in use")
+      ) {
+        contentMsg = `⚠️ ${ui.micBusy}`;
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now(),
           role: "assistant",
-          content:
-            error instanceof Error
-              ? `⚠️ ${error.message}`
-              : "⚠️ Mikrofon tidak dapat digunakan.",
+          content: contentMsg,
         },
       ]);
     }

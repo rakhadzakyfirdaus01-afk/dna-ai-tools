@@ -317,6 +317,15 @@ export async function POST(req: Request) {
     const modelValue =
       formData.get("model");
 
+    const imageThumbnailValue =
+      formData.get("imageThumbnail");
+
+    const imageThumbnail =
+      typeof imageThumbnailValue === "string" &&
+      imageThumbnailValue.startsWith("data:image/")
+        ? imageThumbnailValue
+        : "";
+
     const conversationValue =
       formData.get("conversation");
 
@@ -746,17 +755,25 @@ ${message}`.trim()
       }
     }
 
+    let promptToSave = message || file?.name || "";
+    if (imageThumbnail) {
+      promptToSave = JSON.stringify({
+        text: message || file?.name || (locale === "en" ? "Photo" : "Foto"),
+        image: imageThumbnail,
+      });
+    }
+
+    const historyTitle =
+      message || (file?.name ? `Foto: ${file.name}` : feature);
+
     const history =
       await prisma.history.create({
         data: {
           userId:
             session.user.id,
-          title: feature,
+          title: historyTitle,
           feature,
-          prompt:
-            message ||
-            file?.name ||
-            "",
+          prompt: promptToSave,
           result,
         },
       });

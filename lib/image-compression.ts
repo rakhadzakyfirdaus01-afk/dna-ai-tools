@@ -96,3 +96,69 @@ export async function compressImageFile(
     }
   });
 }
+
+/**
+ * Creates a lightweight base64 thumbnail (< 25KB) suitable for storage in History database and localStorage.
+ */
+export async function createThumbnailDataUrl(
+  file: File,
+  maxDimension = 360,
+  quality = 0.65
+): Promise<string> {
+  if (typeof window === "undefined" || !file.type.startsWith("image/")) {
+    return "";
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new window.Image();
+
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+
+        let { width, height } = img;
+        if (width === 0 || height === 0) {
+          resolve("");
+          return;
+        }
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve("");
+          return;
+        }
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "medium";
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve("");
+      };
+
+      img.src = objectUrl;
+    } catch {
+      resolve("");
+    }
+  });
+}

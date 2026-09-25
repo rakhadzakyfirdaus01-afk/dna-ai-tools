@@ -69,6 +69,19 @@ const featureFilters = [
   },
 ];
 
+function parsePromptText(rawPrompt: string, fallback = ""): string {
+  if (!rawPrompt) return fallback;
+  if (rawPrompt.startsWith("{") && rawPrompt.includes('"image"')) {
+    try {
+      const parsed = JSON.parse(rawPrompt);
+      if (parsed && typeof parsed === "object") {
+        return (typeof parsed.text === "string" && parsed.text.trim()) ? parsed.text : "Foto";
+      }
+    } catch {}
+  }
+  return rawPrompt;
+}
+
 function parseAIProject(result: string): AIProject | null {
   if (!result || typeof result !== "string") {
     return null;
@@ -201,7 +214,7 @@ export default function HistoryPage() {
   const [downloadingZip, setDownloadingZip] = useState(false);
 
   const [chatMessages, setChatMessages] = useState<
-    { role: "user" | "assistant"; content: string }[]
+    { role: "user" | "assistant"; content: string; image?: string }[]
   >([]);
 
   const [chatInput, setChatInput] = useState("");
@@ -475,6 +488,19 @@ export default function HistoryPage() {
       return;
     }
 
+    let promptText = item.prompt;
+    let promptImage: string | undefined = undefined;
+
+    if (item.prompt && item.prompt.startsWith("{") && item.prompt.includes('"image"')) {
+      try {
+        const parsedPrompt = JSON.parse(item.prompt);
+        if (parsedPrompt && typeof parsedPrompt === "object") {
+          promptText = typeof parsedPrompt.text === "string" ? parsedPrompt.text : promptText;
+          promptImage = typeof parsedPrompt.image === "string" ? parsedPrompt.image : undefined;
+        }
+      } catch {}
+    }
+
     try {
       const saved = window.localStorage.getItem(
         getConversationStorageKey(item.id)
@@ -493,6 +519,9 @@ export default function HistoryPage() {
               typeof message.content === "string"
           )
         ) {
+          if (promptImage && parsed.length > 0 && parsed[0].role === "user" && !parsed[0].image) {
+            parsed[0].image = promptImage;
+          }
           setChatMessages(parsed);
           return;
         }
@@ -507,7 +536,8 @@ export default function HistoryPage() {
     setChatMessages([
       {
         role: "user",
-        content: item.prompt,
+        content: promptText,
+        image: promptImage,
       },
       {
         role: "assistant",
@@ -521,6 +551,7 @@ export default function HistoryPage() {
     messages: {
       role: "user" | "assistant";
       content: string;
+      image?: string;
     }[]
   ) {
     try {
@@ -855,10 +886,12 @@ export default function HistoryPage() {
 
                           {aiProject
                             ? aiProject.projectName
-                            : item.prompt ||
-                              (isIndonesia
-                                ? "Percakapan tanpa judul"
-                                : "Untitled conversation")}
+                            : parsePromptText(
+                                item.prompt,
+                                isIndonesia
+                                  ? "Percakapan tanpa judul"
+                                  : "Untitled conversation"
+                              )}
 
                         </h3>
 
@@ -1075,10 +1108,12 @@ export default function HistoryPage() {
                           selected.result
                         )?.projectName ||
                         "AI Code"
-                      : selected.prompt ||
-                        (isIndonesia
-                          ? "Percakapan"
-                          : "Conversation")}
+                      : parsePromptText(
+                          selected.prompt,
+                          isIndonesia
+                            ? "Percakapan"
+                            : "Conversation"
+                        )}
 
                 </h2>
 
@@ -1674,6 +1709,17 @@ export default function HistoryPage() {
                               : "AI Assistant"}
 
                           </div>
+
+                          {/* LAMPIRAN FOTO / GAMBAR */}
+                          {message.image && (
+                            <div className="mb-2.5 overflow-hidden rounded-xl border border-white/20 bg-black/30 shadow-md">
+                              <img
+                                src={message.image}
+                                alt={isIndonesia ? "Foto terlampir" : "Attached photo"}
+                                className="max-h-72 w-auto max-w-full rounded-xl object-contain"
+                              />
+                            </div>
+                          )}
 
                           <div className="whitespace-pre-wrap break-words">
                             {

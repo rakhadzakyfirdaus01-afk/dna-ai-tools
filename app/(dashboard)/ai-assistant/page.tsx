@@ -37,7 +37,10 @@ import {
   VoiceModeOverlay,
   type VoiceModeStatus,
 } from "@/components/voice/voice-mode-overlay";
-import { compressImageFile } from "@/lib/image-compression";
+import {
+  compressImageFile,
+  createThumbnailDataUrl,
+} from "@/lib/image-compression";
 
 import {
   AI_MODELS,
@@ -1356,10 +1359,12 @@ export default function Page() {
         conversationContext
       );
 
+      let thumbnailDataUrl = "";
       if (currentFile) {
         let fileToSend = currentFile;
         if (currentFile.type.startsWith("image/")) {
           try {
+            thumbnailDataUrl = await createThumbnailDataUrl(currentFile);
             fileToSend = await compressImageFile(currentFile);
           } catch {
             fileToSend = currentFile;
@@ -1369,6 +1374,12 @@ export default function Page() {
           "file",
           fileToSend
         );
+        if (thumbnailDataUrl) {
+          formData.append(
+            "imageThumbnail",
+            thumbnailDataUrl
+          );
+        }
       }
 
       if (currentImageUrl) {
@@ -1471,6 +1482,28 @@ export default function Page() {
         ...prev,
         assistantMessage,
       ]);
+
+      if (typeof window !== "undefined" && data?.history?.id) {
+        try {
+          const historyChat = [
+            {
+              role: "user" as const,
+              content: text || (isEnglish ? "Sent a photo" : "Foto yang dikirim"),
+              image: thumbnailDataUrl || (currentFile && currentFile.type.startsWith("image/") ? imagePreview : undefined),
+            },
+            {
+              role: "assistant" as const,
+              content: data.result || ui.aiNoAnswer,
+            },
+          ];
+          window.localStorage.setItem(
+            `dna-ai-history-conversation:${data.history.id}`,
+            JSON.stringify(historyChat)
+          );
+        } catch (storageErr) {
+          console.warn("History localStorage cache warning:", storageErr);
+        }
+      }
 
       addNotification({
         feature:

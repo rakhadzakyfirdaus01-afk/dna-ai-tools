@@ -18,6 +18,7 @@ import {
   Mic,
   MicOff,
   Volume2,
+  VolumeX,
   Plus,
   Download,
   Code2,
@@ -28,6 +29,10 @@ import {
   requestNotificationPermission,
   sendBackgroundNotification,
 } from "@/lib/push-notification";
+import {
+  speakNaturalVoice,
+  stopNaturalVoice,
+} from "@/lib/natural-voice";
 
 import {
   AI_MODELS,
@@ -603,72 +608,69 @@ export default function Page() {
       audioPlayerRef.current = null;
     }
 
+    stopNaturalVoice();
     setIsSpeaking(false);
   }
 
-  function playAiVoice(base64Audio: string) {
-    if (!base64Audio) {
-      return;
-    }
+  function speakWithNaturalEngine(text: string) {
+    speakNaturalVoice({
+      text,
+      locale: locale === "en" ? "en" : "id",
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false),
+    });
+  }
 
+  function playAiVoice(base64Audio?: string | null, rawText?: string) {
     stopAiSpeaking();
 
-    const audio = new Audio(
-      `data:audio/wav;base64,${base64Audio}`
-    );
+    // 1. Coba putar audio WAV dari server jika tersedia
+    if (base64Audio) {
+      try {
+        const audio = new Audio(
+          `data:audio/wav;base64,${base64Audio}`
+        );
 
-    audio.volume = 1;
+        audio.volume = 1;
 
-    audio.onplay = () => {
-      setIsSpeaking(true);
-    };
+        audio.onplay = () => {
+          setIsSpeaking(true);
+        };
 
-    audio.onended = () => {
-      setIsSpeaking(false);
-      audioPlayerRef.current = null;
-    };
+        audio.onended = () => {
+          setIsSpeaking(false);
+          audioPlayerRef.current = null;
+        };
 
-    audio.onerror = (event) => {
-      console.error(
-        "AI VOICE AUDIO ERROR:",
-        event
-      );
+        audio.onerror = () => {
+          setIsSpeaking(false);
+          audioPlayerRef.current = null;
+          if (rawText) {
+            speakWithNaturalEngine(rawText);
+          }
+        };
 
-      setIsSpeaking(false);
-      audioPlayerRef.current = null;
+        audioPlayerRef.current = audio;
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 2,
-          role: "assistant",
-          content:
-            ui.voiceAudioFailed,
-        },
-      ]);
-    };
+        void audio.play().catch(() => {
+          setIsSpeaking(false);
+          audioPlayerRef.current = null;
+          if (rawText) {
+            speakWithNaturalEngine(rawText);
+          }
+        });
 
-    audioPlayerRef.current = audio;
+        return;
+      } catch {
+        // Fallback ke Natural Voice Engine
+      }
+    }
 
-    void audio.play().catch((error) => {
-      console.error(
-        "AI VOICE PLAY ERROR:",
-        error
-      );
-
-      setIsSpeaking(false);
-      audioPlayerRef.current = null;
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 2,
-          role: "assistant",
-          content:
-            ui.voiceBlocked,
-        },
-      ]);
-    });
+    // 2. Gunakan Natural Voice Engine (100% Free & Alami)
+    if (rawText) {
+      speakWithNaturalEngine(rawText);
+    }
   }
 
   async function startVoiceRecording() {
@@ -936,23 +938,19 @@ export default function Page() {
         );
       }
 
-      if (!data.audio) {
-        throw new Error(
-          ui.aiNoVoice
-        );
-      }
+      const aiReplyText =
+        data.result || ui.aiNoAnswer;
 
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
           role: "assistant",
-          content:
-            ui.aiSpeakingStatus,
+          content: aiReplyText,
         },
       ]);
 
-      playAiVoice(data.audio);
+      playAiVoice(data.audio, aiReplyText);
 
       addNotification({
         feature:
@@ -1558,6 +1556,34 @@ export default function Page() {
                         {message.content}
                       </div>
 
+                      {message.role === "assistant" && (
+                        <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-2 text-xs text-muted-foreground">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isSpeaking) {
+                                stopAiSpeaking();
+                              } else {
+                                playAiVoice(null, message.content);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 transition hover:bg-black/10 hover:text-cyan-400"
+                            title={isSpeaking ? "Hentikan Suara" : "Dengarkan Suara Natural AI"}
+                          >
+                            <Volume2 size={13} className="text-cyan-400" />
+                            <span>
+                              {isSpeaking
+                                ? isEnglish
+                                  ? "Stop"
+                                  : "Hentikan"
+                                : isEnglish
+                                ? "Listen"
+                                : "Dengarkan suara"}
+                            </span>
+                          </button>
+                        </div>
+                      )}
+
                     </div>
 
                   </div>
@@ -1567,9 +1593,19 @@ export default function Page() {
 
 
               {isSpeaking && (
-                <div className="mb-3 flex items-center gap-2 text-sm text-cyan-400">
-                  <Volume2 size={16} />
-                  <span>{ui.speaking}</span>
+                <div className="mb-3 flex items-center justify-between rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-2.5 text-sm text-cyan-300">
+                  <div className="flex items-center gap-2">
+                    <Volume2 size={18} className="animate-pulse text-cyan-400" />
+                    <span className="font-medium">{ui.speaking}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={stopAiSpeaking}
+                    className="flex items-center gap-1 text-xs text-red-400 transition hover:underline"
+                  >
+                    <VolumeX size={14} />
+                    <span>{isEnglish ? "Stop" : "Hentikan"}</span>
+                  </button>
                 </div>
               )}
 

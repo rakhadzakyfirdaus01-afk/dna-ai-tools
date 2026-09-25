@@ -731,10 +731,17 @@ ${message}`.trim()
       null;
 
     if (voiceFile) {
-      audio =
-        await generateVoiceAudio(
-          result
+      try {
+        audio =
+          await generateVoiceAudio(
+            result
+          );
+      } catch (voiceError) {
+        console.warn(
+          "TTS audio generation error:",
+          voiceError
         );
+      }
     }
 
     const history =

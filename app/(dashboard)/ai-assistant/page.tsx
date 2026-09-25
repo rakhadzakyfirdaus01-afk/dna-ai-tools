@@ -33,6 +33,10 @@ import {
   speakNaturalVoice,
   stopNaturalVoice,
 } from "@/lib/natural-voice";
+import {
+  VoiceModeOverlay,
+  type VoiceModeStatus,
+} from "@/components/voice/voice-mode-overlay";
 
 import {
   AI_MODELS,
@@ -160,12 +164,38 @@ export default function Page() {
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
+  // ChatGPT-Style Voice Mode States
+  const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
+  const [voiceModeStatus, setVoiceModeStatus] =
+    useState<VoiceModeStatus>("idle");
+  const [voiceLevel, setVoiceLevel] = useState(0);
+  const [isVoicePaused, setIsVoicePaused] = useState(false);
+  const [latestVoiceReply, setLatestVoiceReply] = useState("");
+
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const isRecordingRef = useRef(false);
+  const isVoicePausedRef = useRef(false);
+  const voiceOverlayOpenRef = useRef(false);
+  const hasSpokenRef = useRef(false);
+  const lastSpeechTimeRef = useRef(0);
+  const recordingStartTimeRef = useRef(0);
+
   const mediaRecorderRef =
     useRef<MediaRecorder | null>(null);
   const audioChunksRef =
     useRef<Blob[]>([]);
   const audioPlayerRef =
     useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    voiceOverlayOpenRef.current = voiceOverlayOpen;
+  }, [voiceOverlayOpen]);
+
+  useEffect(() => {
+    isVoicePausedRef.current = isVoicePaused;
+  }, [isVoicePaused]);
 
   const ui = {
     title: isEnglish ? "AI Assistant" : "AI Asisten",
@@ -599,6 +629,19 @@ export default function Page() {
     };
   }, []);
 
+  function cleanupAudioVisualizer() {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    setVoiceLevel(0);
+  }
+
   function stopAiSpeaking() {
     const player = audioPlayerRef.current;
 
@@ -613,12 +656,44 @@ export default function Page() {
   }
 
   function speakWithNaturalEngine(text: string) {
+    if (voiceOverlayOpenRef.current) {
+      setVoiceModeStatus("speaking");
+    }
+
     speakNaturalVoice({
       text,
       locale: locale === "en" ? "en" : "id",
-      onStart: () => setIsSpeaking(true),
-      onEnd: () => setIsSpeaking(false),
-      onError: () => setIsSpeaking(false),
+      onStart: () => {
+        setIsSpeaking(true);
+        if (voiceOverlayOpenRef.current) {
+          setVoiceModeStatus("speaking");
+        }
+      },
+      onEnd: () => {
+        setIsSpeaking(false);
+        if (voiceOverlayOpenRef.current && !isVoicePausedRef.current) {
+          // Percakapan terus-menerus tanpa henti ala ChatGPT
+          setTimeout(() => {
+            if (voiceOverlayOpenRef.current && !isVoicePausedRef.current) {
+              void startVoiceRecording();
+            }
+          }, 350);
+        } else if (voiceOverlayOpenRef.current) {
+          setVoiceModeStatus("idle");
+        }
+      },
+      onError: () => {
+        setIsSpeaking(false);
+        if (voiceOverlayOpenRef.current && !isVoicePausedRef.current) {
+          setTimeout(() => {
+            if (voiceOverlayOpenRef.current && !isVoicePausedRef.current) {
+              void startVoiceRecording();
+            }
+          }, 400);
+        } else if (voiceOverlayOpenRef.current) {
+          setVoiceModeStatus("idle");
+        }
+      },
     });
   }
 
@@ -636,11 +711,23 @@ export default function Page() {
 
         audio.onplay = () => {
           setIsSpeaking(true);
+          if (voiceOverlayOpenRef.current) {
+            setVoiceModeStatus("speaking");
+          }
         };
 
         audio.onended = () => {
           setIsSpeaking(false);
           audioPlayerRef.current = null;
+          if (voiceOverlayOpenRef.current && !isVoicePausedRef.current) {
+            setTimeout(() => {
+              if (voiceOverlayOpenRef.current && !isVoicePausedRef.current) {
+                void startVoiceRecording();
+              }
+            }, 350);
+          } else if (voiceOverlayOpenRef.current) {
+            setVoiceModeStatus("idle");
+          }
         };
 
         audio.onerror = () => {
@@ -674,9 +761,11 @@ export default function Page() {
   }
 
   async function startVoiceRecording() {
-    if (loading || isRecording) {
+    if (loading || isRecordingRef.current) {
       return;
     }
+
+    stopAiSpeaking();
 
     try {
       if (
@@ -690,8 +779,80 @@ export default function Page() {
 
       const stream =
         await navigator.mediaDevices.getUserMedia({
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
         });
+
+      // Hubungkan ke Web Audio API Analyser untuk gelembung dinamis & deteksi keheningan (silence detection)
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+
+        if (AudioCtx) {
+          const audioCtx = new AudioCtx();
+          if (audioCtx.state === "suspended") {
+            await audioCtx.resume();
+          }
+
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.5;
+
+          const source = audioCtx.createMediaStreamSource(stream);
+          source.connect(analyser);
+
+          audioContextRef.current = audioCtx;
+          analyserRef.current = analyser;
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          hasSpokenRef.current = false;
+          lastSpeechTimeRef.current = 0;
+          recordingStartTimeRef.current = Date.now();
+
+          const checkAudioActivity = () => {
+            if (!isRecordingRef.current) return;
+
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              sum += dataArray[i];
+            }
+            const average = sum / dataArray.length;
+            const normalizedLevel = Math.min(100, Math.round((average / 128) * 100));
+            setVoiceLevel(normalizedLevel);
+
+            const now = Date.now();
+            const SILENCE_THRESHOLD = 12; // Level threshold suara
+            const SILENCE_DURATION = 1500; // 1.5 detik keheningan = user selesai bicara
+            const MIN_SPEECH_DURATION = 800; // Minimal 800ms bicara agar batuk/klik tidak sengaja auto-kirim
+
+            if (average > SILENCE_THRESHOLD) {
+              if (!hasSpokenRef.current && now - recordingStartTimeRef.current > 300) {
+                hasSpokenRef.current = true;
+              }
+              lastSpeechTimeRef.current = now;
+            } else if (hasSpokenRef.current && lastSpeechTimeRef.current > 0) {
+              const silenceElapsed = now - lastSpeechTimeRef.current;
+              const totalElapsed = now - recordingStartTimeRef.current;
+              if (silenceElapsed >= SILENCE_DURATION && totalElapsed >= MIN_SPEECH_DURATION) {
+                // Pengguna telah selesai berbicara! Otomatis kirim tanpa harus tekan kirim
+                stopVoiceRecording();
+                return;
+              }
+            }
+
+            animFrameRef.current = requestAnimationFrame(checkAudioActivity);
+          };
+
+          animFrameRef.current = requestAnimationFrame(checkAudioActivity);
+        }
+      } catch (audioErr) {
+        console.warn("AudioContext visualization not available:", audioErr);
+      }
 
       const mimeTypes = [
         "audio/webm;codecs=opus",
@@ -728,6 +889,8 @@ export default function Page() {
       };
 
       recorder.onstop = async () => {
+        cleanupAudioVisualizer();
+
         stream
           .getTracks()
           .forEach((track) =>
@@ -748,9 +911,13 @@ export default function Page() {
         audioChunksRef.current = [];
         mediaRecorderRef.current = null;
         setIsRecording(false);
+        isRecordingRef.current = false;
 
         if (!blob.size) {
           setLoading(false);
+          if (voiceOverlayOpenRef.current) {
+            setVoiceModeStatus("idle");
+          }
           return;
         }
 
@@ -780,13 +947,22 @@ export default function Page() {
       recorder.start();
 
       setIsRecording(true);
+      isRecordingRef.current = true;
+      if (voiceOverlayOpenRef.current) {
+        setVoiceModeStatus("listening");
+      }
     } catch (error) {
+      cleanupAudioVisualizer();
       console.error(
         "VOICE RECORDING ERROR:",
         error
       );
 
       setIsRecording(false);
+      isRecordingRef.current = false;
+      if (voiceOverlayOpenRef.current) {
+        setVoiceModeStatus("idle");
+      }
 
       const errorName =
         error instanceof DOMException
@@ -847,11 +1023,60 @@ export default function Page() {
     }
   }
 
+  function handleOpenVoiceMode() {
+    setVoiceOverlayOpen(true);
+    setIsVoicePaused(false);
+    isVoicePausedRef.current = false;
+    setVoiceModeStatus("listening");
+    setLatestVoiceReply("");
+    stopAiSpeaking();
+
+    // Beri jeda sejenak untuk transisi UI lalu aktifkan mikrofon
+    setTimeout(() => {
+      void startVoiceRecording();
+    }, 200);
+  }
+
+  function handleCloseVoiceMode() {
+    setVoiceOverlayOpen(false);
+    setIsVoicePaused(false);
+    isVoicePausedRef.current = false;
+    setVoiceModeStatus("idle");
+    stopVoiceRecording();
+    stopAiSpeaking();
+    cleanupAudioVisualizer();
+  }
+
+  function handleTogglePauseVoice() {
+    if (isVoicePaused) {
+      setIsVoicePaused(false);
+      isVoicePausedRef.current = false;
+      setVoiceModeStatus("listening");
+      void startVoiceRecording();
+    } else {
+      setIsVoicePaused(true);
+      isVoicePausedRef.current = true;
+      setVoiceModeStatus("paused");
+      stopVoiceRecording();
+      stopAiSpeaking();
+      cleanupAudioVisualizer();
+    }
+  }
+
+  function handleSendNowVoice() {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      stopVoiceRecording();
+    }
+  }
+
   async function sendVoiceMessage(
     voiceFile: File
   ) {
     requestNotificationPermission().catch(() => {});
     setLoading(true);
+    if (voiceOverlayOpenRef.current) {
+      setVoiceModeStatus("thinking");
+    }
 
     setMessages((prev) => [
       ...prev,
@@ -929,6 +1154,9 @@ export default function Page() {
             },
           ]);
 
+          if (voiceOverlayOpenRef.current) {
+            setVoiceModeStatus("idle");
+          }
           return;
         }
 
@@ -940,6 +1168,11 @@ export default function Page() {
 
       const aiReplyText =
         data.result || ui.aiNoAnswer;
+
+      setLatestVoiceReply(aiReplyText);
+      if (voiceOverlayOpenRef.current) {
+        setVoiceModeStatus("speaking");
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -985,6 +1218,10 @@ export default function Page() {
         error
       );
 
+      if (voiceOverlayOpenRef.current) {
+        setVoiceModeStatus("idle");
+      }
+
       if (typeof document !== "undefined" && document.hidden) {
         sendBackgroundNotification({
           title: "DNA AI - Pemberitahuan",
@@ -1013,6 +1250,7 @@ export default function Page() {
   useEffect(() => {
     return () => {
       stopAiSpeaking();
+      cleanupAudioVisualizer();
 
       if (
         mediaRecorderRef.current &&
@@ -2003,28 +2241,13 @@ export default function Page() {
 
                 <button
                   type="button"
-                  onClick={
-                    isRecording
-                      ? stopVoiceRecording
-                      : startVoiceRecording
-                  }
+                  onClick={handleOpenVoiceMode}
                   disabled={loading}
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
-                    isRecording
-                      ? "bg-red-500 text-white"
-                      : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
-                  } disabled:cursor-not-allowed disabled:opacity-40`}
-                  aria-label={
-                    isRecording
-                      ? ui.stopRecording
-                      : ui.startRecording
-                  }
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label={isEnglish ? "Open Voice Mode" : "Buka Mode Suara"}
+                  title={isEnglish ? "ChatGPT Voice Mode" : "Mode Suara ChatGPT"}
                 >
-                  {isRecording ? (
-                    <MicOff size={18} />
-                  ) : (
-                    <Mic size={18} />
-                  )}
+                  <Mic size={18} />
                 </button>
 
                 <button
@@ -2058,6 +2281,22 @@ export default function Page() {
         </div>
 
       </div>
+
+      {/* ChatGPT-Style Voice Mode Overlay */}
+      {voiceOverlayOpen && (
+        <VoiceModeOverlay
+          isOpen={voiceOverlayOpen}
+          status={voiceModeStatus}
+          voiceLevel={voiceLevel}
+          isPaused={isVoicePaused}
+          latestReply={latestVoiceReply}
+          onClose={handleCloseVoiceMode}
+          onTogglePause={handleTogglePauseVoice}
+          onSendNow={handleSendNowVoice}
+          onStopSpeaking={stopAiSpeaking}
+          locale={locale === "en" ? "en" : "id"}
+        />
+      )}
 
     </div>
   );

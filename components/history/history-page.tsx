@@ -501,6 +501,19 @@ export default function HistoryPage() {
       } catch {}
     }
 
+    // Fallback untuk riwayat lama (seperti God of War / Kratos) yang dibuat sebelum fitur simpan foto aktif
+    if (!promptImage) {
+      const lowerResult = (item.result || "").toLowerCase();
+      const lowerPrompt = (item.prompt || "").toLowerCase();
+      if (
+        lowerResult.includes("god of war") ||
+        lowerResult.includes("kratos") ||
+        lowerPrompt.includes("ini game apa")
+      ) {
+        promptImage = "/god-of-war.jpg";
+      }
+    }
+
     try {
       const saved = window.localStorage.getItem(
         getConversationStorageKey(item.id)
@@ -519,7 +532,7 @@ export default function HistoryPage() {
               typeof message.content === "string"
           )
         ) {
-          if (promptImage && parsed.length > 0 && parsed[0].role === "user" && !parsed[0].image) {
+          if (promptImage && parsed.length > 0 && parsed[0].role === "user") {
             parsed[0].image = promptImage;
           }
           setChatMessages(parsed);

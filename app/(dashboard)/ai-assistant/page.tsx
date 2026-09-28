@@ -2187,20 +2187,6 @@ export default function Page() {
 
         </div>
 
-        {!isInstalled && canInstall && (
-          <button
-            type="button"
-            onClick={handleInstall}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
-          >
-            <Download size={18} />
-
-            <span className="hidden sm:inline">
-              {ui.installApp}
-            </span>
-          </button>
-        )}
-
       </div>
 
 

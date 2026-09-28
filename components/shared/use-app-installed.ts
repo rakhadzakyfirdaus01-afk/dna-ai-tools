@@ -9,7 +9,12 @@ export function useIsAppInstalled() {
     if (typeof window === "undefined") return;
 
     const checkInstallation = () => {
-      // 1. Cek mode tampilan standalone / window-controls-overlay / minimal-ui
+      // Hapus flag stale localStorage agar tidak macet saat aplikasi di-uninstall
+      try {
+        localStorage.removeItem("dna_ai_installed");
+      } catch {}
+
+      // Cek apakah saat ini sedang dibuka dari jendela aplikasi mandiri (standalone/PWA/Electron)
       const isStandaloneMode =
         window.matchMedia("(display-mode: standalone)").matches ||
         window.matchMedia("(display-mode: window-controls-overlay)").matches ||
@@ -17,17 +22,7 @@ export function useIsAppInstalled() {
         (window.navigator as any).standalone === true ||
         document.referrer.includes("android-app://");
 
-      // 2. Cek apakah pernah terpasang via event 'appinstalled'
-      const wasInstalled = localStorage.getItem("dna_ai_installed") === "true";
-
-      if (isStandaloneMode || wasInstalled) {
-        setIsInstalled(true);
-        if (isStandaloneMode) {
-          localStorage.setItem("dna_ai_installed", "true");
-        }
-      } else {
-        setIsInstalled(false);
-      }
+      setIsInstalled(isStandaloneMode);
     };
 
     checkInstallation();
@@ -35,16 +30,12 @@ export function useIsAppInstalled() {
     // Listener jika browser mendeteksi perubahan display mode
     const standaloneQuery = window.matchMedia("(display-mode: standalone)");
     const handleModeChange = (e: MediaQueryListEvent) => {
-      if (e.matches) {
-        setIsInstalled(true);
-        localStorage.setItem("dna_ai_installed", "true");
-      }
+      setIsInstalled(e.matches);
     };
 
     // Event saat browser selesai menginstal aplikasi PWA
     const handleAppInstalled = () => {
       setIsInstalled(true);
-      localStorage.setItem("dna_ai_installed", "true");
     };
 
     try {

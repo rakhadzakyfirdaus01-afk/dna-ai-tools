@@ -326,6 +326,12 @@ export async function POST(req: Request) {
         ? imageThumbnailValue
         : "";
 
+    const webSearchValue =
+      formData.get("webSearch");
+
+    const forceWebSearch =
+      webSearchValue === "true" || webSearchValue === "1";
+
     const conversationValue =
       formData.get("conversation");
 
@@ -469,7 +475,8 @@ ${message}`.trim()
             await askDebugger(
               contextualMessage,
               locale,
-              candidateModel
+              candidateModel,
+              forceWebSearch
             );
 
           if (result.trim()) {

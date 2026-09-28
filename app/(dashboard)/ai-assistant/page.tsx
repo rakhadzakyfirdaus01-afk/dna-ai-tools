@@ -22,7 +22,10 @@ import {
   Plus,
   Download,
   Code2,
+  Globe,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { addNotification } from "@/components/notifications/notification-store";
 import {
@@ -151,6 +154,8 @@ export default function Page() {
   const [modelMenuOpen, setModelMenuOpen] =
     useState(false);
   const [toolMenuOpen, setToolMenuOpen] =
+    useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] =
     useState(false);
 
   const [installPrompt, setInstallPrompt] =
@@ -1139,6 +1144,11 @@ export default function Page() {
         locale
       );
 
+      formData.append(
+        "webSearch",
+        String(webSearchEnabled)
+      );
+
       const response =
         await fetch(
           "/api/ai-assistant",
@@ -1397,6 +1407,11 @@ export default function Page() {
       formData.append(
         "locale",
         locale
+      );
+
+      formData.append(
+        "webSearch",
+        String(webSearchEnabled)
       );
 
       const response =
@@ -1887,9 +1902,29 @@ export default function Page() {
                       )}
 
 
-                      <div className="whitespace-pre-wrap leading-7">
-                        {message.content}
-                      </div>
+                      {message.role === "assistant" ? (
+                        <div className="prose prose-invert max-w-none text-sm leading-7 break-words [&>p]:mb-3 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm [&>h1]:font-bold [&>h2]:font-bold [&>h3]:font-semibold [&>h1]:mt-4 [&>h2]:mt-3 [&>h3]:mt-2 [&>code]:bg-slate-800/80 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-cyan-300">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              a: ({ node, ...props }) => (
+                                <a
+                                  {...props}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-cyan-400 underline decoration-cyan-500/40 hover:text-cyan-300 hover:decoration-cyan-400 font-medium inline-flex items-center gap-0.5 transition"
+                                />
+                              ),
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap leading-7">
+                          {message.content}
+                        </div>
+                      )}
 
                       {message.role === "assistant" && (
                         <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-2 text-xs text-muted-foreground">
@@ -2335,6 +2370,40 @@ export default function Page() {
                   )}
 
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setWebSearchEnabled((prev) => !prev)}
+                  disabled={loading}
+                  className={`flex h-10 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition ${
+                    webSearchEnabled
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]"
+                      : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
+                  aria-label={isEnglish ? "Web Search" : "Akses Web"}
+                  title={
+                    webSearchEnabled
+                      ? isEnglish
+                        ? "Web Search: ACTIVE (Live Grounding)"
+                        : "Akses Web: AKTIF (Real-Time)"
+                      : isEnglish
+                      ? "Web Search: AUTO (Click to force)"
+                      : "Akses Web: OTOMATIS (Klik untuk aktifkan)"
+                  }
+                >
+                  <Globe
+                    size={16}
+                    className={webSearchEnabled ? "text-cyan-400 animate-spin" : ""}
+                    style={webSearchEnabled ? { animationDuration: "12s" } : undefined}
+                  />
+                  <span className="hidden sm:inline">
+                    {webSearchEnabled
+                      ? isEnglish
+                        ? "Web Active"
+                        : "Web Aktif"
+                      : "Web"}
+                  </span>
+                </button>
 
                 <button
                   type="button"

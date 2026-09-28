@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -9,12 +9,80 @@ import {
   Loader2,
   Palette,
   Sparkles,
+  Plus,
+  PanelLeft,
+  PanelLeftClose,
+  Trash2,
+  Edit3,
+  Search,
+  Folder,
+  MessageSquare,
+  X,
+  Check,
 } from "lucide-react";
 import { useLanguage } from "@/components/shared/language-provider";
 import {
   requestNotificationPermission,
   sendBackgroundNotification,
 } from "@/lib/push-notification";
+
+export type DesignCategory = "all" | "poster" | "social" | "logo" | "general";
+
+export type DesignSession = {
+  id: string;
+  title: string;
+  category: "poster" | "social" | "logo" | "general";
+  createdAt: number;
+  updatedAt: number;
+  prompt: string;
+  imageUrl: string;
+  referencePreview: string;
+};
+
+export const DESIGN_CATEGORIES: {
+  id: DesignCategory;
+  labelId: string;
+  labelEn: string;
+  icon: string;
+  badgeColor: string;
+}[] = [
+  { id: "all", labelId: "Semua", labelEn: "All", icon: "🎨", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
+  { id: "poster", labelId: "Poster & Iklan", labelEn: "Poster & Ads", icon: "📢", badgeColor: "bg-pink-500/10 text-pink-300 border-pink-500/30" },
+  { id: "social", labelId: "Social Media", labelEn: "Social Media", icon: "📱", badgeColor: "bg-purple-500/10 text-purple-300 border-purple-500/30" },
+  { id: "logo", labelId: "Logo & Banner", labelEn: "Logo & Banner", icon: "✨", badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
+  { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
+];
+
+const DESIGN_SESSIONS_STORAGE_KEY = "dna_ai_design_sessions_v1";
+
+function createNewDesignSession(
+  category: "poster" | "social" | "logo" | "general" = "poster",
+  isEn = false
+): DesignSession {
+  return {
+    id: "designsession-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
+    title: isEn ? "New Design" : "Desain Baru",
+    category,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    prompt: "",
+    imageUrl: "",
+    referencePreview: "",
+  };
+}
+
+function formatTimeAgo(timestamp: number, locale = "id"): string {
+  if (!timestamp) return "";
+  const diff = Math.floor((Date.now() - timestamp) / 1000);
+  const isEn = locale === "en";
+  if (diff < 60) return isEn ? "Just now" : "Barusan";
+  if (diff < 3600) return `${Math.floor(diff / 60)} ${isEn ? "m ago" : "m lalu"}`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ${isEn ? "h ago" : "j lalu"}`;
+  return new Date(timestamp).toLocaleDateString(isEn ? "en-US" : "id-ID", {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function AIDesignPage() {
   const { locale } = useLanguage();
@@ -30,6 +98,188 @@ export default function AIDesignPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+
+  // Multi-Design / Session States
+  const [sessions, setSessions] = useState<DesignSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<DesignCategory>("all");
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [categoryMenuSessionId, setCategoryMenuSessionId] = useState<string | null>(null);
+  const isInitialLoadRef = useRef(true);
+
+  // 1. Load from LocalStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DESIGN_SESSIONS_STORAGE_KEY);
+      if (raw) {
+        const parsed: DesignSession[] = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed);
+          setActiveSessionId(parsed[0].id);
+          setPrompt(parsed[0].prompt || "");
+          setImageUrl(parsed[0].imageUrl || "");
+          setReferencePreview(parsed[0].referencePreview || "");
+          isInitialLoadRef.current = false;
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Error loading design sessions:", e);
+    }
+    const defaultSession = createNewDesignSession("poster", locale === "en");
+    setSessions([defaultSession]);
+    setActiveSessionId(defaultSession.id);
+    isInitialLoadRef.current = false;
+  }, []);
+
+  // 2. Sync changes to active session and LocalStorage
+  useEffect(() => {
+    if (isInitialLoadRef.current || !activeSessionId) return;
+
+    setSessions((prev) => {
+      let changed = false;
+      const updated = prev.map((s) => {
+        if (s.id === activeSessionId) {
+          let newTitle = s.title;
+          const defaultTitles = ["Desain Baru", "New Design"];
+          if (defaultTitles.includes(s.title) && prompt.trim()) {
+            newTitle = prompt.slice(0, 30).trim() + (prompt.length > 30 ? "..." : "");
+          }
+          changed = true;
+          return {
+            ...s,
+            title: newTitle,
+            prompt,
+            imageUrl,
+            referencePreview,
+            updatedAt: Date.now(),
+          };
+        }
+        return s;
+      });
+
+      if (changed) {
+        try {
+          localStorage.setItem(DESIGN_SESSIONS_STORAGE_KEY, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  }, [prompt, imageUrl, referencePreview, activeSessionId]);
+
+  function handleSelectSession(targetId: string) {
+    if (targetId === activeSessionId) {
+      setMobileSidebarOpen(false);
+      return;
+    }
+    const target = sessions.find((s) => s.id === targetId);
+    if (!target) return;
+    setActiveSessionId(targetId);
+    setPrompt(target.prompt || "");
+    setImageUrl(target.imageUrl || "");
+    setReferencePreview(target.referencePreview || "");
+    setReferenceImage(null);
+    setStatus("");
+    setError("");
+    setMobileSidebarOpen(false);
+  }
+
+  function handleCreateNewDesign(category?: "poster" | "social" | "logo" | "general") {
+    const cat = category || (selectedCategory === "all" ? "poster" : selectedCategory);
+    const fresh = createNewDesignSession(cat, isEnglish);
+    setSessions((prev) => {
+      const next = [fresh, ...prev];
+      try {
+        localStorage.setItem(DESIGN_SESSIONS_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setActiveSessionId(fresh.id);
+    setPrompt("");
+    setImageUrl("");
+    setReferencePreview("");
+    setReferenceImage(null);
+    setStatus("");
+    setError("");
+    setMobileSidebarOpen(false);
+  }
+
+  function handleDeleteSession(targetId: string, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setSessions((prev) => {
+      const remaining = prev.filter((s) => s.id !== targetId);
+      if (remaining.length === 0) {
+        const fresh = createNewDesignSession("poster", isEnglish);
+        remaining.push(fresh);
+        setActiveSessionId(fresh.id);
+        setPrompt("");
+        setImageUrl("");
+        setReferencePreview("");
+        setReferenceImage(null);
+      } else if (activeSessionId === targetId) {
+        const nextActive = remaining[0];
+        setActiveSessionId(nextActive.id);
+        setPrompt(nextActive.prompt || "");
+        setImageUrl(nextActive.imageUrl || "");
+        setReferencePreview(nextActive.referencePreview || "");
+        setReferenceImage(null);
+      }
+      try {
+        localStorage.setItem(DESIGN_SESSIONS_STORAGE_KEY, JSON.stringify(remaining));
+      } catch {}
+      return remaining;
+    });
+  }
+
+  function handleStartRename(session: DesignSession, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditingTitle(session.title);
+  }
+
+  function handleSaveRename(targetId: string) {
+    if (!editingTitle.trim()) {
+      setEditingSessionId(null);
+      return;
+    }
+    setSessions((prev) => {
+      const updated = prev.map((s) => (s.id === targetId ? { ...s, title: editingTitle.trim() } : s));
+      try {
+        localStorage.setItem(DESIGN_SESSIONS_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setEditingSessionId(null);
+  }
+
+  function handleChangeCategory(targetId: string, newCat: "poster" | "social" | "logo" | "general", e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setSessions((prev) => {
+      const updated = prev.map((s) => (s.id === targetId ? { ...s, category: newCat } : s));
+      try {
+        localStorage.setItem(DESIGN_SESSIONS_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setCategoryMenuSessionId(null);
+  }
+
+  const currentSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+  const activeCategoryMeta = DESIGN_CATEGORIES.find((c) => c.id === currentSession?.category) || DESIGN_CATEGORIES[1];
+
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      const matchCategory = selectedCategory === "all" || s.category === selectedCategory;
+      const matchSearch =
+        !sessionSearch.trim() ||
+        s.title.toLowerCase().includes(sessionSearch.toLowerCase().trim());
+      return matchCategory && matchSearch;
+    });
+  }, [sessions, selectedCategory, sessionSearch]);
 
   const ui = {
     headerDescription: isEnglish
@@ -385,6 +635,236 @@ export default function AIDesignPage() {
     }
   }
 
+  const renderSidebarContent = () => (
+    <div className="flex flex-col h-full p-4 space-y-3">
+      {/* HEADER */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-2">
+          <Palette size={18} className="text-pink-400" />
+          <span className="text-xs sm:text-sm font-bold text-white tracking-wide">
+            {isEnglish ? "Designs & Sessions" : "Daftar Desain AI"}
+          </span>
+          <span className="rounded-full bg-pink-500/10 px-2 py-0.5 text-[10px] font-semibold text-pink-400 border border-pink-500/20">
+            {sessions.length}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSidebarOpen(false);
+            setMobileSidebarOpen(false);
+          }}
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"
+          title={isEnglish ? "Close" : "Tutup"}
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* + DESAIN BARU BUTTON */}
+      <button
+        type="button"
+        onClick={() => handleCreateNewDesign()}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-lg transition hover:scale-[1.02] active:scale-[0.98]"
+      >
+        <Plus size={16} />
+        <span>{isEnglish ? "+ New Design" : "+ Desain Baru"}</span>
+      </button>
+
+      {/* SEARCH INPUT */}
+      <div className="relative">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={sessionSearch}
+          onChange={(e) => setSessionSearch(e.target.value)}
+          placeholder={isEnglish ? "Search designs..." : "Cari desain..."}
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 pl-8 pr-7 py-1.5 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-pink-500/50"
+        />
+        {sessionSearch && (
+          <button
+            type="button"
+            onClick={() => setSessionSearch("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+
+      {/* FOLDER / CATEGORY TABS */}
+      <div>
+        <div className="mb-1 flex items-center justify-between px-1 text-[11px] font-semibold text-slate-400">
+          <span>{isEnglish ? "FOLDERS" : "FOLDER SESI"}</span>
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+          {DESIGN_CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-medium transition ${
+                  isActive
+                    ? "bg-pink-500/20 text-pink-300 border border-pink-500/40 shadow-[0_0_10px_rgba(236,72,153,0.2)]"
+                    : "bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent"
+                }`}
+              >
+                <span>{cat.icon}</span>
+                <span>{isEnglish ? cat.labelEn : cat.labelId}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* DESIGNS LIST */}
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
+        {filteredSessions.length === 0 ? (
+          <div className="p-4 text-center text-slate-500">
+            <p>{isEnglish ? "No designs found." : "Belum ada desain di folder ini."}</p>
+            <button
+              type="button"
+              onClick={() => handleCreateNewDesign(selectedCategory === "all" ? "poster" : selectedCategory)}
+              className="mt-2 text-pink-400 hover:underline"
+            >
+              {isEnglish ? "+ Create new design" : "+ Buat desain baru"}
+            </button>
+          </div>
+        ) : (
+          filteredSessions.map((session) => {
+            const isActive = session.id === activeSessionId;
+            const catMeta = DESIGN_CATEGORIES.find((c) => c.id === session.category) || DESIGN_CATEGORIES[1];
+            const isEditing = editingSessionId === session.id;
+
+            return (
+              <div
+                key={session.id}
+                onClick={() => handleSelectSession(session.id)}
+                className={`group relative flex items-center justify-between rounded-xl px-3 py-2.5 transition cursor-pointer border ${
+                  isActive
+                    ? "bg-pink-500/10 border-pink-500/40 text-white shadow-[0_0_12px_rgba(236,72,153,0.15)]"
+                    : "bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-800/60 hover:text-white hover:border-slate-700"
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {session.imageUrl ? (
+                    <img
+                      src={session.imageUrl}
+                      alt="Thumbnail"
+                      className="h-8 w-8 rounded-lg object-cover border border-slate-700 shrink-0"
+                    />
+                  ) : (
+                    <span className="text-sm shrink-0">{catMeta.icon}</span>
+                  )}
+
+                  {isEditing ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSaveRename(session.id);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 flex-1 min-w-0"
+                    >
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={() => handleSaveRename(session.id)}
+                        autoFocus
+                        className="w-full rounded bg-slate-950 px-1.5 py-0.5 text-xs text-white outline-none border border-pink-500"
+                      />
+                      <button type="submit" className="text-pink-400 hover:text-white">
+                        <Check size={12} />
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium leading-5">
+                        {session.title}
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {session.imageUrl ? (isEnglish ? "Visual ready" : "Gambar siap") : (isEnglish ? "Draft" : "Draf")} • {formatTimeAgo(session.updatedAt, locale)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* ACTION BUTTONS (Rename, Change Folder, Delete) */}
+                {!isEditing && (
+                  <div
+                    className={`flex items-center gap-1 shrink-0 ${
+                      isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    } transition`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Category / Folder picker */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCategoryMenuSessionId(
+                            categoryMenuSessionId === session.id ? null : session.id
+                          )
+                        }
+                        className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-pink-300 transition"
+                        title={isEnglish ? "Move to folder" : "Pindah folder"}
+                      >
+                        <Folder size={12} />
+                      </button>
+
+                      {categoryMenuSessionId === session.id && (
+                        <div className="absolute right-0 top-full z-40 mt-1 w-36 rounded-xl border border-slate-700 bg-slate-900 p-1 shadow-2xl backdrop-blur">
+                          <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase">
+                            {isEnglish ? "Select Folder" : "Pilih Folder"}
+                          </div>
+                          {DESIGN_CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={(e) => handleChangeCategory(session.id, cat.id as any, e)}
+                              className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] text-left text-slate-200 hover:bg-slate-800 transition"
+                            >
+                              <span>{cat.icon}</span>
+                              <span className="truncate">{isEnglish ? cat.labelEn : cat.labelId}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rename */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleStartRename(session, e)}
+                      className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-white transition"
+                      title={isEnglish ? "Rename" : "Ubah nama"}
+                    >
+                      <Edit3 size={12} />
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSession(session.id, e)}
+                      className="rounded p-1 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition"
+                      title={isEnglish ? "Delete" : "Hapus desain"}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-[calc(100vh-120px)] px-4 py-6 lg:px-6">
       <div className="mx-auto w-full max-w-6xl">
@@ -409,22 +889,79 @@ export default function AIDesignPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                router.push("/ai-assistant")
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
-            >
-              <ArrowLeft size={18} />
-              {ui.backToAssistant}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarOpen((prev) => !prev);
+                  setMobileSidebarOpen((prev) => !prev);
+                }}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-3 text-sm font-semibold transition ${
+                  sidebarOpen || mobileSidebarOpen
+                    ? "border-pink-300 bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                    : "border-white/20 bg-white/10 text-white hover:bg-white/20"
+                }`}
+                title={sidebarOpen ? (isEnglish ? "Hide Designs" : "Sembunyikan Desain") : (isEnglish ? "Show Designs" : "Daftar Desain")}
+              >
+                <PanelLeft size={18} />
+                <span className="hidden sm:inline">{isEnglish ? "Designs" : "Daftar Desain"}</span>
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
+                  {sessions.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCreateNewDesign()}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-purple-700 shadow-lg transition hover:bg-white/90 active:scale-95"
+                title={isEnglish ? "New Design" : "+ Desain Baru"}
+              >
+                <Plus size={18} />
+                <span>{isEnglish ? "New Design" : "+ Desain Baru"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  router.push("/ai-assistant")
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+              >
+                <ArrowLeft size={18} />
+                {ui.backToAssistant}
+              </button>
+            </div>
 
           </div>
         </div>
 
-        {/* GENERATOR */}
-        <div className="rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl lg:p-8">
+        {/* MAIN LAYOUT: SIDEBAR + GENERATOR */}
+        <div className="relative flex gap-6 items-start">
+          {/* DESKTOP SIDEBAR */}
+          {sidebarOpen && (
+            <aside className="hidden md:flex w-72 lg:w-80 shrink-0 flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-xl overflow-hidden min-h-[580px] max-h-[780px] transition-all duration-300">
+              {renderSidebarContent()}
+            </aside>
+          )}
+
+          {/* MOBILE DRAWER */}
+          {mobileSidebarOpen && (
+            <div
+              className="fixed inset-0 z-50 flex md:hidden bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+              onClick={() => setMobileSidebarOpen(false)}
+            >
+              <div
+                className="w-80 max-w-[85vw] h-full flex flex-col bg-slate-900 border-r border-slate-700 shadow-2xl animate-in slide-in-from-left duration-200"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {renderSidebarContent()}
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0 space-y-6">
+            {/* GENERATOR */}
+            <div className="rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl lg:p-8">
 
           <div className="mb-5 flex items-center gap-3">
             <Sparkles
@@ -625,6 +1162,8 @@ export default function AIDesignPage() {
               </div>
             )}
 
+          </div>
+        </div>
           </div>
         </div>
 

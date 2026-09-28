@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -32,6 +33,14 @@ import {
   Smartphone,
   Tablet,
   Monitor,
+  Plus,
+  PanelLeft,
+  PanelLeftClose,
+  Trash2,
+  Edit3,
+  Search,
+  Folder,
+  MessageSquare,
 } from "lucide-react";
 
 import { useLanguage } from "@/components/shared/language-provider";
@@ -57,6 +66,78 @@ type GeneratedProject = {
   description: string;
   files: GeneratedFile[];
 };
+
+export type CodeCategory = "all" | "web" | "game" | "fix" | "general";
+
+export type CodeSession = {
+  id: string;
+  title: string;
+  category: "web" | "game" | "fix" | "general";
+  mode: "web" | "fix" | "game";
+  createdAt: number;
+  updatedAt: number;
+  prompt: string;
+  codeContext: string;
+  fileName: string;
+  project: GeneratedProject | null;
+  previewProjectFiles: GeneratedFile[];
+};
+
+export const CODE_CATEGORIES: {
+  id: CodeCategory;
+  labelId: string;
+  labelEn: string;
+  icon: string;
+  badgeColor: string;
+}[] = [
+  { id: "all", labelId: "Semua", labelEn: "All", icon: "💬", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
+  { id: "web", labelId: "Web App", labelEn: "Web App", icon: "🌐", badgeColor: "bg-cyan-500/10 text-cyan-300 border-cyan-500/30" },
+  { id: "game", labelId: "Game 2D", labelEn: "2D Game", icon: "🎮", badgeColor: "bg-pink-500/10 text-pink-300 border-pink-500/30" },
+  { id: "fix", labelId: "Perbaiki Kode", labelEn: "Fix Code", icon: "🛠️", badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
+  { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
+];
+
+const CODE_SESSIONS_STORAGE_KEY = "dna_ai_code_sessions_v1";
+
+function createNewCodeSession(
+  mode: "web" | "fix" | "game" = "web",
+  category: "web" | "game" | "fix" | "general" = "web",
+  isEn = false
+): CodeSession {
+  const defaultTitle =
+    mode === "game"
+      ? (isEn ? "New 2D Game" : "Game 2D Baru")
+      : mode === "fix"
+      ? (isEn ? "New Bug Fix" : "Perbaikan Kode Baru")
+      : (isEn ? "New Web Project" : "Proyek Web Baru");
+
+  return {
+    id: "codesession-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
+    title: defaultTitle,
+    category,
+    mode,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    prompt: "",
+    codeContext: "",
+    fileName: "",
+    project: null,
+    previewProjectFiles: [],
+  };
+}
+
+function formatTimeAgo(timestamp: number, locale = "id"): string {
+  if (!timestamp) return "";
+  const diff = Math.floor((Date.now() - timestamp) / 1000);
+  const isEn = locale === "en";
+  if (diff < 60) return isEn ? "Just now" : "Barusan";
+  if (diff < 3600) return `${Math.floor(diff / 60)} ${isEn ? "m ago" : "m lalu"}`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ${isEn ? "h ago" : "j lalu"}`;
+  return new Date(timestamp).toLocaleDateString(isEn ? "en-US" : "id-ID", {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 type PreviewResponse = {
   available: boolean;
@@ -84,23 +165,222 @@ export default function AICodePage() {
   const [deviceMode, setDeviceMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
 
   const [prompt, setPrompt] = useState("");
-
-  const [codeContext, setCodeContext] =
-    useState("");
-
-  const [fileName, setFileName] =
-    useState("");
-
-  const [project, setProject] =
-    useState<GeneratedProject | null>(null);
-
+  const [codeContext, setCodeContext] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [project, setProject] = useState<GeneratedProject | null>(null);
   const isRegenerate = Boolean(project);
+  const [previewProjectFiles, setPreviewProjectFiles] = useState<GeneratedFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
 
-  const [previewProjectFiles, setPreviewProjectFiles] =
-    useState<GeneratedFile[]>([]);
+  // Multi-Project / Session States
+  const [sessions, setSessions] = useState<CodeSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<CodeCategory>("all");
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [categoryMenuSessionId, setCategoryMenuSessionId] = useState<string | null>(null);
+  const isInitialLoadRef = useRef(true);
 
-  const [selectedFile, setSelectedFile] =
-    useState<GeneratedFile | null>(null);
+  // 1. Inisialisasi daftar sesi project dari LocalStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CODE_SESSIONS_STORAGE_KEY);
+      if (raw) {
+        const parsed: CodeSession[] = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed);
+          setActiveSessionId(parsed[0].id);
+          setMode(parsed[0].mode || "web");
+          setPrompt(parsed[0].prompt || "");
+          setCodeContext(parsed[0].codeContext || "");
+          setFileName(parsed[0].fileName || "");
+          setProject(parsed[0].project || null);
+          setPreviewProjectFiles(parsed[0].previewProjectFiles || []);
+          isInitialLoadRef.current = false;
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Error loading code sessions:", e);
+    }
+    const defaultSession = createNewCodeSession("web", "web", locale === "en");
+    setSessions([defaultSession]);
+    setActiveSessionId(defaultSession.id);
+    isInitialLoadRef.current = false;
+  }, []);
+
+  // 2. Sinkronkan perubahan project/prompt/mode ke session yang aktif dan LocalStorage
+  useEffect(() => {
+    if (isInitialLoadRef.current || !activeSessionId) return;
+
+    setSessions((prev) => {
+      let changed = false;
+      const updated = prev.map((s) => {
+        if (s.id === activeSessionId) {
+          let newTitle = s.title;
+          const defaultTitles = [
+            "Proyek Web Baru",
+            "New Web Project",
+            "Game 2D Baru",
+            "New 2D Game",
+            "Perbaiki Kode Baru",
+            "New Bug Fix",
+          ];
+          if (defaultTitles.includes(s.title)) {
+            if (project?.projectName) {
+              newTitle = project.projectName;
+            } else if (prompt.trim()) {
+              newTitle = prompt.slice(0, 30).trim() + (prompt.length > 30 ? "..." : "");
+            }
+          }
+          changed = true;
+          return {
+            ...s,
+            title: newTitle,
+            mode,
+            prompt,
+            codeContext,
+            fileName,
+            project,
+            previewProjectFiles,
+            updatedAt: Date.now(),
+          };
+        }
+        return s;
+      });
+
+      if (changed) {
+        try {
+          localStorage.setItem(CODE_SESSIONS_STORAGE_KEY, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  }, [project, prompt, mode, codeContext, fileName, previewProjectFiles, activeSessionId]);
+
+  function handleSelectSession(targetId: string) {
+    if (targetId === activeSessionId) {
+      setMobileSidebarOpen(false);
+      return;
+    }
+    const target = sessions.find((s) => s.id === targetId);
+    if (!target) return;
+    setActiveSessionId(targetId);
+    setMode(target.mode || "web");
+    setPrompt(target.prompt || "");
+    setCodeContext(target.codeContext || "");
+    setFileName(target.fileName || "");
+    setProject(target.project || null);
+    setPreviewProjectFiles(target.previewProjectFiles || []);
+    setSelectedFile(target.project?.files?.[0] || null);
+    setError("");
+    setMobileSidebarOpen(false);
+  }
+
+  function handleCreateNewProject(category?: "web" | "game" | "fix" | "general") {
+    const targetMode = category === "game" ? "game" : category === "fix" ? "fix" : "web";
+    const cat = category || (selectedCategory === "all" ? targetMode : selectedCategory);
+    const fresh = createNewCodeSession(targetMode, cat, isEnglish);
+    setSessions((prev) => {
+      const next = [fresh, ...prev];
+      try {
+        localStorage.setItem(CODE_SESSIONS_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setActiveSessionId(fresh.id);
+    setMode(targetMode);
+    setPrompt("");
+    setCodeContext("");
+    setFileName("");
+    setProject(null);
+    setPreviewProjectFiles([]);
+    setSelectedFile(null);
+    setError("");
+    setMobileSidebarOpen(false);
+  }
+
+  function handleDeleteSession(targetId: string, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setSessions((prev) => {
+      const remaining = prev.filter((s) => s.id !== targetId);
+      if (remaining.length === 0) {
+        const fresh = createNewCodeSession("web", "web", isEnglish);
+        remaining.push(fresh);
+        setActiveSessionId(fresh.id);
+        setMode("web");
+        setPrompt("");
+        setCodeContext("");
+        setFileName("");
+        setProject(null);
+        setPreviewProjectFiles([]);
+        setSelectedFile(null);
+      } else if (activeSessionId === targetId) {
+        const nextActive = remaining[0];
+        setActiveSessionId(nextActive.id);
+        setMode(nextActive.mode || "web");
+        setPrompt(nextActive.prompt || "");
+        setCodeContext(nextActive.codeContext || "");
+        setFileName(nextActive.fileName || "");
+        setProject(nextActive.project || null);
+        setPreviewProjectFiles(nextActive.previewProjectFiles || []);
+        setSelectedFile(nextActive.project?.files?.[0] || null);
+      }
+      try {
+        localStorage.setItem(CODE_SESSIONS_STORAGE_KEY, JSON.stringify(remaining));
+      } catch {}
+      return remaining;
+    });
+  }
+
+  function handleStartRename(session: CodeSession, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditingTitle(session.title);
+  }
+
+  function handleSaveRename(targetId: string) {
+    if (!editingTitle.trim()) {
+      setEditingSessionId(null);
+      return;
+    }
+    setSessions((prev) => {
+      const updated = prev.map((s) => (s.id === targetId ? { ...s, title: editingTitle.trim() } : s));
+      try {
+        localStorage.setItem(CODE_SESSIONS_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setEditingSessionId(null);
+  }
+
+  function handleChangeCategory(targetId: string, newCat: "web" | "game" | "fix" | "general", e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setSessions((prev) => {
+      const updated = prev.map((s) => (s.id === targetId ? { ...s, category: newCat } : s));
+      try {
+        localStorage.setItem(CODE_SESSIONS_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setCategoryMenuSessionId(null);
+  }
+
+  const currentSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+  const activeCategoryMeta = CODE_CATEGORIES.find((c) => c.id === currentSession?.category) || CODE_CATEGORIES[1];
+
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      const matchCategory = selectedCategory === "all" || s.category === selectedCategory;
+      const matchSearch =
+        !sessionSearch.trim() ||
+        s.title.toLowerCase().includes(sessionSearch.toLowerCase().trim());
+      return matchCategory && matchSearch;
+    });
+  }, [sessions, selectedCategory, sessionSearch]);
 
   const [loading, setLoading] =
     useState(false);
@@ -885,6 +1165,228 @@ export default function AICodePage() {
         : "Project Berhasil Dibuat"
       : "";
 
+  const renderSidebarContent = () => (
+    <div className="flex flex-col h-full p-4 space-y-3">
+      {/* HEADER */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-2">
+          <Code2 size={18} className="text-emerald-400" />
+          <span className="text-xs sm:text-sm font-bold text-white tracking-wide">
+            {isEnglish ? "Projects & Sessions" : "Daftar Proyek AI"}
+          </span>
+          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
+            {sessions.length}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSidebarOpen(false);
+            setMobileSidebarOpen(false);
+          }}
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"
+          title={isEnglish ? "Close" : "Tutup"}
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* + PROYEK BARU BUTTON */}
+      <button
+        type="button"
+        onClick={() => handleCreateNewProject()}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-lg transition hover:scale-[1.02] active:scale-[0.98]"
+      >
+        <Plus size={16} />
+        <span>{isEnglish ? "+ New Project" : "+ Proyek Baru"}</span>
+      </button>
+
+      {/* SEARCH INPUT */}
+      <div className="relative">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={sessionSearch}
+          onChange={(e) => setSessionSearch(e.target.value)}
+          placeholder={isEnglish ? "Search projects..." : "Cari proyek..."}
+          className="w-full rounded-xl border border-slate-800 bg-[#060A14] pl-8 pr-7 py-1.5 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-emerald-500/50"
+        />
+        {sessionSearch && (
+          <button
+            type="button"
+            onClick={() => setSessionSearch("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+
+      {/* FOLDER / CATEGORY TABS */}
+      <div>
+        <div className="mb-1 flex items-center justify-between px-1 text-[11px] font-semibold text-slate-400">
+          <span>{isEnglish ? "FOLDERS" : "FOLDER SESI"}</span>
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+          {CODE_CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-medium transition ${
+                  isActive
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                    : "bg-[#060A14] text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent"
+                }`}
+              >
+                <span>{cat.icon}</span>
+                <span>{isEnglish ? cat.labelEn : cat.labelId}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* PROJECTS LIST */}
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
+        {filteredSessions.length === 0 ? (
+          <div className="p-4 text-center text-slate-500">
+            <p>{isEnglish ? "No projects found." : "Belum ada proyek di folder ini."}</p>
+            <button
+              type="button"
+              onClick={() => handleCreateNewProject(selectedCategory === "all" ? "web" : selectedCategory)}
+              className="mt-2 text-emerald-400 hover:underline"
+            >
+              {isEnglish ? "+ Create new project" : "+ Buat proyek baru"}
+            </button>
+          </div>
+        ) : (
+          filteredSessions.map((session) => {
+            const isActive = session.id === activeSessionId;
+            const catMeta = CODE_CATEGORIES.find((c) => c.id === session.category) || CODE_CATEGORIES[1];
+            const isEditing = editingSessionId === session.id;
+
+            return (
+              <div
+                key={session.id}
+                onClick={() => handleSelectSession(session.id)}
+                className={`group relative flex items-center justify-between rounded-xl px-3 py-2.5 transition cursor-pointer border ${
+                  isActive
+                    ? "bg-emerald-500/10 border-emerald-500/40 text-white shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+                    : "bg-[#060A14]/70 border-slate-800 text-slate-300 hover:bg-slate-800/60 hover:text-white hover:border-slate-700"
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="text-sm shrink-0">{catMeta.icon}</span>
+
+                  {isEditing ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSaveRename(session.id);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 flex-1 min-w-0"
+                    >
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={() => handleSaveRename(session.id)}
+                        autoFocus
+                        className="w-full rounded bg-slate-950 px-1.5 py-0.5 text-xs text-white outline-none border border-emerald-500"
+                      />
+                      <button type="submit" className="text-emerald-400 hover:text-white">
+                        <Check size={12} />
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium leading-5">
+                        {session.title}
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {session.project?.files?.length || 0} {isEnglish ? "files" : "file"} • {formatTimeAgo(session.updatedAt, locale)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* ACTION BUTTONS (Rename, Change Folder, Delete) */}
+                {!isEditing && (
+                  <div
+                    className={`flex items-center gap-1 shrink-0 ${
+                      isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    } transition`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Category / Folder picker */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCategoryMenuSessionId(
+                            categoryMenuSessionId === session.id ? null : session.id
+                          )
+                        }
+                        className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-emerald-300 transition"
+                        title={isEnglish ? "Move to folder" : "Pindah folder"}
+                      >
+                        <Folder size={12} />
+                      </button>
+
+                      {categoryMenuSessionId === session.id && (
+                        <div className="absolute right-0 top-full z-40 mt-1 w-36 rounded-xl border border-slate-700 bg-slate-900 p-1 shadow-2xl backdrop-blur">
+                          <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase">
+                            {isEnglish ? "Select Folder" : "Pilih Folder"}
+                          </div>
+                          {CODE_CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={(e) => handleChangeCategory(session.id, cat.id as any, e)}
+                              className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] text-left text-slate-200 hover:bg-slate-800 transition"
+                            >
+                              <span>{cat.icon}</span>
+                              <span className="truncate">{isEnglish ? cat.labelEn : cat.labelId}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rename */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleStartRename(session, e)}
+                      className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-white transition"
+                      title={isEnglish ? "Rename" : "Ubah nama"}
+                    >
+                      <Edit3 size={12} />
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSession(session.id, e)}
+                      className="rounded p-1 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition"
+                      title={isEnglish ? "Delete" : "Hapus proyek"}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <main className="min-h-screen bg-[#020617] text-white">
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
@@ -916,26 +1418,81 @@ export default function AICodePage() {
               </div>
             </div>
 
-            {project && (
-              <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
-                <CheckCircle2
-                  size={15}
-                  className="text-emerald-400"
-                />
+            <div className="flex flex-wrap items-center gap-2">
+              {project && (
+                <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
+                  <CheckCircle2
+                    size={15}
+                    className="text-emerald-400"
+                  />
 
-                <span className="text-xs font-medium text-emerald-300">
-                  {projectStatus}
+                  <span className="text-xs font-medium text-emerald-300">
+                    {projectStatus}
+                  </span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarOpen((prev) => !prev);
+                  setMobileSidebarOpen((prev) => !prev);
+                }}
+                className={`flex h-10 items-center gap-2 rounded-2xl border px-3.5 text-xs font-semibold transition ${
+                  sidebarOpen || mobileSidebarOpen
+                    ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                    : "border-slate-800 bg-[#0B1120] text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+                title={sidebarOpen ? (isEnglish ? "Hide Projects" : "Sembunyikan Proyek") : (isEnglish ? "Show Projects" : "Daftar Proyek")}
+              >
+                <PanelLeft size={16} className="text-emerald-400" />
+                <span className="hidden sm:inline">{isEnglish ? "Projects" : "Daftar Proyek"}</span>
+                <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400 border border-emerald-500/20">
+                  {sessions.length}
                 </span>
-              </div>
-            )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCreateNewProject()}
+                className="flex h-10 items-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 text-xs font-semibold text-white shadow-lg transition hover:scale-105 active:scale-95"
+                title={isEnglish ? "New Project" : "+ Proyek Baru"}
+              >
+                <Plus size={16} />
+                <span>{isEnglish ? "New Project" : "+ Proyek Baru"}</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* ==========================================
-            MAIN LAYOUT
+            MAIN LAYOUT: SIDEBAR + CONTENT
         ========================================== */}
 
-        <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
+        <div className="relative flex gap-6 overflow-hidden items-start">
+          {/* DESKTOP SIDEBAR */}
+          {sidebarOpen && (
+            <aside className="hidden md:flex w-72 lg:w-80 shrink-0 flex-col rounded-3xl border border-slate-800 bg-[#0B1120] shadow-2xl overflow-hidden min-h-[640px] max-h-[820px] transition-all duration-300">
+              {renderSidebarContent()}
+            </aside>
+          )}
+
+          {/* MOBILE DRAWER OVERLAY */}
+          {mobileSidebarOpen && (
+            <div
+              className="fixed inset-0 z-50 flex md:hidden bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+              onClick={() => setMobileSidebarOpen(false)}
+            >
+              <div
+                className="w-80 max-w-[85vw] h-full flex flex-col bg-[#0B1120] border-r border-slate-800 shadow-2xl animate-in slide-in-from-left duration-200"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {renderSidebarContent()}
+              </div>
+            </div>
+          )}
+
+          <div className="grid flex-1 gap-6 lg:grid-cols-[380px_minmax(0,1fr)] min-w-0">
 
           {/* ========================================
               INPUT PANEL
@@ -1850,6 +2407,7 @@ export default function AICodePage() {
             </div>
           </section>
         </div>
+      </div>
       </div>
 
       {/* ==========================================

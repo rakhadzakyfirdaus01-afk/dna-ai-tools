@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import AppDownloadModal from "@/components/shared/app-download-modal";
+import { useIsAppInstalled } from "@/components/shared/use-app-installed";
 
 import {
   getNotifications,
@@ -44,6 +45,7 @@ export default function Header({
   const router = useRouter();
 
   const { t, locale } = useLanguage();
+  const isAppInstalled = useIsAppInstalled();
 
   const { data: session } = useSession();
 
@@ -612,27 +614,29 @@ export default function Header({
           </div>
 
           {/* =====================================
-              DOWNLOAD APP TRIGGER
+              DOWNLOAD APP TRIGGER (Hanya jika belum terinstall)
           ====================================== */}
-          <button
-            type="button"
-            onClick={() => setDownloadModalOpen(true)}
-            className="flex shrink-0 items-center gap-2 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-3 py-2 text-xs font-semibold text-cyan-400 transition hover:border-cyan-400/60 hover:bg-cyan-500/25 hover:text-cyan-300 lg:px-4 lg:py-2.5 shadow-sm"
-            title={
-              locale === "id"
-                ? "Pasang / Download App"
-                : "Install / Download App"
-            }
-          >
-            <Smartphone size={17} className="text-cyan-400" />
-            <span className="hidden sm:inline font-medium">
-              {locale === "id" ? "Pasang App" : "Install App"}
-            </span>
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75"></span>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500"></span>
-            </span>
-          </button>
+          {!isAppInstalled && (
+            <button
+              type="button"
+              onClick={() => setDownloadModalOpen(true)}
+              className="flex shrink-0 items-center gap-2 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-3 py-2 text-xs font-semibold text-cyan-400 transition hover:border-cyan-400/60 hover:bg-cyan-500/25 hover:text-cyan-300 lg:px-4 lg:py-2.5 shadow-sm"
+              title={
+                locale === "id"
+                  ? "Pasang / Download App"
+                  : "Install / Download App"
+              }
+            >
+              <Smartphone size={17} className="text-cyan-400" />
+              <span className="hidden sm:inline font-medium">
+                {locale === "id" ? "Pasang App" : "Install App"}
+              </span>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500"></span>
+              </span>
+            </button>
+          )}
 
           {/* =====================================
               SETTINGS

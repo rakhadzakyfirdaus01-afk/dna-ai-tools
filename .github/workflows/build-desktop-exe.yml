@@ -1,0 +1,68 @@
+name: Build Windows Desktop App (.exe)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'electron/**'
+      - 'electron-builder.json'
+      - '.github/workflows/build-desktop-exe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Install Electron & Builder
+        run: npm install --save-dev electron electron-builder
+
+      - name: Build Windows .exe Installer with Electron
+        run: npx electron-builder --win --x64 --config electron-builder.json
+
+      - name: Prepare .exe for Web Download
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path public
+          $exe = Get-ChildItem -Path dist-electron -Filter "*.exe" | Select-Object -First 1
+          if ($exe) {
+            Copy-Item -Path $exe.FullName -Destination "public/dna-ai-setup.exe" -Force
+            Write-Host "Successfully copied $($exe.Name) to public/dna-ai-setup.exe"
+          } else {
+            Write-Error "No .exe found in dist-electron"
+          }
+
+      - name: Upload Windows Setup Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DNA-AI-Windows-Setup-exe
+          path: public/dna-ai-setup.exe
+
+      - name: Commit and Push Updated .exe to Web
+        shell: pwsh
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/dna-ai-setup.exe
+          $changes = git status --porcelain
+          if ($changes) {
+            git commit -m "chore(desktop): update public/dna-ai-setup.exe build [skip ci]"
+            git push origin main
+          } else {
+            Write-Host "No changes to commit"
+          }

@@ -342,43 +342,82 @@ export default function AppDownloadModal({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-cyan-950/20 to-slate-900/60 p-5 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white shadow-xl shadow-cyan-500/20 mb-3">
-                  <Laptop className="h-7 w-7" />
-                </div>
-                <h4 className="font-bold text-white text-base sm:text-lg">
-                  {isId
-                    ? "Pasang DNA AI di Laptop / PC Anda"
-                    : "Install DNA AI on your Laptop / PC"}
-                </h4>
-                <p className="mt-1 text-xs text-slate-400 max-w-md mx-auto">
-                  {isId
-                    ? "Nikmati pengalaman multitasking dengan jendela terpisah, performa tinggi, dan akses cepat dari Taskbar."
-                    : "Experience smooth multitasking in a standalone native window, accessible anytime from your taskbar."}
-                </p>
+              {/* ACTION CARDS FOR WINDOWS */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {/* Opsi 1: Native Windows Installer .exe */}
+                <div className="flex flex-col justify-between rounded-2xl border border-blue-500/40 bg-gradient-to-b from-blue-950/30 to-slate-900/70 p-4 shadow-lg shadow-blue-500/10">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-300 uppercase">
+                        {isId ? "Installer Native .exe" : "Native .exe Installer"}
+                      </span>
+                      <Laptop className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <h4 className="mt-2 font-bold text-white text-sm sm:text-base">
+                      {isId ? "1. Installer Windows (.exe)" : "1. Windows Installer (.exe)"}
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-300 leading-relaxed">
+                      {isId
+                        ? "Aplikasi desktop Windows resmi (Electron). 100% bersih tanpa bilah Chrome, tanpa titik tiga (⋮), dan tanpa ikon browser!"
+                        : "Official Windows desktop software (Electron). Zero Chrome bars, zero 3-dots menus, 100% native!"}
+                    </p>
+                  </div>
 
-                <button
-                  onClick={handleInstallPWA}
-                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110 active:scale-[0.98]"
-                >
-                  <Download size={16} />
-                  <span>
-                    {isId
-                      ? "Pasang Aplikasi di Windows"
-                      : "Install Windows App"}
-                  </span>
-                </button>
+                  <a
+                    href="/dna-ai-setup.exe"
+                    download="DNA-AI-Platform-Setup.exe"
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-3 text-xs sm:text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:brightness-110 active:scale-[0.98]"
+                  >
+                    <Download size={16} />
+                    <span>{isId ? "Download Installer (.exe)" : "Download Installer (.exe)"}</span>
+                  </a>
+                </div>
+
+                {/* Opsi 2: Pasang Cepat PWA */}
+                <div className="flex flex-col justify-between rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300 uppercase">
+                        {isId ? "Instan Tanpa Unduh" : "Instant No Download"}
+                      </span>
+                      <Sparkles className="h-4 w-4 text-cyan-400" />
+                    </div>
+                    <h4 className="mt-2 font-bold text-white text-sm sm:text-base">
+                      {isId ? "2. Pasang Instan di Windows" : "2. Instant Install"}
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                      {isId
+                        ? "Pasang langsung ke Start Menu dan Taskbar dalam 1 klik melalui browser."
+                        : "Pins to Start Menu & Taskbar in 1 second through your browser."}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleInstallPWA}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-xs sm:text-sm font-semibold text-white transition hover:bg-slate-700 active:scale-[0.98]"
+                  >
+                    <Laptop size={16} />
+                    <span>{isId ? "Pasang Cepat" : "Quick Install"}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-2">
                 <h5 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  {isId ? "📌 Alternatif Pasang Cepat:" : "📌 Quick Install Tip:"}
+                  {isId ? "💡 Keunggulan Versi .exe Native:" : "💡 Native .exe Advantages:"}
                 </h5>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {isId
-                    ? "Di browser Chrome atau Edge, Anda juga bisa langsung mengklik ikon [Pasang / Install] di sebelah kanan kolom URL (address bar), lalu klik 'Instal'."
-                    : "In Chrome or Edge, you can also click the [Install] icon on the right side of the address bar, then confirm Install."}
-                </p>
+                <ul className="space-y-1.5 text-xs text-slate-400 list-disc list-inside leading-relaxed">
+                  <li>
+                    {isId
+                      ? "Bilah jendela murni frameless: Tidak ada tombol Chrome, tidak ada titik tiga, menyatu dengan warna gelap DNA AI."
+                      : "Frameless native window: No Chrome buttons or 3 dots menus, matches DNA AI dark theme."}
+                  </li>
+                  <li>
+                    {isId
+                      ? "Terinstal permanen di komputer dengan icon DNA AI di Desktop dan Start Menu."
+                      : "Installs permanently with DNA AI icon on Desktop and Start Menu."}
+                  </li>
+                </ul>
               </div>
             </div>
           )}

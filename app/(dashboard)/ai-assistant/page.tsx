@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/shared/language-provider";
@@ -23,6 +23,14 @@ import {
   Download,
   Code2,
   Globe,
+  PanelLeft,
+  PanelLeftClose,
+  Trash2,
+  Edit3,
+  Search,
+  Folder,
+  MessageSquare,
+  MoreVertical,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -59,6 +67,60 @@ type Message = {
   fileName?: string;
   imagePreview?: string;
 };
+
+export type ChatCategory = "all" | "school" | "coding" | "casual" | "general";
+
+export type ChatSession = {
+  id: string;
+  title: string;
+  category: "school" | "coding" | "casual" | "general";
+  createdAt: number;
+  updatedAt: number;
+  messages: Message[];
+};
+
+export const CHAT_CATEGORIES: {
+  id: ChatCategory;
+  labelId: string;
+  labelEn: string;
+  icon: string;
+  badgeColor: string;
+}[] = [
+  { id: "all", labelId: "Semua", labelEn: "All", icon: "💬", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
+  { id: "school", labelId: "Tugas / Kuliah", labelEn: "School / Study", icon: "🎓", badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
+  { id: "coding", labelId: "Coding & Tech", labelEn: "Coding & Tech", icon: "💻", badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" },
+  { id: "casual", labelId: "Obrolan Santai", labelEn: "Casual Chat", icon: "☕", badgeColor: "bg-pink-500/10 text-pink-300 border-pink-500/30" },
+  { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
+];
+
+const SESSIONS_STORAGE_KEY = "dna_ai_assistant_sessions_v1";
+
+function createNewSession(
+  category: "school" | "coding" | "casual" | "general" = "general",
+  isEn = false
+): ChatSession {
+  return {
+    id: "session-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
+    title: isEn ? "New Chat" : "Chat Baru",
+    category,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    messages: [],
+  };
+}
+
+function formatTimeAgo(timestamp: number, locale = "id"): string {
+  if (!timestamp) return "";
+  const diff = Math.floor((Date.now() - timestamp) / 1000);
+  const isEn = locale === "en";
+  if (diff < 60) return isEn ? "Just now" : "Barusan";
+  if (diff < 3600) return `${Math.floor(diff / 60)} ${isEn ? "m ago" : "m lalu"}`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ${isEn ? "h ago" : "j lalu"}`;
+  return new Date(timestamp).toLocaleDateString(isEn ? "en-US" : "id-ID", {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 type ModelOption = {
   id: AIModelId;
@@ -157,6 +219,181 @@ export default function Page() {
     useState(false);
   const [webSearchEnabled, setWebSearchEnabled] =
     useState(false);
+
+  // Multi-Chat & Folder Sessions States
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<ChatCategory>("all");
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [categoryMenuSessionId, setCategoryMenuSessionId] = useState<string | null>(null);
+  const isInitialLoadRef = useRef(true);
+
+  // 1. Inisialisasi daftar chat dari LocalStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SESSIONS_STORAGE_KEY);
+      if (raw) {
+        const parsed: ChatSession[] = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed);
+          setActiveSessionId(parsed[0].id);
+          setMessages(parsed[0].messages || []);
+          isInitialLoadRef.current = false;
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Error loading chat sessions:", e);
+    }
+    const defaultSession = createNewSession("general", locale === "en");
+    setSessions([defaultSession]);
+    setActiveSessionId(defaultSession.id);
+    setMessages([]);
+    isInitialLoadRef.current = false;
+  }, []);
+
+  // 2. Sinkronkan perubahan pesan ke session yang aktif dan LocalStorage
+  useEffect(() => {
+    if (isInitialLoadRef.current || !activeSessionId) return;
+
+    setSessions((prev) => {
+      let changed = false;
+      const updated = prev.map((s) => {
+        if (s.id === activeSessionId) {
+          let newTitle = s.title;
+          const defaultTitles = ["Chat Baru", "New Chat"];
+          if (defaultTitles.includes(s.title) && messages.length > 0) {
+            const firstUserMsg = messages.find((m) => m.role === "user");
+            if (firstUserMsg && firstUserMsg.content) {
+              const clean = firstUserMsg.content.replace(/[\n\r]/g, " ").trim();
+              newTitle = clean.slice(0, 32).trim() + (clean.length > 32 ? "..." : "");
+            }
+          }
+          changed = true;
+          return {
+            ...s,
+            title: newTitle,
+            messages,
+            updatedAt: Date.now(),
+          };
+        }
+        return s;
+      });
+
+      if (changed) {
+        try {
+          localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  }, [messages, activeSessionId]);
+
+  function handleSelectSession(targetId: string) {
+    if (targetId === activeSessionId) {
+      setMobileSidebarOpen(false);
+      return;
+    }
+    const target = sessions.find((s) => s.id === targetId);
+    if (!target) return;
+    stopAiSpeaking();
+    setActiveSessionId(targetId);
+    setMessages(target.messages || []);
+    setInput("");
+    setFile(null);
+    setImageUrl("");
+    setMobileSidebarOpen(false);
+  }
+
+  function handleCreateNewChat(category?: "school" | "coding" | "casual" | "general") {
+    stopAiSpeaking();
+    const cat = category || (selectedCategory === "all" ? "general" : selectedCategory);
+    const fresh = createNewSession(cat, isEnglish);
+    setSessions((prev) => {
+      const next = [fresh, ...prev];
+      try {
+        localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setActiveSessionId(fresh.id);
+    setMessages([]);
+    setInput("");
+    setFile(null);
+    setImageUrl("");
+    setMobileSidebarOpen(false);
+  }
+
+  function handleDeleteSession(targetId: string, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    stopAiSpeaking();
+    setSessions((prev) => {
+      const remaining = prev.filter((s) => s.id !== targetId);
+      if (remaining.length === 0) {
+        const fresh = createNewSession("general", isEnglish);
+        remaining.push(fresh);
+        setActiveSessionId(fresh.id);
+        setMessages([]);
+      } else if (activeSessionId === targetId) {
+        setActiveSessionId(remaining[0].id);
+        setMessages(remaining[0].messages || []);
+      }
+      try {
+        localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(remaining));
+      } catch {}
+      return remaining;
+    });
+  }
+
+  function handleStartRename(session: ChatSession, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditingTitle(session.title);
+  }
+
+  function handleSaveRename(targetId: string) {
+    if (!editingTitle.trim()) {
+      setEditingSessionId(null);
+      return;
+    }
+    setSessions((prev) => {
+      const updated = prev.map((s) => (s.id === targetId ? { ...s, title: editingTitle.trim() } : s));
+      try {
+        localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setEditingSessionId(null);
+  }
+
+  function handleChangeCategory(targetId: string, newCat: "school" | "coding" | "casual" | "general", e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setSessions((prev) => {
+      const updated = prev.map((s) => (s.id === targetId ? { ...s, category: newCat } : s));
+      try {
+        localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setCategoryMenuSessionId(null);
+  }
+
+  const currentSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+  const activeCategoryMeta = CHAT_CATEGORIES.find((c) => c.id === currentSession?.category) || CHAT_CATEGORIES[4];
+
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      const matchCategory = selectedCategory === "all" || s.category === selectedCategory;
+      const matchSearch =
+        !sessionSearch.trim() ||
+        s.title.toLowerCase().includes(sessionSearch.toLowerCase().trim());
+      return matchCategory && matchSearch;
+    });
+  }, [sessions, selectedCategory, sessionSearch]);
 
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
@@ -1600,6 +1837,228 @@ export default function Page() {
     }
   }
 
+  const renderSidebarContent = () => (
+    <div className="flex flex-col h-full p-3.5 space-y-3">
+      {/* HEADER & NEW CHAT BUTTON */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-2">
+          <MessageSquare size={17} className="text-cyan-400" />
+          <span className="text-xs sm:text-sm font-bold text-foreground tracking-wide">
+            {isEnglish ? "Chats & Folders" : "Daftar Obrolan"}
+          </span>
+          <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-400 border border-cyan-500/20">
+            {sessions.length}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSidebarOpen(false);
+            setMobileSidebarOpen(false);
+          }}
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"
+          title={isEnglish ? "Close" : "Tutup"}
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* + CHAT BARU BUTTON */}
+      <button
+        type="button"
+        onClick={() => handleCreateNewChat()}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-lg transition hover:opacity-90 active:scale-[0.98]"
+      >
+        <Plus size={16} />
+        <span>{isEnglish ? "New Chat" : "+ Chat Baru"}</span>
+      </button>
+
+      {/* SEARCH INPUT */}
+      <div className="relative">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={sessionSearch}
+          onChange={(e) => setSessionSearch(e.target.value)}
+          placeholder={isEnglish ? "Search chats..." : "Cari obrolan..."}
+          className="w-full rounded-xl border border-slate-800 bg-slate-900/80 pl-8 pr-7 py-1.5 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-cyan-500/50"
+        />
+        {sessionSearch && (
+          <button
+            type="button"
+            onClick={() => setSessionSearch("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+
+      {/* FOLDER / CATEGORY TABS */}
+      <div>
+        <div className="mb-1 flex items-center justify-between px-1 text-[11px] font-semibold text-slate-400">
+          <span>{isEnglish ? "FOLDERS" : "FOLDER SESI"}</span>
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+          {CHAT_CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-medium transition ${
+                  isActive
+                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+                    : "bg-slate-900/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent"
+                }`}
+              >
+                <span>{cat.icon}</span>
+                <span>{isEnglish ? cat.labelEn : cat.labelId}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* CHATS LIST */}
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
+        {filteredSessions.length === 0 ? (
+          <div className="p-4 text-center text-slate-500">
+            <p>{isEnglish ? "No chats found." : "Belum ada obrolan di folder ini."}</p>
+            <button
+              type="button"
+              onClick={() => handleCreateNewChat(selectedCategory === "all" ? "general" : selectedCategory)}
+              className="mt-2 text-cyan-400 hover:underline"
+            >
+              {isEnglish ? "+ Start a new chat" : "+ Mulai chat baru"}
+            </button>
+          </div>
+        ) : (
+          filteredSessions.map((session) => {
+            const isActive = session.id === activeSessionId;
+            const catMeta = CHAT_CATEGORIES.find((c) => c.id === session.category) || CHAT_CATEGORIES[4];
+            const isEditing = editingSessionId === session.id;
+
+            return (
+              <div
+                key={session.id}
+                onClick={() => handleSelectSession(session.id)}
+                className={`group relative flex items-center justify-between rounded-xl px-3 py-2.5 transition cursor-pointer border ${
+                  isActive
+                    ? "bg-cyan-500/10 border-cyan-500/40 text-foreground shadow-[0_0_12px_rgba(6,182,212,0.15)]"
+                    : "bg-slate-900/40 border-slate-800/60 text-slate-300 hover:bg-slate-800/70 hover:text-foreground hover:border-slate-700"
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="text-sm shrink-0">{catMeta.icon}</span>
+
+                  {isEditing ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSaveRename(session.id);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 flex-1 min-w-0"
+                    >
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={() => handleSaveRename(session.id)}
+                        autoFocus
+                        className="w-full rounded bg-slate-950 px-1.5 py-0.5 text-xs text-white outline-none border border-cyan-500"
+                      />
+                      <button type="submit" className="text-cyan-400 hover:text-white">
+                        <Check size={12} />
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium leading-5">
+                        {session.title || (isEnglish ? "New Chat" : "Chat Baru")}
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {session.messages?.length || 0} {isEnglish ? "messages" : "pesan"} • {formatTimeAgo(session.updatedAt, locale)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* ACTION BUTTONS (Rename, Change Folder, Delete) */}
+                {!isEditing && (
+                  <div
+                    className={`flex items-center gap-1 shrink-0 ${
+                      isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    } transition`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Category / Folder picker */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCategoryMenuSessionId(
+                            categoryMenuSessionId === session.id ? null : session.id
+                          )
+                        }
+                        className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-cyan-300 transition"
+                        title={isEnglish ? "Move to folder" : "Pindah folder"}
+                      >
+                        <Folder size={12} />
+                      </button>
+
+                      {categoryMenuSessionId === session.id && (
+                        <div className="absolute right-0 top-full z-40 mt-1 w-36 rounded-xl border border-slate-700 bg-slate-900 p-1 shadow-2xl backdrop-blur">
+                          <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase">
+                            {isEnglish ? "Select Folder" : "Pilih Folder"}
+                          </div>
+                          {CHAT_CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={(e) => handleChangeCategory(session.id, cat.id as any, e)}
+                              className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] text-left text-slate-200 hover:bg-slate-800 transition"
+                            >
+                              <span>{cat.icon}</span>
+                              <span className="truncate">{isEnglish ? cat.labelEn : cat.labelId}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rename */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleStartRename(session, e)}
+                      className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-white transition"
+                      title={isEnglish ? "Rename" : "Ubah nama"}
+                    >
+                      <Edit3 size={12} />
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSession(session.id, e)}
+                      className="rounded p-1 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition"
+                      title={isEnglish ? "Delete" : "Hapus chat"}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex min-h-[calc(100vh-2rem)] flex-col">
 
@@ -1745,11 +2204,102 @@ export default function Page() {
       </div>
 
 
-      {/* CHAT AREA */}
+      {/* MAIN CONTAINER: SIDEBAR + CHAT AREA */}
+      <div className="relative flex flex-1 gap-4 overflow-hidden min-h-[620px]">
+        {/* DESKTOP SIDEBAR */}
+        {sidebarOpen && (
+          <aside className="hidden md:flex w-72 lg:w-80 shrink-0 flex-col rounded-3xl border border-border bg-card/95 backdrop-blur shadow-xl overflow-hidden transition-all duration-300">
+            {renderSidebarContent()}
+          </aside>
+        )}
 
-      <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
+        {/* MOBILE DRAWER OVERLAY */}
+        {mobileSidebarOpen && (
+          <div
+            className="fixed inset-0 z-50 flex md:hidden bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setMobileSidebarOpen(false)}
+          >
+            <div
+              className="w-80 max-w-[85vw] h-full flex flex-col bg-slate-950 border-r border-border shadow-2xl animate-in slide-in-from-left duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {renderSidebarContent()}
+            </div>
+          </div>
+        )}
 
-        {/* MESSAGES */}
+        {/* CHAT AREA */}
+        <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xl min-w-0">
+          {/* TOP MINI BAR: Toggle Sidebar, Active Session Title, Folder Tag, New Chat */}
+          <div className="flex items-center justify-between border-b border-border/60 bg-slate-950/40 px-4 py-2.5 backdrop-blur gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarOpen((prev) => !prev);
+                  setMobileSidebarOpen((prev) => !prev);
+                }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                title={sidebarOpen ? (isEnglish ? "Hide Chat List" : "Sembunyikan Obrolan") : (isEnglish ? "Show Chat List" : "Tampilkan Obrolan")}
+                aria-label="Toggle Chat Sidebar"
+              >
+                <PanelLeft size={18} />
+              </button>
+
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium border ${activeCategoryMeta.badgeColor}`}>
+                  <span>{activeCategoryMeta.icon}</span>
+                  <span className="hidden sm:inline">{isEnglish ? activeCategoryMeta.labelEn : activeCategoryMeta.labelId}</span>
+                </span>
+
+                {editingSessionId === activeSessionId ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSaveRename(activeSessionId);
+                    }}
+                    className="flex items-center gap-1"
+                  >
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onBlur={() => handleSaveRename(activeSessionId)}
+                      autoFocus
+                      className="rounded-lg border border-cyan-500/50 bg-slate-900 px-2 py-0.5 text-xs text-white outline-none"
+                    />
+                    <button type="submit" className="text-cyan-400 hover:text-white">
+                      <Check size={14} />
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => handleStartRename(currentSession, e)}
+                    className="flex items-center gap-1.5 truncate text-left text-xs sm:text-sm font-semibold text-foreground hover:text-cyan-400 transition"
+                    title={isEnglish ? "Click to rename chat" : "Klik untuk mengubah judul chat"}
+                  >
+                    <span className="truncate max-w-[130px] sm:max-w-xs">{currentSession?.title || (isEnglish ? "New Chat" : "Chat Baru")}</span>
+                    <Edit3 size={12} className="opacity-40 hover:opacity-100 shrink-0" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleCreateNewChat()}
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 text-xs font-semibold text-white shadow transition hover:opacity-90 active:scale-95"
+                title={isEnglish ? "New Chat" : "Chat Baru"}
+              >
+                <Plus size={15} />
+                <span className="hidden sm:inline">{isEnglish ? "New Chat" : "Chat Baru"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* MESSAGES */}
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
 
@@ -2447,6 +2997,8 @@ export default function Page() {
         </div>
 
       </div>
+
+    </div>
 
       {/* ChatGPT-Style Voice Mode Overlay */}
       {voiceOverlayOpen && (

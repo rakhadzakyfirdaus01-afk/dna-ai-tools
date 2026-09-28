@@ -17,7 +17,10 @@ import {
   Check,
   Trash2,
   X,
+  Smartphone,
 } from "lucide-react";
+
+import AppDownloadModal from "@/components/shared/app-download-modal";
 
 import {
   getNotifications,
@@ -71,6 +74,11 @@ export default function Header({
 
   const [selectedNotification, setSelectedNotification] =
     useState<AppNotification | null>(null);
+
+  // ================================
+  // DOWNLOAD APP MODAL
+  // ================================
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
   // ================================
   // LOAD PROFILE IMAGE
@@ -604,6 +612,29 @@ export default function Header({
           </div>
 
           {/* =====================================
+              DOWNLOAD APP TRIGGER
+          ====================================== */}
+          <button
+            type="button"
+            onClick={() => setDownloadModalOpen(true)}
+            className="flex shrink-0 items-center gap-2 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-3 py-2 text-xs font-semibold text-cyan-400 transition hover:border-cyan-400/60 hover:bg-cyan-500/25 hover:text-cyan-300 lg:px-4 lg:py-2.5 shadow-sm"
+            title={
+              locale === "id"
+                ? "Pasang / Download App"
+                : "Install / Download App"
+            }
+          >
+            <Smartphone size={17} className="text-cyan-400" />
+            <span className="hidden sm:inline font-medium">
+              {locale === "id" ? "Pasang App" : "Install App"}
+            </span>
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75"></span>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500"></span>
+            </span>
+          </button>
+
+          {/* =====================================
               SETTINGS
           ====================================== */}
 
@@ -805,6 +836,14 @@ export default function Header({
         </div>
 
       )}
+
+      {/* =========================================
+          MULTI-DEVICE APP DOWNLOAD MODAL
+      ========================================== */}
+      <AppDownloadModal
+        isOpen={downloadModalOpen}
+        onClose={() => setDownloadModalOpen(false)}
+      />
 
     </header>
   );

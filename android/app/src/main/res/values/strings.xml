@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">DNA AI</string>
+    <string name="default_url">https://dna-ai-tools.vercel.app</string>
+</resources>

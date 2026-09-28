@@ -1,13 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/components/shared/language-provider";
+import AppDownloadModal from "@/components/shared/app-download-modal";
 
 import {
   MessageCircle,
   History,
   Settings,
+  Smartphone,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -19,7 +22,8 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
 
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
   const menus = [
     {
@@ -91,6 +95,32 @@ export default function Sidebar({
             </Link>
           );
         })}
+
+        {/* =========================
+            DOWNLOAD APP BUTTON
+        ========================== */}
+        <button
+          type="button"
+          onClick={() => {
+            setDownloadModalOpen(true);
+            if (onNavigate) onNavigate();
+          }}
+          className="group flex w-full items-center justify-between rounded-xl px-4 py-3 text-cyan-400 transition-all duration-300 hover:bg-cyan-500/10 active:scale-[0.98] lg:rounded-2xl lg:px-5 lg:py-4"
+        >
+          <div className="flex items-center gap-3 lg:gap-4">
+            <Smartphone
+              size={20}
+              className="transition duration-300 group-hover:scale-110"
+            />
+            <span className="truncate text-sm font-medium lg:text-base">
+              {locale === "id" ? "Pasang Aplikasi" : "Install App"}
+            </span>
+          </div>
+
+          <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-300 border border-cyan-500/30">
+            Multi
+          </span>
+        </button>
       </nav>
 
       <div className="hidden lg:block lg:p-4">
@@ -108,6 +138,11 @@ export default function Sidebar({
           </button>
         </div>
       </div>
+
+      <AppDownloadModal
+        isOpen={downloadModalOpen}
+        onClose={() => setDownloadModalOpen(false)}
+      />
     </aside>
   );
 }

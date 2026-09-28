@@ -16,9 +16,13 @@ import {
   FolderOpen,
   Layers3,
   Check,
+  Volume2,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 import { useLanguage } from "@/components/shared/language-provider";
+import { speakNaturalVoice, stopNaturalVoice } from "@/lib/natural-voice";
 
 type HistoryItem = {
   id: string;
@@ -80,6 +84,15 @@ function parsePromptText(rawPrompt: string, fallback = ""): string {
     } catch {}
   }
   return rawPrompt;
+}
+
+function cleanPreviewText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[#*_~`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function parseAIProject(result: string): AIProject | null {
@@ -219,6 +232,13 @@ export default function HistoryPage() {
 
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+
+  function handleCloseModal() {
+    stopNaturalVoice();
+    setSpeakingIndex(null);
+    setSelected(null);
+  }
 
   const isIndonesia = locale === "id";
 
@@ -979,7 +999,7 @@ export default function HistoryPage() {
                     ) : (
 
                       <p className="mt-3 line-clamp-2 break-words text-sm leading-6 text-slate-400">
-                        {item.result || (
+                        {cleanPreviewText(item.result) || (
                           isIndonesia
                             ? "Belum ada hasil."
                             : "No result available."
@@ -1092,9 +1112,7 @@ export default function HistoryPage() {
 
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-4 lg:p-6"
-          onClick={() =>
-            setSelected(null)
-          }
+          onClick={handleCloseModal}
         >
 
           <div
@@ -1154,9 +1172,7 @@ export default function HistoryPage() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelected(null)
-                }
+                onClick={handleCloseModal}
                 title={
                   isIndonesia
                     ? "Tutup"
@@ -1734,11 +1750,73 @@ export default function HistoryPage() {
                             </div>
                           )}
 
-                          <div className="whitespace-pre-wrap break-words">
-                            {
-                              message.content
-                            }
-                          </div>
+                          {message.role === "assistant" ? (
+                            <div className="prose prose-invert max-w-none text-sm leading-7 break-words [&>p]:mb-3 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm [&>h1]:font-bold [&>h2]:font-bold [&>h3]:font-semibold [&>h1]:mt-4 [&>h2]:mt-3 [&>h3]:mt-2 [&>code]:bg-slate-800/80 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-cyan-300">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  a: ({ node, ...props }) => (
+                                    <a
+                                      {...props}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-cyan-400 underline decoration-cyan-500/40 hover:text-cyan-300 hover:decoration-cyan-400 font-medium inline-flex items-center gap-0.5 transition"
+                                    />
+                                  ),
+                                }}
+                              >
+                                {message.content}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <div className="whitespace-pre-wrap break-words">
+                              {message.content}
+                            </div>
+                          )}
+
+                          {message.role === "assistant" && (
+                            <div className="mt-3 flex items-center gap-2 border-t border-slate-800/60 pt-2 text-xs text-slate-400">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (speakingIndex === index) {
+                                    stopNaturalVoice();
+                                    setSpeakingIndex(null);
+                                  } else {
+                                    stopNaturalVoice();
+                                    setSpeakingIndex(index);
+                                    speakNaturalVoice({
+                                      text: message.content,
+                                      locale: locale === "en" ? "en" : "id",
+                                      onEnd: () => setSpeakingIndex(null),
+                                      onError: () => setSpeakingIndex(null),
+                                    });
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 transition hover:bg-slate-800 hover:text-cyan-400"
+                                title={
+                                  speakingIndex === index
+                                    ? isIndonesia
+                                      ? "Hentikan Suara"
+                                      : "Stop Voice"
+                                    : isIndonesia
+                                    ? "Dengarkan Suara Natural AI"
+                                    : "Listen to Natural Voice"
+                                }
+                              >
+                                <Volume2 size={13} className="text-cyan-400" />
+                                <span>
+                                  {speakingIndex === index
+                                    ? isIndonesia
+                                      ? "Hentikan"
+                                      : "Stop"
+                                    : isIndonesia
+                                    ? "Dengarkan suara"
+                                    : "Listen"}
+                                </span>
+                              </button>
+                            </div>
+                          )}
 
                         </div>
 

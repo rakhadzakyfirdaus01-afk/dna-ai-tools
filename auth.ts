@@ -117,8 +117,7 @@ export const authOptions: NextAuthOptions = {
             });
           }
         } catch (error) {
-          console.error("Google signIn callback error:", error);
-          return false;
+          console.warn("Google signIn DB sync error (proceeding with session):", error);
         }
       }
       return true;

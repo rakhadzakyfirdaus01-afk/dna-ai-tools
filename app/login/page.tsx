@@ -32,6 +32,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const err = sp.get("error");
+      if (err) {
+        setErrorMsg(err);
+      }
+    }
+  }, []);
 
   const [agreedToTerms, setAgreedToTerms] =
     useState(false);
@@ -207,6 +218,12 @@ export default function LoginPage() {
                   Enter your credentials to access your account.
                 </p>
               </div>
+
+              {errorMsg && (
+                <div className="mb-5 rounded-xl border border-red-500/40 bg-red-500/15 p-3.5 text-xs font-medium text-red-300">
+                  ⚠️ Gagal masuk: {errorMsg}. Silakan coba lagi.
+                </div>
+              )}
 
               {/* GOOGLE SIGN IN BUTTON */}
               <button

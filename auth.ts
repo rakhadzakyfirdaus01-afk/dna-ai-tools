@@ -1,30 +1,19 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
-const isProduction = process.env.NODE_ENV === "production";
+// Kunci rahasia global yang seragam untuk serverless dan client
+const NEXTAUTH_SECRET = "dna-ai-tools-super-secret-jwt-key-2026-production";
+process.env.NEXTAUTH_SECRET = NEXTAUTH_SECRET;
 
 if (
-  isProduction &&
+  process.env.NODE_ENV === "production" &&
   (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))
 ) {
   process.env.NEXTAUTH_URL = "https://dna-ai-tools-one.vercel.app";
 }
-
-const NEXTAUTH_SECRET =
-  process.env.NEXTAUTH_SECRET && process.env.NEXTAUTH_SECRET !== "ISI_NILAI_ASLI"
-    ? process.env.NEXTAUTH_SECRET
-    : "dna-ai-tools-super-secret-jwt-key-2026-production";
-
-// Hanya gunakan DB jika DATABASE_URL adalah database cloud yang valid (bukan localhost)
-const canUseDb = Boolean(
-  process.env.DATABASE_URL &&
-    !process.env.DATABASE_URL.includes("localhost") &&
-    !process.env.DATABASE_URL.includes("127.0.0.1")
-);
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -101,71 +90,44 @@ export const authOptions: NextAuthOptions = {
 
   pages: {
     signIn: "/login",
+    error: "/login",
   },
 
   secret: NEXTAUTH_SECRET,
 
   callbacks: {
-    async signIn({ user, account }) {
-      if (account?.provider === "google") {
-        if (!user.email) return false;
-
-        // Jika ada database remote aktif, sinkronkan profil user
-        if (canUseDb) {
-          try {
-            const existingUser = await prisma.user.findUnique({
-              where: { email: user.email },
-            });
-
-            if (!existingUser) {
-              await prisma.user.create({
-                data: {
-                  name: user.name || "User",
-                  email: user.email,
-                  image: user.image || null,
-                  password: "",
-                },
-              });
-            } else if (!existingUser.image && user.image) {
-              await prisma.user.update({
-                where: { email: user.email },
-                data: { image: user.image },
-              });
-            }
-          } catch (error) {
-            console.warn("DB user sync skipped:", error);
-          }
-        }
-      }
+    // Selalu izinkan pengguna login dengan Google tanpa hambatan
+    async signIn() {
       return true;
     },
 
-    async jwt({ token, user, account, trigger, session }) {
-      // Saat pertama kali login
+    // Arahkan selalu ke AI Assistant setelah login berhasil
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      try {
+        const parsed = new URL(url);
+        if (
+          parsed.origin === baseUrl ||
+          parsed.origin.includes("vercel.app") ||
+          parsed.origin.includes("localhost")
+        ) {
+          return url;
+        }
+      } catch {}
+      return `${baseUrl}/ai-assistant`;
+    },
+
+    // Buat JWT token dari data Google
+    async jwt({ token, user, trigger, session }) {
       if (user) {
-        token.id = user.id || (token.sub as string) || "user-id";
+        token.id = user.id || (token.sub as string) || "google-user";
         token.name = user.name || "User";
         token.email = user.email || "";
         token.image = user.image || null;
-
-        if (account?.provider === "google" && user.email && canUseDb) {
-          try {
-            const dbUser = await prisma.user.findUnique({
-              where: { email: user.email },
-            });
-            if (dbUser) {
-              token.id = dbUser.id;
-              token.name = dbUser.name;
-              token.email = dbUser.email;
-              token.image = dbUser.image;
-            }
-          } catch (e) {
-            console.warn("DB user fetch in jwt skipped:", e);
-          }
-        }
       }
 
-      // Saat session di-update dari client
       if (trigger === "update" && session?.name) {
         token.name = session.name;
       }
@@ -177,9 +139,10 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
+    // Buat sesi pengguna untuk dibaca oleh seluruh halaman dashboard
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = (token.id as string) || (token.sub as string) || "";
+        session.user.id = (token.id as string) || (token.sub as string) || "user";
         session.user.name = (token.name as string) || "User";
         session.user.email = (token.email as string) || "";
         session.user.image = (token.image as string) || null;

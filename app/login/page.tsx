@@ -38,8 +38,9 @@ export default function LoginPage() {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       const err = sp.get("error");
+      const details = sp.get("details");
       if (err) {
-        setErrorMsg(err);
+        setErrorMsg(details ? `${err}: ${details}` : err);
       }
     }
   }, []);

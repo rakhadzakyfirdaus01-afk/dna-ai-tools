@@ -23,6 +23,8 @@ const GOOGLE_CLIENT_SECRET =
   process.env.GOOGLE_CLIENT_SECRET ||
   "GOCSPX-" + "0X5Jf7jYIN0rHLNV7M3LLjF_MvLn";
 
+export let lastErrorDetails = "";
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -102,8 +104,19 @@ export const authOptions: NextAuthOptions = {
   },
 
   logger: {
-    error(code, metadata) {
+    error(code, metadata: any) {
       console.error("[NextAuth ERROR]", code, metadata);
+      try {
+        const innerErr = metadata?.error || metadata;
+        const msg =
+          innerErr?.message ||
+          innerErr?.error_description ||
+          innerErr?.error ||
+          (typeof innerErr === "string" ? innerErr : JSON.stringify(innerErr));
+        lastErrorDetails = `${code}: ${msg}`;
+      } catch {
+        lastErrorDetails = String(code);
+      }
     },
     warn(code) {
       console.warn("[NextAuth WARN]", code);

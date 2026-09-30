@@ -10,17 +10,35 @@ async function handler(req: NextRequest, ctx: any) {
   if (location && location.includes("error=")) {
     try {
       const parsed = new URL(location, req.nextUrl.origin);
-      if (lastErrorDetails) {
-        parsed.searchParams.set("details", lastErrorDetails);
+      const errorType = parsed.searchParams.get("error") || "OAuthCallback";
+      const details =
+        lastErrorDetails ||
+        parsed.searchParams.get("details") ||
+        req.nextUrl.searchParams.get("details") ||
+        "";
+
+      const targetUrl = new URL("/login", req.nextUrl.origin);
+      targetUrl.searchParams.set("error", errorType);
+      if (details) {
+        targetUrl.searchParams.set("details", details);
       }
+
       const newHeaders = new Headers(res.headers);
-      newHeaders.set("Location", parsed.toString());
-      return new Response(res.body, {
-        status: res.status,
-        statusText: res.statusText,
+      newHeaders.set("Location", targetUrl.toString());
+      if (details) {
+        newHeaders.append(
+          "Set-Cookie",
+          `auth_error_debug=${encodeURIComponent(details)}; Path=/; Max-Age=120`
+        );
+      }
+
+      return new Response(null, {
+        status: 302,
         headers: newHeaders,
       });
-    } catch {}
+    } catch (e) {
+      console.error("[Route Redirect Catch]", e);
+    }
   }
   return res;
 }

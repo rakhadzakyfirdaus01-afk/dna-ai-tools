@@ -38,9 +38,17 @@ export default function LoginPage() {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       const err = sp.get("error");
-      const details = sp.get("details");
+      let details = sp.get("details");
+      if (!details) {
+        const match = document.cookie.match(/auth_error_debug=([^;]+)/);
+        if (match) {
+          try {
+            details = decodeURIComponent(match[1]);
+          } catch {}
+        }
+      }
       if (err) {
-        setErrorMsg(details ? `${err}: ${details}` : err);
+        setErrorMsg(details ? `${err} (${details})` : err);
       }
     }
   }, []);

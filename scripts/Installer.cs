@@ -37,8 +37,8 @@ namespace DnaAiInstaller
                 }
                 catch {}
 
-                // Argumen untuk membuka jendela mandiri
-                string launchArgs = string.Format("--app=\"{0}\" --window-size=1366,850 --user-data-dir=\"{1}\"", APP_URL, appDataDir);
+                // Argumen untuk membuka jendela mandiri terhubung dengan profil akun pengguna
+                string launchArgs = string.Format("--app=\"{0}\"", APP_URL);
 
                 // 2. Buat Shortcut di Desktop dan Start Menu dengan ICON RESMI DNA AI
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
@@ -83,12 +83,6 @@ namespace DnaAiInstaller
 
         private static string GetBrowserPath()
         {
-            string edge = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Microsoft\Edge\Application\msedge.exe");
-            if (File.Exists(edge)) return edge;
-
-            edge = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Microsoft\Edge\Application\msedge.exe");
-            if (File.Exists(edge)) return edge;
-
             string chrome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Google\Chrome\Application\chrome.exe");
             if (File.Exists(chrome)) return chrome;
 
@@ -98,7 +92,13 @@ namespace DnaAiInstaller
             string localChrome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Google\Chrome\Application\chrome.exe");
             if (File.Exists(localChrome)) return localChrome;
 
-            return "msedge.exe";
+            string edge = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Microsoft\Edge\Application\msedge.exe");
+            if (File.Exists(edge)) return edge;
+
+            edge = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Microsoft\Edge\Application\msedge.exe");
+            if (File.Exists(edge)) return edge;
+
+            return "chrome.exe";
         }
 
         private static void CreateShortcut(string shortcutPath, string targetPath, string arguments, string description, string iconPath)

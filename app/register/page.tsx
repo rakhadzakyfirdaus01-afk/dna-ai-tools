@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { signIn } from "next-auth/react";
+import GoogleIcon from "@/components/shared/google-icon";
 
 import {
   User,
@@ -30,6 +32,17 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  async function handleGoogleLogin() {
+    setGoogleLoading(true);
+    try {
+      await signIn("google", { callbackUrl: "/ai-assistant" });
+    } catch (err) {
+      console.error(err);
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleRegister(
     e: React.FormEvent<HTMLFormElement>
@@ -214,6 +227,29 @@ export default function RegisterPage() {
                   Fill in the details to create your account.
                 </p>
 
+              </div>
+
+              {/* GOOGLE SIGN IN BUTTON */}
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading || loading}
+                className="group flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700/80 bg-[#121c2e] px-4 py-3.5 text-sm font-medium text-white shadow-sm transition hover:border-slate-500 hover:bg-[#18263e] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              >
+                <GoogleIcon className="h-5 w-5 shrink-0" />
+                <span>
+                  {googleLoading
+                    ? "Menghubungkan ke Google..."
+                    : "Lanjutkan dengan Google"}
+                </span>
+              </button>
+
+              {/* DIVIDER */}
+              <div className="relative my-6 flex items-center justify-center">
+                <div className="w-full border-t border-slate-800" />
+                <span className="absolute bg-[#0c1628] px-3 text-xs uppercase tracking-wider text-slate-500">
+                  atau
+                </span>
               </div>
 
               <form

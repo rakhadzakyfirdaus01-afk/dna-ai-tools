@@ -5,12 +5,26 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 if (
-  process.env.NODE_ENV === "production" &&
+  isProduction &&
   (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))
 ) {
   process.env.NEXTAUTH_URL = "https://dna-ai-tools-one.vercel.app";
 }
+
+const NEXTAUTH_SECRET =
+  process.env.NEXTAUTH_SECRET && process.env.NEXTAUTH_SECRET !== "ISI_NILAI_ASLI"
+    ? process.env.NEXTAUTH_SECRET
+    : "dna-ai-tools-super-secret-jwt-key-2026-production";
+
+// Hanya gunakan DB jika DATABASE_URL adalah database cloud yang valid (bukan localhost)
+const canUseDb = Boolean(
+  process.env.DATABASE_URL &&
+    !process.env.DATABASE_URL.includes("localhost") &&
+    !process.env.DATABASE_URL.includes("127.0.0.1")
+);
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -30,38 +44,39 @@ export const authOptions: NextAuthOptions = {
       },
 
       async authorize(credentials) {
-        if (
-          !credentials?.email ||
-          !credentials?.password
-        ) {
+        if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
-        });
+        try {
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email,
+            },
+          });
 
-        if (!user) {
+          if (!user) {
+            return null;
+          }
+
+          const passwordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+
+          if (!passwordValid) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+          };
+        } catch {
           return null;
         }
-
-        const passwordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!passwordValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-        };
       },
     }),
 
@@ -81,43 +96,45 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 hari
   },
 
   pages: {
     signIn: "/login",
   },
 
-  secret: process.env.NEXTAUTH_SECRET || "dna-ai-tools-secret-key-google-auth-2026",
+  secret: NEXTAUTH_SECRET,
 
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         if (!user.email) return false;
 
-        try {
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email },
-          });
-
-          if (!existingUser) {
-            // Otomatis daftarkan user baru dari Google (100% Free & Auto-Register)
-            await prisma.user.create({
-              data: {
-                name: user.name || "User",
-                email: user.email,
-                image: user.image || null,
-                password: "", // Tidak perlu password manual untuk akun Google
-              },
-            });
-          } else if (!existingUser.image && user.image) {
-            // Sinkronisasi foto profil Google jika sebelumnya belum ada
-            await prisma.user.update({
+        // Jika ada database remote aktif, sinkronkan profil user
+        if (canUseDb) {
+          try {
+            const existingUser = await prisma.user.findUnique({
               where: { email: user.email },
-              data: { image: user.image },
             });
+
+            if (!existingUser) {
+              await prisma.user.create({
+                data: {
+                  name: user.name || "User",
+                  email: user.email,
+                  image: user.image || null,
+                  password: "",
+                },
+              });
+            } else if (!existingUser.image && user.image) {
+              await prisma.user.update({
+                where: { email: user.email },
+                data: { image: user.image },
+              });
+            }
+          } catch (error) {
+            console.warn("DB user sync skipped:", error);
           }
-        } catch (error) {
-          console.warn("Google signIn DB sync error (proceeding with session):", error);
         }
       }
       return true;
@@ -126,7 +143,12 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account, trigger, session }) {
       // Saat pertama kali login
       if (user) {
-        if (account?.provider === "google" && user.email) {
+        token.id = user.id || (token.sub as string) || "user-id";
+        token.name = user.name || "User";
+        token.email = user.email || "";
+        token.image = user.image || null;
+
+        if (account?.provider === "google" && user.email && canUseDb) {
           try {
             const dbUser = await prisma.user.findUnique({
               where: { email: user.email },
@@ -136,23 +158,10 @@ export const authOptions: NextAuthOptions = {
               token.name = dbUser.name;
               token.email = dbUser.email;
               token.image = dbUser.image;
-            } else {
-              token.id = user.id;
-              token.name = user.name;
-              token.email = user.email;
-              token.image = user.image;
             }
-          } catch {
-            token.id = user.id;
-            token.name = user.name;
-            token.email = user.email;
-            token.image = user.image;
+          } catch (e) {
+            console.warn("DB user fetch in jwt skipped:", e);
           }
-        } else {
-          token.id = user.id;
-          token.name = user.name;
-          token.email = user.email;
-          token.image = user.image;
         }
       }
 
@@ -170,10 +179,10 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.name = token.name as string;
-        session.user.email = token.email as string;
-        session.user.image = token.image as string;
+        session.user.id = (token.id as string) || (token.sub as string) || "";
+        session.user.name = (token.name as string) || "User";
+        session.user.email = (token.email as string) || "";
+        session.user.image = (token.image as string) || null;
       }
 
       return session;

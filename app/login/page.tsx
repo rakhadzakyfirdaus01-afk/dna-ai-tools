@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import Image from "next/image";
 import GoogleIcon from "@/components/shared/google-icon";
 
@@ -20,6 +20,13 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      router.replace("/ai-assistant");
+    }
+  }, [status, session, router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

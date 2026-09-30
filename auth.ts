@@ -21,7 +21,7 @@ const GOOGLE_CLIENT_ID =
 
 const GOOGLE_CLIENT_SECRET =
   process.env.GOOGLE_CLIENT_SECRET ||
-  "GOCSPX-" + "noiKlm5HeljPXt2gFxlX53YGkivZ";
+  "GOCSPX-" + "0X5Jf7jYIN0rHLNV7M3LLjF_MvLn";
 
 export const authOptions: NextAuthOptions = {
   providers: [

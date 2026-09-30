@@ -1,15 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
-import GoogleIcon from "@/components/shared/google-icon";
-
+import Image from "next/image";
 import {
   User,
-  Mail,
   Lock,
   Eye,
   EyeOff,
@@ -17,6 +14,7 @@ import {
   Zap,
   Sparkles,
   UserPlus,
+  KeyRound,
 } from "lucide-react";
 
 export default function RegisterPage() {
@@ -29,42 +27,36 @@ export default function RegisterPage() {
     }
   }, [status, session, router]);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
+  const [username, setUsername] = useState("");
+  const [pin, setPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  async function handleGoogleLogin() {
-    setGoogleLoading(true);
-    try {
-      await signIn("google", { callbackUrl: "/ai-assistant" });
-    } catch (err) {
-      console.error(err);
-      setGoogleLoading(false);
-    }
-  }
-
-  async function handleRegister(
-    e: React.FormEvent<HTMLFormElement>
-  ) {
+  async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setErrorMsg(null);
 
-    if (!agreedToTerms) {
-      alert(
-        "Kamu harus menyetujui Terms of Service dan Privacy Policy."
-      );
+    const cleanUsername = username.trim();
+    const cleanPin = pin.trim();
+
+    if (!cleanUsername) {
+      setErrorMsg("Nama Pengguna wajib diisi.");
       return;
     }
 
-    if (password !== confirmPassword) {
-      alert("Password dan Confirm Password tidak sama.");
+    if (cleanUsername.length < 2) {
+      setErrorMsg("Nama Pengguna minimal 2 karakter.");
+      return;
+    }
+
+    if (!cleanPin) {
+      setErrorMsg("PIN 4-6 angka wajib diisi.");
+      return;
+    }
+
+    if (!/^\d{4,6}$/.test(cleanPin)) {
+      setErrorMsg("PIN harus berupa 4 sampai 6 digit angka.");
       return;
     }
 
@@ -77,43 +69,53 @@ export default function RegisterPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name,
-          email,
-          password,
+          username: cleanUsername,
+          pin: cleanPin,
         }),
       });
 
       const data = await response.json();
 
-      setLoading(false);
-
       if (!response.ok) {
-        alert(data.message || data.error || "Register gagal.");
+        setLoading(false);
+        setErrorMsg(data.message || "Pendaftaran gagal. Silakan coba lagi.");
         return;
       }
 
-      alert("Register berhasil.");
-      router.push("/login");
-    } catch (error) {
+      // Begitu berhasil daftar, langsung otomatis Sign In seketika!
+      const loginResult = await signIn("credentials", {
+        username: cleanUsername,
+        pin: cleanPin,
+        redirect: false,
+      });
+
       setLoading(false);
-      alert("Terjadi kesalahan saat melakukan register.");
+
+      if (loginResult?.error) {
+        // Jika login otomatis tertahan, arahkan ke login
+        router.replace("/login");
+        return;
+      }
+
+      // Langsung masuk ke AI Assistant
+      router.replace("/ai-assistant");
+    } catch {
+      setLoading(false);
+      setErrorMsg("Terjadi kendala jaringan saat mendaftar. Silakan coba lagi.");
     }
   }
 
   return (
-    <main className="min-h-screen bg-[#070d1a] text-white">
+    <main className="min-h-screen bg-[#070d18] text-white">
       <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-6 py-10">
-
         {/* MAIN CARD */}
-        <div className="relative grid w-full overflow-hidden rounded-2xl border border-blue-900/40 bg-[#0a1222] shadow-[0_0_80px_rgba(37,99,235,0.06)] lg:grid-cols-2">
-
+        <div className="relative grid w-full grid-cols-1 overflow-hidden rounded-2xl border border-blue-900/40 bg-[#0b1220] shadow-[0_0_80px_rgba(37,99,235,0.08)] lg:grid-cols-2">
           {/* BACKGROUND GLOW */}
           <div className="pointer-events-none absolute left-[-120px] top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-blue-500/5 blur-3xl" />
 
           {/* LEFT SIDE */}
-          <section className="relative flex min-h-[700px] flex-col justify-between overflow-hidden px-10 py-10 lg:px-12">
-
-            {/* Decorative DNA */}
+          <section className="relative flex min-h-[580px] flex-col justify-between overflow-hidden px-10 py-10 lg:px-12">
+            {/* Decorative background */}
             <div className="pointer-events-none absolute left-[-100px] top-20 opacity-[0.06]">
               <div className="h-[500px] w-[220px] rotate-[-15deg] rounded-[50%] border-[18px] border-blue-500" />
             </div>
@@ -129,365 +131,168 @@ export default function RegisterPage() {
                   priority
                   className="object-contain"
                 />
-
-                <span className="text-xl font-semibold tracking-tight">
-                  DNA AI Tools
-                </span>
+                <div>
+                  <span className="text-xl font-bold tracking-tight text-white">
+                    DNA AI
+                  </span>
+                  <span className="ml-1 text-sm font-semibold text-blue-500">
+                    PLATFORM
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* LEFT CONTENT */}
-            <div className="relative z-10 mt-12">
+            {/* HERO CONTENT */}
+            <div className="relative z-10 my-auto py-8">
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs text-blue-400">
+                <Sparkles size={13} />
+                <span>Pendaftaran Cepat 3 Detik</span>
+              </div>
 
-              <h2 className="text-3xl font-semibold tracking-tight">
-                Create Account{" "}
-                <span className="inline-block">✨</span>
+              <h2 className="mt-4 text-3xl font-bold leading-tight text-white lg:text-4xl">
+                Mulai Gunakan AI Sekarang <span className="inline-block">🚀</span>
               </h2>
 
-              <p className="mt-4 max-w-sm text-sm leading-6 text-slate-400">
-                Join DNA AI Tools and start your journey
-                <br />
-                with intelligent productivity.
+              <p className="mt-3 text-sm text-slate-400">
+                Buat akun hanya dalam 3 detik tanpa verifikasi email yang rumit. Tentukan nama dan PIN 4 angka kamu.
               </p>
 
               {/* FEATURES */}
-              <div className="mt-8 space-y-5">
-
-                {/* SMART TOOLS */}
-                <div className="flex gap-4">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-400">
-                    <Sparkles size={17} />
+              <div className="mt-8 space-y-4">
+                <div className="flex items-center gap-3 text-sm text-slate-300">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+                    <Zap size={16} />
                   </div>
-
-                  <div>
-                    <h3 className="text-sm font-medium text-white">
-                      Smart Tools
-                    </h3>
-
-                    <p className="mt-1 max-w-[220px] text-xs leading-5 text-slate-500">
-                      Access a wide range of
-                      AI-powered tools.
-                    </p>
-                  </div>
+                  <span>Daftar Langsung Masuk Otomatis</span>
                 </div>
 
-                {/* SECURE */}
-                <div className="flex gap-4">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-400">
-                    <ShieldCheck size={17} />
+                <div className="flex items-center gap-3 text-sm text-slate-300">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+                    <KeyRound size={16} />
                   </div>
-
-                  <div>
-                    <h3 className="text-sm font-medium text-white">
-                      Secure & Private
-                    </h3>
-
-                    <p className="mt-1 max-w-[220px] text-xs leading-5 text-slate-500">
-                      Your data is encrypted and
-                      always protected.
-                    </p>
-                  </div>
+                  <span>Cukup Ingat PIN 4 Digit</span>
                 </div>
 
-                {/* FAST */}
-                <div className="flex gap-4">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-400">
-                    <Zap size={17} />
+                <div className="flex items-center gap-3 text-sm text-slate-300">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+                    <ShieldCheck size={16} />
                   </div>
-
-                  <div>
-                    <h3 className="text-sm font-medium text-white">
-                      Fast & Reliable
-                    </h3>
-
-                    <p className="mt-1 max-w-[220px] text-xs leading-5 text-slate-500">
-                      We deliver speed and
-                      performance you can trust.
-                    </p>
-                  </div>
+                  <span>100% Gratis & Langsung Aktif</span>
                 </div>
-
               </div>
             </div>
 
             {/* COPYRIGHT */}
-            <div className="relative z-10 mt-10 text-xs text-slate-600">
+            <div className="relative z-10 text-xs text-slate-600">
               © 2026 DNA AI Tools. All rights reserved.
             </div>
-
           </section>
 
-          {/* RIGHT SIDE */}
+          {/* RIGHT SIDE (FORM) */}
           <section className="relative flex items-center justify-center px-6 py-10 lg:px-10">
-
-            <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#0c1628]/90 p-8 shadow-2xl backdrop-blur-xl">
-
-              {/* TITLE */}
+            <div className="w-full max-w-lg rounded-2xl border border-blue-900/40 bg-[#0d1726]/95 p-8 shadow-2xl backdrop-blur-xl">
               <div className="mb-7">
-
-                <h1 className="text-2xl font-semibold tracking-tight">
-                  Create Account{" "}
-                  <span>✨</span>
+                <h1 className="text-2xl font-semibold tracking-tight text-white">
+                  Daftar Akun Baru
                 </h1>
-
                 <p className="mt-2 text-sm text-slate-400">
-                  Fill in the details to create your account.
+                  Tentukan Nama Pengguna dan PIN 4 Angka kamu.
                 </p>
-
               </div>
 
-              {/* GOOGLE SIGN IN BUTTON */}
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={googleLoading || loading}
-                className="group flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700/80 bg-[#121c2e] px-4 py-3.5 text-sm font-medium text-white shadow-sm transition hover:border-slate-500 hover:bg-[#18263e] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-              >
-                <GoogleIcon className="h-5 w-5 shrink-0" />
-                <span>
-                  {googleLoading
-                    ? "Menghubungkan ke Google..."
-                    : "Lanjutkan dengan Google"}
-                </span>
-              </button>
+              {errorMsg && (
+                <div className="mb-5 rounded-xl border border-red-500/40 bg-red-500/15 p-3.5 text-xs font-medium text-red-300">
+                  ⚠️ {errorMsg}
+                </div>
+              )}
 
-              {/* DIVIDER */}
-              <div className="relative my-6 flex items-center justify-center">
-                <div className="w-full border-t border-slate-800" />
-                <span className="absolute bg-[#0c1628] px-3 text-xs uppercase tracking-wider text-slate-500">
-                  atau
-                </span>
-              </div>
-
-              <form
-                onSubmit={handleRegister}
-                className="space-y-4"
-              >
-
-                {/* NAME */}
+              <form onSubmit={handleRegister} className="space-y-5">
+                {/* USERNAME */}
                 <div>
-
                   <label className="mb-2 block text-sm font-medium text-slate-200">
-                    Full Name
+                    Nama Pengguna
                   </label>
-
                   <div className="relative">
-
                     <User
                       size={17}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
                     />
-
                     <input
                       type="text"
-                      placeholder="John Doe"
-                      value={name}
-                      onChange={(e) =>
-                        setName(e.target.value)
-                      }
+                      placeholder="Contoh: rakha"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
                       required
-                      className="w-full rounded-lg border border-slate-800 bg-[#101a2c] py-3 pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10"
+                      autoFocus
+                      className="w-full rounded-xl border border-slate-800 bg-[#111c2c] py-3.5 pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10"
                     />
-
                   </div>
-
                 </div>
 
-                {/* EMAIL */}
+                {/* PIN */}
                 <div>
-
                   <label className="mb-2 block text-sm font-medium text-slate-200">
-                    Email
+                    PIN Cepat (4 - 6 Angka)
                   </label>
-
                   <div className="relative">
-
-                    <Mail
-                      size={17}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                    />
-
-                    <input
-                      type="email"
-                      placeholder="name@email.com"
-                      value={email}
-                      onChange={(e) =>
-                        setEmail(e.target.value)
-                      }
-                      required
-                      className="w-full rounded-lg border border-slate-800 bg-[#101a2c] py-3 pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10"
-                    />
-
-                  </div>
-
-                </div>
-
-                {/* PASSWORD */}
-                <div>
-
-                  <label className="mb-2 block text-sm font-medium text-slate-200">
-                    Password
-                  </label>
-
-                  <div className="relative">
-
                     <Lock
                       size={17}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
                     />
-
                     <input
-                      type={
-                        showPassword
-                          ? "text"
-                          : "password"
-                      }
-                      placeholder="••••••••••"
-                      value={password}
-                      onChange={(e) =>
-                        setPassword(e.target.value)
-                      }
+                      type={showPin ? "text" : "password"}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      placeholder="Buat 4 digit angka (contoh: 1234)"
+                      value={pin}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setPin(val);
+                      }}
                       required
-                      className="w-full rounded-lg border border-slate-800 bg-[#101a2c] py-3 pl-10 pr-11 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10"
+                      className="w-full rounded-xl border border-slate-800 bg-[#111c2c] py-3.5 pl-10 pr-11 text-sm tracking-widest text-white outline-none transition placeholder:tracking-normal placeholder:text-slate-600 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10"
                     />
-
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowPassword(!showPassword)
-                      }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-300"
+                      onClick={() => setShowPin(!showPin)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-300"
                     >
-                      {showPassword ? (
-                        <EyeOff size={17} />
-                      ) : (
-                        <Eye size={17} />
-                      )}
+                      {showPin ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
-
                   </div>
-
                 </div>
 
-                {/* CONFIRM PASSWORD */}
-                <div>
-
-                  <label className="mb-2 block text-sm font-medium text-slate-200">
-                    Confirm Password
-                  </label>
-
-                  <div className="relative">
-
-                    <Lock
-                      size={17}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                    />
-
-                    <input
-                      type={
-                        showConfirmPassword
-                          ? "text"
-                          : "password"
-                      }
-                      placeholder="••••••••••"
-                      value={confirmPassword}
-                      onChange={(e) =>
-                        setConfirmPassword(
-                          e.target.value
-                        )
-                      }
-                      required
-                      className="w-full rounded-lg border border-slate-800 bg-[#101a2c] py-3 pl-10 pr-11 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(
-                          !showConfirmPassword
-                        )
-                      }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-300"
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff size={17} />
-                      ) : (
-                        <Eye size={17} />
-                      )}
-                    </button>
-
-                  </div>
-
-                </div>
-
-                {/* TERMS */}
-                <label className="flex cursor-pointer items-center gap-2 pt-1 text-xs text-slate-400">
-
-                  <input
-                    type="checkbox"
-                    checked={agreedToTerms}
-                    onChange={(e) =>
-                      setAgreedToTerms(e.target.checked)
-                    }
-                    className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-[#101a2c] text-blue-500 accent-blue-600 focus:ring-blue-500"
-                  />
-
-                  <span>
-                    I agree to the{" "}
-                    <span className="text-blue-400">
-                      Terms of Service
-                    </span>{" "}
-                    and{" "}
-                    <span className="text-blue-400">
-                      Privacy Policy
-                    </span>
-                  </span>
-
-                </label>
-
-                {/* REGISTER BUTTON */}
+                {/* SUBMIT BUTTON */}
                 <button
                   type="submit"
-                  disabled={loading || !agreedToTerms}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={loading}
+                  className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:from-blue-500 hover:to-indigo-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                 >
-
-                  <UserPlus size={17} />
-
-                  {loading
-                    ? "Creating Account..."
-                    : "Create Account"}
-
+                  {loading ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  ) : (
+                    <>
+                      <UserPlus size={17} className="transition group-hover:scale-110" />
+                      <span>Daftar & Masuk Langsung</span>
+                    </>
+                  )}
                 </button>
-
               </form>
 
-              {/* LOGIN */}
-              <div className="mt-7 flex items-center gap-4">
-
-                <div className="h-px flex-1 bg-slate-800" />
-
-                <span className="whitespace-nowrap text-xs text-slate-500">
-                  Already have an account?
-                </span>
-
+              {/* FOOTER */}
+              <div className="mt-7 text-center text-sm text-slate-400">
+                Sudah punya akun?{" "}
                 <Link
                   href="/login"
-                  className="whitespace-nowrap text-xs font-medium text-blue-400 transition hover:text-blue-300"
+                  className="font-medium text-blue-400 transition hover:text-blue-300 underline"
                 >
-                  Sign In
+                  Masuk di sini
                 </Link>
-
-                <div className="h-px flex-1 bg-slate-800" />
-
               </div>
-
             </div>
-
           </section>
-
         </div>
-
       </div>
     </main>
   );

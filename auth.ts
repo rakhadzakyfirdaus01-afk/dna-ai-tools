@@ -1,8 +1,6 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
-import bcrypt from "bcryptjs";
-import prisma from "@/lib/prisma";
+import { verifyUserCredentials } from "@/lib/user-store";
 
 // Kunci rahasia global yang seragam untuk serverless dan client
 const NEXTAUTH_SECRET = "dna-ai-tools-super-secret-jwt-key-2026-production";
@@ -15,14 +13,6 @@ if (
   process.env.NEXTAUTH_URL = "https://dna-ai-tools-one.vercel.app";
 }
 
-const GOOGLE_CLIENT_ID =
-  process.env.GOOGLE_CLIENT_ID ||
-  "312880952684-" + "lc7ih9gpsjj6u8mtb015ck1no70vvmqf.apps.googleusercontent.com";
-
-const GOOGLE_CLIENT_SECRET =
-  process.env.GOOGLE_CLIENT_SECRET ||
-  "GOCSPX-" + "0X5Jf7jYIN0rHLNV7M3LLjF_MvLn";
-
 export let lastErrorDetails = "";
 
 export const authOptions: NextAuthOptions = {
@@ -31,65 +21,51 @@ export const authOptions: NextAuthOptions = {
       name: "Credentials",
 
       credentials: {
-        email: {
-          label: "Email",
+        username: {
+          label: "Nama Pengguna",
           type: "text",
         },
-
-        password: {
-          label: "Password",
+        pin: {
+          label: "PIN",
           type: "password",
         },
       },
 
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+      async authorize(credentials, req) {
+        const username =
+          (credentials?.username as string) ||
+          ((credentials as any)?.email as string);
+        const pin =
+          (credentials?.pin as string) ||
+          ((credentials as any)?.password as string);
+
+        if (!username || !pin) {
           return null;
         }
 
-        try {
-          const user = await prisma.user.findUnique({
-            where: {
-              email: credentials.email,
-            },
-          });
+        const cookieHeader = req?.headers?.cookie || "";
+        let vaultData: string | null = null;
+        const match = cookieHeader.match(/dna_vault=([^;]+)/);
+        if (match) {
+          vaultData = match[1];
+        }
 
-          if (!user) {
-            return null;
-          }
+        const user = await verifyUserCredentials({
+          username,
+          pin,
+          vaultData,
+        });
 
-          const passwordValid = await bcrypt.compare(
-            credentials.password,
-            user.password
-          );
-
-          if (!passwordValid) {
-            return null;
-          }
-
-          return {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            image: user.image,
-          };
-        } catch {
+        if (!user) {
           return null;
         }
-      },
-    }),
 
-    GoogleProvider({
-      clientId: GOOGLE_CLIENT_ID,
-      clientSecret: GOOGLE_CLIENT_SECRET,
-      authorization: {
-        params: {
-          prompt: "select_account",
-          access_type: "offline",
-          response_type: "code",
-        },
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        };
       },
-      allowDangerousEmailAccountLinking: true,
     }),
   ],
 

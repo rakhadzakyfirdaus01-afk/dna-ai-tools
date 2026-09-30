@@ -5,6 +5,13 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
+if (
+  process.env.NODE_ENV === "production" &&
+  (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))
+) {
+  process.env.NEXTAUTH_URL = "https://dna-ai-tools-one.vercel.app";
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -73,7 +80,7 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
 
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "dna-ai-tools-secret-key-google-auth-2026",
 
   callbacks: {
     async signIn({ user, account }) {

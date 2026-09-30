@@ -80,7 +80,6 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: GOOGLE_CLIENT_ID,
       clientSecret: GOOGLE_CLIENT_SECRET,
-      checks: ["none"],
       authorization: {
         params: {
           prompt: "select_account",
@@ -100,6 +99,18 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
     error: "/login",
+  },
+
+  logger: {
+    error(code, metadata) {
+      console.error("[NextAuth ERROR]", code, metadata);
+    },
+    warn(code) {
+      console.warn("[NextAuth WARN]", code);
+    },
+    debug(code, metadata) {
+      console.log("[NextAuth DEBUG]", code, metadata);
+    },
   },
 
   secret: NEXTAUTH_SECRET,

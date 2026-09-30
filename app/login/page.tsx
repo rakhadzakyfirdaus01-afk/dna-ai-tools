@@ -209,9 +209,17 @@ export default function LoginPage() {
 
                 {/* PIN */}
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-200">
-                    PIN Cepat (4 - 6 Angka)
-                  </label>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="block text-sm font-medium text-slate-200">
+                      PIN Cepat (4 - 6 Angka)
+                    </label>
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs font-medium text-blue-400 transition hover:text-blue-300"
+                    >
+                      Lupa PIN?
+                    </Link>
+                  </div>
                   <div className="relative">
                     <Lock
                       size={17}

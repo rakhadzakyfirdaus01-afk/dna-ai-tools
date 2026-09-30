@@ -162,3 +162,55 @@ export async function verifyUserCredentials({
 
   return null;
 }
+
+export async function updateUserPin({
+  username,
+  newPin,
+  vaultData,
+}: {
+  username: string;
+  newPin: string;
+  vaultData?: string | null;
+}): Promise<StoredUser | null> {
+  const norm = username.trim().toLowerCase();
+
+  let user = await findUserByUsername(norm);
+
+  if (!user && vaultData) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(vaultData));
+      if (parsed[norm]) {
+        user = parsed[norm];
+      }
+    } catch {}
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const passwordHash = await bcrypt.hash(newPin, 10);
+  user.passwordHash = passwordHash;
+
+  // 1. Update di tmp cache
+  writeTmpUser(user);
+
+  // 2. Coba update di Prisma jika ada
+  try {
+    await withTimeout(
+      prisma.user.updateMany({
+        where: {
+          OR: [
+            { name: { equals: norm } },
+            { email: { equals: `${norm}@dna-ai.local` } },
+          ],
+        },
+        data: {
+          password: passwordHash,
+        },
+      })
+    );
+  } catch {}
+
+  return user;
+}

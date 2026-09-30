@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -17,6 +17,7 @@ import {
   User as UserIcon,
   ArrowLeft,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
 
@@ -656,6 +657,39 @@ export default function SettingsPage() {
           <p className="text-sm leading-relaxed text-muted-foreground">
             Semua prompt teks, gambar, dan kode yang dihasilkan dienkripsi secara aman dan hanya dapat diakses melalui akun Anda. Kami mematuhi standar privasi data tertinggi untuk melindungi seluruh materi kreatif Anda.
           </p>
+        </section>
+
+        {/* =========================================================
+            SECTION: LOGOUT KHUSUS HP (ANDROID & IOS)
+            Hanya tampil di layar HP/smartphone (lg:hidden), laptop tetap biarin
+            ========================================================= */}
+        <section className="block lg:hidden rounded-2xl border border-red-500/20 bg-red-500/5 p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
+              <LogOut size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-red-400">
+                Keluar Akun
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Keluar dari sesi akun DNA AI pada perangkat smartphone ini.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              signOut({
+                callbackUrl: "/login",
+              })
+            }
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3.5 text-sm font-semibold text-white shadow-md transition hover:bg-red-500 active:scale-[0.98] cursor-pointer touch-manipulation"
+          >
+            <LogOut size={18} />
+            <span>Keluar dari Akun</span>
+          </button>
         </section>
 
         {/* =========================================================

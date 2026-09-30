@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/components/shared/language-provider";
-import AppDownloadModal from "@/components/shared/app-download-modal";
 import { useIsAppInstalled } from "@/components/shared/use-app-installed";
 
 import {
@@ -25,7 +23,6 @@ export default function Sidebar({
 
   const { t, locale } = useLanguage();
   const isAppInstalled = useIsAppInstalled();
-  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
   const menus = [
     {
@@ -105,10 +102,10 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => {
-              setDownloadModalOpen(true);
               if (onNavigate) onNavigate();
+              window.dispatchEvent(new CustomEvent("open-app-download-modal"));
             }}
-            className="group flex w-full items-center justify-between rounded-xl px-4 py-3 text-cyan-400 transition-all duration-300 hover:bg-cyan-500/10 active:scale-[0.98] lg:rounded-2xl lg:px-5 lg:py-4"
+            className="group flex w-full items-center justify-between rounded-xl px-4 py-3 text-cyan-400 transition-all duration-300 hover:bg-cyan-500/10 active:scale-[0.98] lg:rounded-2xl lg:px-5 lg:py-4 cursor-pointer touch-manipulation"
           >
             <div className="flex items-center gap-3 lg:gap-4">
               <Smartphone
@@ -142,13 +139,6 @@ export default function Sidebar({
           </button>
         </div>
       </div>
-
-      {!isAppInstalled && (
-        <AppDownloadModal
-          isOpen={downloadModalOpen}
-          onClose={() => setDownloadModalOpen(false)}
-        />
-      )}
     </aside>
   );
 }

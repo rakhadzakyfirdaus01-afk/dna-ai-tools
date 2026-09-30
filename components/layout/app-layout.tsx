@@ -1,9 +1,10 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import Sidebar from "./sidebar";
 import Navbar from "../navbar";
 import Footer from "./footer";
+import AppDownloadModal from "@/components/shared/app-download-modal";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -13,6 +14,19 @@ export default function AppLayout({
   children,
 }: AppLayoutProps) {
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenModal = () => {
+      setDownloadModalOpen(true);
+    };
+
+    window.addEventListener("open-app-download-modal", handleOpenModal);
+
+    return () => {
+      window.removeEventListener("open-app-download-modal", handleOpenModal);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground lg:flex">
@@ -68,6 +82,14 @@ export default function AppLayout({
         </main>
 
       </div>
+
+      {/* =========================
+          GLOBAL APP DOWNLOAD MODAL
+      ========================== */}
+      <AppDownloadModal
+        isOpen={downloadModalOpen}
+        onClose={() => setDownloadModalOpen(false)}
+      />
 
     </div>
   );

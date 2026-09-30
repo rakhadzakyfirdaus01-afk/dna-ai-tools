@@ -15,6 +15,14 @@ if (
   process.env.NEXTAUTH_URL = "https://dna-ai-tools-one.vercel.app";
 }
 
+const GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID ||
+  "312880952684-" + "lc7ih9gpsjj6u8mtb015ck1no70vvmqf.apps.googleusercontent.com";
+
+const GOOGLE_CLIENT_SECRET =
+  process.env.GOOGLE_CLIENT_SECRET ||
+  "GOCSPX-" + "noiKlm5HeljPXt2gFxlX53YGkivZ";
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -70,8 +78,9 @@ export const authOptions: NextAuthOptions = {
     }),
 
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+      checks: ["none"],
       authorization: {
         params: {
           prompt: "select_account",

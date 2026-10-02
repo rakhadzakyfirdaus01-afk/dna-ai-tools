@@ -73,13 +73,13 @@ type GeneratedProject = {
   files: GeneratedFile[];
 };
 
-export type CodeCategory = "all" | "web" | "game" | "fix" | "general";
+export type CodeCategory = "all" | "web" | "software" | "game" | "fix" | "general";
 
 export type CodeSession = {
   id: string;
   title: string;
-  category: "web" | "game" | "fix" | "general";
-  mode: "web" | "fix" | "game";
+  category: "web" | "software" | "game" | "fix" | "general";
+  mode: "web" | "software" | "fix" | "game";
   createdAt: number;
   updatedAt: number;
   prompt: string;
@@ -97,17 +97,18 @@ export const CODE_CATEGORIES: {
   badgeColor: string;
 }[] = [
   { id: "all", labelId: "Semua", labelEn: "All", icon: "💬", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
-  { id: "web", labelId: "Web App", labelEn: "Web App", icon: "🌐", badgeColor: "bg-cyan-500/10 text-cyan-300 border-cyan-500/30" },
+  { id: "web", labelId: "Web & UI", labelEn: "Web & UI", icon: "🌐", badgeColor: "bg-cyan-500/10 text-cyan-300 border-cyan-500/30" },
+  { id: "software", labelId: "Semua Bahasa", labelEn: "All Languages", icon: "💻", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
+  { id: "fix", labelId: "Perbaiki Error", labelEn: "Fix Code", icon: "🛠️", badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
   { id: "game", labelId: "Game 2D", labelEn: "2D Game", icon: "🎮", badgeColor: "bg-pink-500/10 text-pink-300 border-pink-500/30" },
-  { id: "fix", labelId: "Perbaiki Kode", labelEn: "Fix Code", icon: "🛠️", badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
-  { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
+  { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
 ];
 
 const CODE_SESSIONS_STORAGE_KEY = "dna_ai_code_sessions_v1";
 
 function createNewCodeSession(
-  mode: "web" | "fix" | "game" = "web",
-  category: "web" | "game" | "fix" | "general" = "web",
+  mode: "web" | "software" | "fix" | "game" = "web",
+  category: "web" | "software" | "game" | "fix" | "general" = "web",
   isEn = false
 ): CodeSession {
   const defaultTitle =
@@ -115,7 +116,10 @@ function createNewCodeSession(
       ? (isEn ? "New 2D Game" : "Game 2D Baru")
       : mode === "fix"
       ? (isEn ? "New Bug Fix" : "Perbaikan Kode Baru")
+      : mode === "software"
+      ? (isEn ? "New Program / Script" : "Program / Skrip Baru")
       : (isEn ? "New Web Project" : "Proyek Web Baru");
+
 
   return {
     id: "codesession-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
@@ -166,8 +170,8 @@ export default function AICodePage() {
 
   const isEnglish = locale === "en";
 
-  // Codex Modes: web (Modern Web App), fix (Perbaiki Kode), game (Game 2D)
-  const [mode, setMode] = useState<"web" | "fix" | "game">("web");
+  // Codex Modes: web (Modern Web App), software (Semua Bahasa), fix (Perbaiki Kode), game (Game 2D)
+  const [mode, setMode] = useState<"web" | "software" | "fix" | "game">("web");
   const [deviceMode, setDeviceMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [builderTab, setBuilderTab] = useState<"preview" | "code" | "split">("preview");
 
@@ -236,6 +240,8 @@ export default function AICodePage() {
             "New 2D Game",
             "Perbaiki Kode Baru",
             "New Bug Fix",
+            "Program / Skrip Baru",
+            "New Program / Script",
           ];
           if (defaultTitles.includes(s.title)) {
             if (project?.projectName) {
@@ -288,8 +294,8 @@ export default function AICodePage() {
     setMobileSidebarOpen(false);
   }
 
-  function handleCreateNewProject(category?: "web" | "game" | "fix" | "general") {
-    const targetMode = category === "game" ? "game" : category === "fix" ? "fix" : "web";
+  function handleCreateNewProject(category?: "web" | "software" | "game" | "fix" | "general") {
+    const targetMode = category === "game" ? "game" : category === "fix" ? "fix" : category === "software" ? "software" : "web";
     const cat = category || (selectedCategory === "all" ? targetMode : selectedCategory);
     const fresh = createNewCodeSession(targetMode, cat, isEnglish);
     setSessions((prev) => {
@@ -1563,7 +1569,7 @@ export default function AICodePage() {
                 {isEnglish ? "Codex Engine Mode" : "Mode Kemampuan AI"}
               </label>
 
-              <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-800 bg-[#060A14] p-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-2xl border border-slate-800 bg-[#060A14] p-1.5">
                 <button
                   type="button"
                   onClick={() => setMode("web")}
@@ -1575,7 +1581,22 @@ export default function AICodePage() {
                 >
                   <Globe size={18} className={mode === "web" ? "text-emerald-400" : "text-slate-400"} />
                   <span className="text-xs font-medium leading-none">
-                    {isEnglish ? "Web App" : "Buat Web"}
+                    {isEnglish ? "Web & UI" : "Web & UI"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMode("software")}
+                  className={`flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 px-1 text-center transition ${
+                    mode === "software"
+                      ? "bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-300 border border-blue-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <Terminal size={18} className={mode === "software" ? "text-blue-400" : "text-slate-400"} />
+                  <span className="text-xs font-medium leading-none">
+                    {isEnglish ? "All Languages" : "Semua Bahasa"}
                   </span>
                 </button>
 
@@ -1590,7 +1611,7 @@ export default function AICodePage() {
                 >
                   <Wrench size={18} className={mode === "fix" ? "text-amber-400" : "text-slate-400"} />
                   <span className="text-xs font-medium leading-none">
-                    {isEnglish ? "Fix Code" : "Perbaiki Kode"}
+                    {isEnglish ? "Fix Code" : "Perbaiki Error"}
                   </span>
                 </button>
 
@@ -1622,7 +1643,7 @@ export default function AICodePage() {
                   isEnglish ? "Futuristic Neon Calculator" : "Kalkulator Neon Futuristik",
                   isEnglish ? "Animated Glassmorphism Profile Card" : "Kartu Profil Animasi Glassmorphism",
                   isEnglish ? "E-Commerce Landing Page" : "Landing Page Toko Online",
-                  isEnglish ? "Interactive Dashboard" : "Dashboard Analytics Dark Mode",
+                  isEnglish ? "Interactive Dashboard" : "Dashboard Dark Mode",
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -1634,11 +1655,31 @@ export default function AICodePage() {
                   </button>
                 ))}
 
+                {mode === "software" && [
+                  isEnglish ? "Python Web Scraper / Bot" : "Python Web Scraper / Bot Otomatis",
+                  isEnglish ? "C++ Fast Algorithm" : "C++ Algoritma / Kinerja Cepat",
+                  isEnglish ? "Java REST API / Backend" : "Java REST API / CRUD Backend",
+                  isEnglish ? "Golang Microservice" : "Golang Microservice REST",
+                  isEnglish ? "SQL Schema & Query" : "SQL Database Schema & Query Kompleks",
+                  isEnglish ? "Bash Automation Script" : "Bash Script Automasi Server",
+                  isEnglish ? "Rust CLI Tool" : "Rust CLI Tool Kinerja Tinggi",
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setPrompt(preset)}
+                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-blue-500/40 hover:text-blue-300"
+                  >
+                    + {preset}
+                  </button>
+                ))}
 
                 {mode === "fix" && [
-                  isEnglish ? "Fix JavaScript click & DOM error" : "Perbaiki tombol tidak bisa diklik",
-                  isEnglish ? "Fix broken CSS layout on mobile" : "Perbaiki layout CSS rusak di HP",
-                  isEnglish ? "Fix logic bug & undefined error" : "Perbaiki error undefined & bug logika",
+                  isEnglish ? "Fix syntax & compiler errors" : "Perbaiki error syntax & compiler",
+                  isEnglish ? "Fix logic bug & infinite loop" : "Diagnosa & perbaiki bug logika",
+                  isEnglish ? "Fix button click / DOM issue" : "Perbaiki tombol / event listener macet",
+                  isEnglish ? "Fix runtime & null pointer exception" : "Perbaiki runtime error & null pointer",
+                  isEnglish ? "Fix database query / async await" : "Perbaiki query database & async/await",
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -1673,15 +1714,19 @@ export default function AICodePage() {
               <label className="mb-2 block text-sm font-medium text-slate-300">
                 {mode === "fix"
                   ? isEnglish
-                    ? "What needs to be fixed?"
-                    : "Apa yang perlu diperbaiki?"
+                    ? "Paste your broken code or describe the error:"
+                    : "Salin kode yang eror atau jelaskan masalahnya:"
+                  : mode === "software"
+                  ? isEnglish
+                    ? "What program, software, or script do you want to build?"
+                    : "Program atau skrip bahasa apa yang ingin kamu buat?"
                   : mode === "game"
                   ? isEnglish
                     ? "What game do you want to create?"
                     : "Game apa yang ingin kamu buat?"
                   : isEnglish
-                  ? "What do you want to build?"
-                  : "Apa yang ingin kamu buat?"}
+                  ? "What web project do you want to build?"
+                  : "Proyek web apa yang ingin kamu buat?"}
               </label>
 
               <textarea
@@ -1696,10 +1741,14 @@ export default function AICodePage() {
                     ? isEnglish
                       ? "Example: Build a classic Flappy Bird 2D game with jump sound synthesizer, pipe obstacles, score tracking, and on-screen touch buttons for mobile..."
                       : "Contoh: Buatkan game Flappy Bird 2D dengan efek suara lompat, rintangan pipa, skor, high score, dan tombol sentuh layar untuk HP..."
+                    : mode === "software"
+                    ? isEnglish
+                      ? "Example: Build a complete Python CLI tool with SQLite database for inventory tracking, featuring CRUD, CSV export, and clear run instructions. (Or ask in C++, Java, Go, Rust, C#, PHP, etc.)..."
+                      : "Contoh: Buatkan program Python lengkap dengan database SQLite untuk manajemen stok barang, fitur tambah/edit/hapus/laporan CSV dan petunjuk menjalankannya. (Atau bahasa lain: C++, Java, C#, Go, Rust, PHP, Bash, dll.)..."
                     : mode === "fix"
                     ? isEnglish
-                      ? "Example: The function below throws an error when clicked and the layout breaks on mobile. Please analyze and fix all bugs..."
-                      : "Contoh: Tombol pada kodingan di bawah tidak berfungsi dan tampilannya berantakan di HP. Tolong perbaiki semua kesalahannya..."
+                      ? "Example: Paste any broken code, compiler errors, or stack traces here. AI will detect bugs across all languages, explain what broke, and provide 100% fixed, working code..."
+                      : "Contoh: Salin kode yang eror, pesan stack trace, atau deskripsi bug bahasa apa saja di sini. AI akan mendiagnosa penyebab eror, memperbaikinya, dan memberikan kode baru yang bersih dan langsung bisa dijalankan..."
                     : isEnglish
                     ? "Example: Build a modern responsive inventory management website with charts, search filter, and add/edit modals..."
                     : "Contoh: Buatkan website inventaris barang modern dan responsive dengan filter pencarian, modal tambah barang, dan data tersimpan..."
@@ -2165,6 +2214,42 @@ export default function AICodePage() {
                       </div>
                     )}
                   </div>
+                ) : project ? (
+                  <div className="flex h-full min-h-[580px] flex-col items-center justify-center p-6 text-center">
+                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                      <Terminal size={32} />
+                    </div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-medium mb-3">
+                      <Sparkles size={13} />
+                      <span>{isEnglish ? "Software / CLI Project Ready" : "Program / Skrip Siap Digunakan"}</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white">
+                      {project.projectName || (isEnglish ? "Program Generated" : "Program Berhasil Dibuat")}
+                    </h3>
+                    <p className="mt-2 max-w-lg text-sm leading-6 text-slate-400">
+                      {isEnglish
+                        ? "This project is built for backend / terminal execution. Open the Code tab to inspect source files, edit live, or copy execution commands."
+                        : "Proyek ini dirancang untuk dieksekusi di Terminal / Konsol. Buka tab Code untuk memeriksa seluruh file kode, mengedit langsung, atau menyalin petunjuk eksekusi."}
+                    </p>
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setBuilderTab("code")}
+                        className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg transition active:scale-95"
+                      >
+                        <FileCode2 size={15} />
+                        <span>{isEnglish ? "View & Edit Code" : "Buka Tab Kode & File"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={copySelectedFile}
+                        className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-200 transition"
+                      >
+                        {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                        <span>{copied ? (isEnglish ? "Copied!" : "Tersalin!") : (isEnglish ? "Copy Code" : "Salin Kode")}</span>
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex h-full min-h-[580px] flex-col items-center justify-center text-center">
                     <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/80 border border-slate-700">
@@ -2175,8 +2260,8 @@ export default function AICodePage() {
                     </h3>
                     <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
                       {isEnglish
-                        ? "Enter a prompt like 'Cyberpunk landing page' or 'Neon calculator' to build and preview live!"
-                        : "Ketik prompt seperti 'Landing page cyberpunk' atau 'Kalkulator neon' untuk membangun dan melihat preview interaktifnya di sini!"}
+                        ? "Enter a prompt or select a mode above to build apps, write scripts in any language, or fix broken code!"
+                        : "Ketik prompt atau pilih mode di atas untuk membangun web, skrip bahasa apa saja, atau perbaiki kode eror!"}
                     </p>
                   </div>
                 )}

@@ -79,3 +79,27 @@ export function resolveModelCandidates(
 
   return [chosen, ...allActualModels.filter((m) => m !== chosen)];
 }
+
+/**
+ * Deteksi apakah error dari Gemini API memenuhi syarat fallback ke model lain:
+ * Termasuk 429 Quota Exceeded, Rate Limit, Service Unavailable (503), Model Not Found (404), dll.
+ */
+export function isModelFallbackError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes("429") ||
+    normalized.includes("too many requests") ||
+    normalized.includes("resource_exhausted") ||
+    normalized.includes("quota") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("exceeded your current quota") ||
+    normalized.includes("503") ||
+    normalized.includes("service unavailable") ||
+    normalized.includes("temporarily unavailable") ||
+    normalized.includes("404") ||
+    normalized.includes("not found") ||
+    normalized.includes("no longer available")
+  );
+}

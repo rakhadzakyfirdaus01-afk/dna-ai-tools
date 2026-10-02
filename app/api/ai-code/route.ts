@@ -38,17 +38,14 @@ const MAX_FILE_CONTENT_LENGTH = 500000;
 const MAX_EXISTING_PROJECT_LENGTH = 250000;
 
 const ALLOWED_PREVIEW_EXTENSIONS = [
-  ".html",
-  ".htm",
-  ".css",
-  ".js",
-  ".mjs",
-  ".svg",
-  ".json",
-  ".txt",
-  ".md",
-  ".webmanifest",
+  // Web & Frontend
+  ".html", ".htm", ".css", ".scss", ".sass", ".less", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".vue", ".svelte",
+  // Backend, Systems & General Programming
+  ".py", ".pyw", ".java", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".cs", ".go", ".rs", ".php", ".rb", ".kt", ".kts", ".swift", ".dart", ".scala", ".lua", ".r", ".pl", ".pm", ".asm",
+  // Database, DevOps & Configurations
+  ".sql", ".json", ".yaml", ".yml", ".toml", ".xml", ".env", ".sh", ".bash", ".zsh", ".ps1", ".bat", ".cmd", ".dockerfile", ".md", ".txt", ".svg", ".webmanifest"
 ];
+
 
 function cleanAIResponse(
   text: string
@@ -358,25 +355,21 @@ function parseGeneratedProject(
   }
 
   /*
-   * Web dan game harus mempunyai HTML
-   * agar dapat ditampilkan oleh Live Preview.
+   * Jika project web atau game tidak memiliki file HTML (misal script Python, C++, Java, dsb.),
+   * otomatis sesuaikan tipenya menjadi "software" agar tetap sukses diproses.
    */
-  if (
-    (type === "web" ||
-      type === "game") &&
-    !hasHtmlFile(files)
-  ) {
-    throw new Error(
-      "Project web/game tidak memiliki file HTML untuk Live Preview."
-    );
-  }
+  const resolvedType =
+    (type === "web" || type === "game") && !hasHtmlFile(files)
+      ? "software"
+      : type;
 
   return {
     projectName,
-    type,
+    type: resolvedType,
     description,
     files,
   };
+
 }
 
 function parseExistingProject(
@@ -618,10 +611,12 @@ export async function POST(
 
     const mode =
       request.mode === "web" ||
+      request.mode === "software" ||
       request.mode === "fix" ||
       request.mode === "game"
         ? request.mode
         : "auto";
+
 
     const requestedModel =
       typeof request.model ===

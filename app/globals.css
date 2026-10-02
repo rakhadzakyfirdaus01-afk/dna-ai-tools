@@ -328,3 +328,12 @@ html.light .text-slate-200 {
   animation: splashSubtitle 0.7s ease-out 1s forwards;
   opacity: 0;
 }
+
+@keyframes dnaFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1.5deg);
+  }
+}

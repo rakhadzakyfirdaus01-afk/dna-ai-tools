@@ -18,10 +18,20 @@ import {
   ArrowLeft,
   Sparkles,
   LogOut,
+  Bot,
+  Sliders,
 } from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
+import {
+  getCompanionConfig,
+  saveCompanionConfig,
+  openCompanionCustomizer,
+  COMPANION_EVENT_KEY,
+  type CompanionConfig,
+} from "@/lib/companion-store";
 
 export default function SettingsPage() {
+
   const router = useRouter();
   const { data: session, update } = useSession();
   const { theme, setTheme } = useTheme();
@@ -37,6 +47,41 @@ export default function SettingsPage() {
   const [notification, setNotification] = useState(true);
   const [animations, setAnimations] = useState(true);
   const [autoSave, setAutoSave] = useState(true);
+
+  // DNA Companion (Karakter Kecil)
+  const [companionEnabled, setCompanionEnabled] = useState(true);
+
+  useEffect(() => {
+    const cfg = getCompanionConfig();
+    setCompanionEnabled(cfg.enabled);
+
+    const handleCompanionUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<CompanionConfig>;
+      if (customEvent.detail) {
+        setCompanionEnabled(customEvent.detail.enabled);
+      } else {
+        setCompanionEnabled(getCompanionConfig().enabled);
+      }
+    };
+
+    window.addEventListener(COMPANION_EVENT_KEY, handleCompanionUpdate);
+    return () => {
+      window.removeEventListener(COMPANION_EVENT_KEY, handleCompanionUpdate);
+    };
+  }, []);
+
+  const handleToggleCompanion = (enabled: boolean) => {
+    const current = getCompanionConfig();
+    const updated = { ...current, enabled };
+    setCompanionEnabled(enabled);
+    saveCompanionConfig(updated);
+    if (enabled) {
+      toast.success("Karakter kecil (DNA Companion) diaktifkan! ✨");
+    } else {
+      toast.info("Karakter kecil (DNA Companion) dinonaktifkan");
+    }
+  };
+
 
   // Load Profile from API
   useEffect(() => {
@@ -571,8 +616,52 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-4">
+            {/* DNA Companion (Karakter Kecil Maskot) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-4 transition-all">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                  <Bot size={22} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-foreground">
+                      Karakter Kecil (DNA Companion)
+                    </h3>
+                    <span className="rounded-md bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-300 border border-cyan-500/30">
+                      INTERAKTIF
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground sm:text-sm mt-0.5">
+                    Tampilkan maskot kecil interaktif dengan logo DNA AI yang bisa dikustomisasi di layar.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+                {companionEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => openCompanionCustomizer()}
+                    className="flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition active:scale-95 cursor-pointer"
+                  >
+                    <Sliders size={13} />
+                    <span>Kustomisasi Gaya</span>
+                  </button>
+                )}
+
+                <input
+                  type="checkbox"
+                  checked={companionEnabled}
+                  onChange={(e) => handleToggleCompanion(e.target.checked)}
+                  className="h-5 w-5 accent-cyan-500 cursor-pointer"
+                  title="Aktifkan / Nonaktifkan Karakter Kecil"
+                />
+              </div>
+            </div>
+
             {/* Notifications */}
             <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-4">
+
               <div>
                 <h3 className="font-medium text-foreground">
                   Notifikasi Toast

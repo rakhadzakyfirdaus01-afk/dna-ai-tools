@@ -5,6 +5,8 @@ import Sidebar from "./sidebar";
 import Navbar from "../navbar";
 import Footer from "./footer";
 import AppDownloadModal from "@/components/shared/app-download-modal";
+import DnaCompanion from "@/components/companion/dna-companion";
+
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -90,6 +92,11 @@ export default function AppLayout({
         isOpen={downloadModalOpen}
         onClose={() => setDownloadModalOpen(false)}
       />
+
+      {/* =========================
+          DNA MINI COMPANION (KARAKTER KECIL)
+      ========================== */}
+      <DnaCompanion />
 
     </div>
   );

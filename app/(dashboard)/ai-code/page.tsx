@@ -41,9 +41,15 @@ import {
   Search,
   Folder,
   MessageSquare,
+  Columns,
+  Play,
+  Zap,
 } from "lucide-react";
 
+
+import { toast } from "sonner";
 import { useLanguage } from "@/components/shared/language-provider";
+
 import { addNotification } from "@/components/notifications/notification-store";
 import {
   requestNotificationPermission,
@@ -163,6 +169,8 @@ export default function AICodePage() {
   // Codex Modes: web (Modern Web App), fix (Perbaiki Kode), game (Game 2D)
   const [mode, setMode] = useState<"web" | "fix" | "game">("web");
   const [deviceMode, setDeviceMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [builderTab, setBuilderTab] = useState<"preview" | "code" | "split">("preview");
+
 
   const [prompt, setPrompt] = useState("");
   const [codeContext, setCodeContext] = useState("");
@@ -741,6 +749,10 @@ export default function AICodePage() {
           value + 1
       );
 
+      // Automatically switch to Live Preview tab (v0 style)
+      setBuilderTab("preview");
+
+
       /*
        * =========================================================
        * SIMPAN KE HISTORY
@@ -1003,6 +1015,26 @@ export default function AICodePage() {
         value + 1
     );
   }
+
+  /**
+   * 1-Click Salin Kode HTML / Tailwind.
+   */
+  const copyHtmlCode = () => {
+    const htmlFile =
+      project?.files.find((f) => f.path.toLowerCase().endsWith(".html")) ||
+      selectedFile;
+    if (htmlFile) {
+      navigator.clipboard.writeText(htmlFile.content);
+      setCopied(true);
+      toast.success(
+        isEnglish
+          ? "HTML / Tailwind code copied to clipboard!"
+          : "Kode HTML / Tailwind berhasil disalin!"
+      );
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
 
   /**
    * Download seluruh project sebagai ZIP.
@@ -1586,9 +1618,11 @@ export default function AICodePage() {
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {mode === "web" && [
+                  isEnglish ? "Cyberpunk Landing Page" : "Landing Page Cyberpunk",
+                  isEnglish ? "Futuristic Neon Calculator" : "Kalkulator Neon Futuristik",
+                  isEnglish ? "Animated Glassmorphism Profile Card" : "Kartu Profil Animasi Glassmorphism",
                   isEnglish ? "E-Commerce Landing Page" : "Landing Page Toko Online",
                   isEnglish ? "Interactive Dashboard" : "Dashboard Analytics Dark Mode",
-                  isEnglish ? "Finance Calculator" : "Kalkulator Finansial Interaktif",
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -1599,6 +1633,7 @@ export default function AICodePage() {
                     + {preset}
                   </button>
                 ))}
+
 
                 {mode === "fix" && [
                   isEnglish ? "Fix JavaScript click & DOM error" : "Perbaiki tombol tidak bisa diklik",
@@ -1895,399 +1930,330 @@ export default function AICodePage() {
             }
           >
 
-            {/* TOP BAR */}
-
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-5 py-4 sm:px-6">
+            {/* ========================================================
+                UPGRADED TOP BAR: TABS, RESPONSIVE CONTROLS, ACTIONS
+            ======================================================== */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3.5 sm:px-6 bg-[#080D1A]/90 backdrop-blur-md">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded-full bg-red-400" />
-                  <div className="h-3 w-3 rounded-full bg-yellow-400" />
-                  <div className="h-3 w-3 rounded-full bg-green-400" />
+                  <div className="h-3 w-3 rounded-full bg-red-500/80" />
+                  <div className="h-3 w-3 rounded-full bg-amber-500/80" />
+                  <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
                 </div>
 
-                <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-slate-300">
-                  <Terminal
-                    size={16}
-                    className="shrink-0"
-                  />
-
-                  <span className="truncate">
-                    {project?.projectName ||
-                      "AI Code Builder"}
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-200">
+                  <Terminal size={15} className="shrink-0 text-cyan-400" />
+                  <span className="truncate max-w-[140px] sm:max-w-[220px]">
+                    {project?.projectName || (isEnglish ? "Component Sandbox" : "Sandbox Komponen")}
                   </span>
                 </div>
               </div>
 
+              {/* CENTER: V0 / CODEPEN MODE TABS */}
+              <div className="flex items-center rounded-xl border border-slate-800 bg-[#060A14] p-1">
+                <button
+                  type="button"
+                  onClick={() => setBuilderTab("preview")}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    builderTab === "preview"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                  }`}
+                  title="Lihat UI Interaktif Hidup (Full Canvas)"
+                >
+                  <Eye size={13} className={builderTab === "preview" ? "text-emerald-400" : "text-slate-500"} />
+                  <span>Live Preview</span>
+                  {hasPreview && (
+                    <span className="hidden sm:inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBuilderTab("code")}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    builderTab === "code"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                  }`}
+                  title="Lihat & Edit Source Code"
+                >
+                  <Code2 size={13} className={builderTab === "code" ? "text-cyan-400" : "text-slate-500"} />
+                  <span>Code</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBuilderTab("split")}
+                  className={`hidden md:flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    builderTab === "split"
+                      ? "bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                  }`}
+                  title="Tampilan Split: Code di Kiri & Live Preview di Kanan (Gaya CodePen)"
+                >
+                  <Columns size={13} className={builderTab === "split" ? "text-purple-400" : "text-slate-500"} />
+                  <span>Split Sandbox</span>
+                </button>
+              </div>
+
+              {/* RIGHT: RESPONSIVE DEVICE TOGGLE & ACTIONS */}
               <div className="flex items-center gap-2">
-                {project && (
-                  <>
+                {/* DEVICE TOGGLE (DESKTOP, TABLET, MOBILE) */}
+                {(builderTab === "preview" || builderTab === "split") && (
+                  <div className="hidden sm:flex items-center rounded-xl border border-slate-800 bg-[#060A14] p-0.5">
                     <button
                       type="button"
-                      onClick={
-                        downloadProject
-                      }
-                      disabled={
-                        project.files.length ===
-                        0
-                      }
-                      className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                      title={isEnglish ? "Desktop View (100%)" : "Layar Desktop (100%)"}
+                      onClick={() => setDeviceMode("desktop")}
+                      className={`rounded-lg p-1.5 transition ${
+                        deviceMode === "desktop"
+                          ? "bg-slate-700/70 text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-300"
+                      }`}
                     >
-                      <Download
-                        size={14}
-                      />
+                      <Monitor size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      title={isEnglish ? "Tablet View (768px)" : "Layar Tablet (768px)"}
+                      onClick={() => setDeviceMode("tablet")}
+                      className={`rounded-lg p-1.5 transition ${
+                        deviceMode === "tablet"
+                          ? "bg-slate-700/70 text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-300"
+                      }`}
+                    >
+                      <Tablet size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      title={isEnglish ? "Mobile View (380px)" : "Layar HP (380px)"}
+                      onClick={() => setDeviceMode("mobile")}
+                      className={`rounded-lg p-1.5 transition ${
+                        deviceMode === "mobile"
+                          ? "bg-slate-700/70 text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-300"
+                      }`}
+                    >
+                      <Smartphone size={14} />
+                    </button>
+                  </div>
+                )}
 
-                      <span className="hidden sm:inline">
-                        {isEnglish
-                          ? "Download"
-                          : "Download"}
-                      </span>
+                {project && (
+                  <>
+                    {/* 1-CLICK COPY HTML / TAILWIND */}
+                    <button
+                      type="button"
+                      onClick={copyHtmlCode}
+                      className="flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20 active:scale-95"
+                      title={isEnglish ? "Copy HTML & Tailwind Code" : "Salin Kode HTML & Tailwind"}
+                    >
+                      {copied ? (
+                        <>
+                          <Check size={13} className="text-emerald-400" />
+                          <span className="hidden sm:inline">Tersalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} />
+                          <span className="hidden sm:inline">Copy HTML</span>
+                        </>
+                      )}
                     </button>
 
                     <button
                       type="button"
-                      onClick={
-                        refreshPreview
-                      }
-                      disabled={
-                        !hasPreview
-                      }
-                      className="flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={refreshPreview}
+                      disabled={!hasPreview}
+                      className="flex items-center gap-1.5 rounded-xl border border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                      title="Refresh Preview"
                     >
-                      <RefreshCw
-                        size={14}
-                      />
+                      <RefreshCw size={13} />
+                    </button>
 
-                      <span className="hidden sm:inline">
-                        Refresh
-                      </span>
+                    <button
+                      type="button"
+                      onClick={downloadProject}
+                      disabled={project.files.length === 0}
+                      className="hidden sm:flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                      title="Download ZIP"
+                    >
+                      <Download size={13} />
+                      <span>ZIP</span>
                     </button>
                   </>
                 )}
 
                 <button
                   type="button"
-                  onClick={
-                    toggleFullscreen
-                  }
-                  disabled={
-                    !project
-                  }
-                  className="flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={toggleFullscreen}
+                  disabled={!project}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Fullscreen"
                 >
-                  {previewFullscreen ? (
-                    <X size={14} />
-                  ) : (
-                    <Maximize2
-                      size={14}
-                    />
-                  )}
-
-                  <span className="hidden sm:inline">
-                    {previewFullscreen
-                      ? isEnglish
-                        ? "Exit"
-                        : "Keluar"
-                      : isEnglish
-                      ? "Fullscreen"
-                      : "Layar Penuh"}
-                  </span>
+                  {previewFullscreen ? <X size={14} /> : <Maximize2 size={14} />}
                 </button>
               </div>
             </div>
 
-            {/* BUILDER CONTENT */}
+            {/* ========================================================
+                BUILDER CONTENT: DYNAMIC VIEW (PREVIEW / CODE / SPLIT)
+            ======================================================== */}
 
-            <div className="grid min-h-[640px] flex-1 lg:grid-cols-[220px_minmax(0,1fr)]">
-
-              {/* ====================================
-                  FILE EXPLORER
-              ==================================== */}
-
-              <aside className="border-b border-slate-800 bg-[#080D1A] lg:border-b-0 lg:border-r">
-                <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <FolderOpen
-                      size={15}
-                      className="text-slate-500"
-                    />
-
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            {/* CASE 1: FULL LIVE PREVIEW TAB (V0 STYLE) */}
+            {builderTab === "preview" && (
+              <div className="relative flex-1 min-h-[640px] flex flex-col bg-[#020617] overflow-hidden p-3 sm:p-5">
+                {loading ? (
+                  <div className="flex h-full min-h-[580px] flex-col items-center justify-center text-center">
+                    <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                      <Loader2 size={32} className="animate-spin text-emerald-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">
+                      {isRegenerate
+                        ? (isEnglish ? "Regenerating component..." : "Sedang meregenerasi komponen...")
+                        : (isEnglish ? "Building live component..." : "Sedang membangun komponen interaktif...")}
+                    </h3>
+                    <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
                       {isEnglish
-                        ? "Project Files"
-                        : "File Project"}
-                    </span>
+                        ? "AI is assembling HTML, Tailwind CSS, and scripts for the live preview."
+                        : "AI sedang meracik HTML, Tailwind CSS, dan skrip untuk Live Preview."}
+                    </p>
                   </div>
-
-                  {project && (
-                    <span className="text-[10px] text-slate-600">
-                      {
-                        projectFiles.length
-                      }
-                    </span>
-                  )}
-                </div>
-
-                <div className="max-h-[220px] overflow-y-auto p-2 lg:max-h-[600px]">
-                  {projectFiles.map(
-                    (file) => {
-                      const active =
-                        selectedFile?.path ===
-                        file.path;
-
-                      return (
-                        <button
-                          key={
-                            file.path
-                          }
-                          type="button"
-                          onClick={() =>
-                            handleSelectFile(
-                              file
-                            )
-                          }
-                          className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs transition ${
-                            active
-                              ? "bg-emerald-500/10 text-emerald-300"
-                              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                          }`}
-                        >
-                          <FileCode2
-                            size={14}
-                            className="shrink-0"
-                          />
-
-                          <span className="truncate">
-                            {
-                              file.path
-                            }
-                          </span>
-                        </button>
-                      );
-                    }
-                  )}
-
-                  {!project && (
-                    <div className="px-3 py-4 text-xs leading-5 text-slate-600">
-                      {isEnglish
-                        ? "Generated files will appear here."
-                        : "File hasil AI akan muncul di sini."}
-                    </div>
-                  )}
-
-                  {project &&
-                    projectFiles.length ===
-                      0 && (
-                      <div className="px-3 py-4 text-xs leading-5 text-slate-600">
-                        {isEnglish
-                          ? "No usable files."
-                          : "Tidak ada file yang dapat digunakan."}
-                      </div>
-                    )}
-                </div>
-              </aside>
-
-              {/* ====================================
-                  MAIN AREA
-              ==================================== */}
-
-              <div className="grid min-h-0 grid-rows-[minmax(360px,1fr)_240px]">
-
-                {/* ==================================
-                    LIVE PREVIEW
-                ================================== */}
-
-                <div className="relative min-h-0 bg-[#020617]">
-                  <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Eye
-                        size={15}
-                        className="text-emerald-400"
-                      />
-
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                        Live Preview
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2.5">
-                      {/* DEVICE TOGGLE (DESKTOP, TABLET, MOBILE) */}
-                      <div className="hidden sm:flex items-center rounded-xl border border-slate-800 bg-[#060A14] p-0.5">
-                        <button
-                          type="button"
-                          title={isEnglish ? "Desktop View" : "Layar Desktop (100%)"}
-                          onClick={() => setDeviceMode("desktop")}
-                          className={`rounded-lg p-1.5 transition ${
-                            deviceMode === "desktop"
-                              ? "bg-slate-700/60 text-white"
-                              : "text-slate-500 hover:text-slate-300"
-                          }`}
-                        >
-                          <Monitor size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          title={isEnglish ? "Tablet View (768px)" : "Layar Tablet (768px)"}
-                          onClick={() => setDeviceMode("tablet")}
-                          className={`rounded-lg p-1.5 transition ${
-                            deviceMode === "tablet"
-                              ? "bg-slate-700/60 text-white"
-                              : "text-slate-500 hover:text-slate-300"
-                          }`}
-                        >
-                          <Tablet size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          title={isEnglish ? "Mobile View (380px)" : "Layar HP (380px)"}
-                          onClick={() => setDeviceMode("mobile")}
-                          className={`rounded-lg p-1.5 transition ${
-                            deviceMode === "mobile"
-                              ? "bg-slate-700/60 text-white"
-                              : "text-slate-500 hover:text-slate-300"
-                          }`}
-                        >
-                          <Smartphone size={14} />
-                        </button>
-                      </div>
-
-                      {hasPreview && (
-                        <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-400">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-
-                          LIVE
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="h-[calc(100%-45px)] p-3 sm:p-5">
-                    {loading ? (
-                      <div className="flex h-full flex-col items-center justify-center text-center">
-                        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
-                          <Loader2
-                            size={30}
-                            className="animate-spin text-emerald-400"
-                          />
+                ) : hasPreview ? (
+                  <div className="flex-1 flex items-center justify-center min-h-[580px] w-full">
+                    {/* PHONE FRAME (MOBILE VIEW) */}
+                    {deviceMode === "mobile" ? (
+                      <div className="relative w-[380px] max-w-full h-[620px] rounded-[38px] border-[8px] border-slate-800 bg-slate-950 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden ring-2 ring-slate-700/50 flex flex-col">
+                        {/* Phone Top Notch Speaker */}
+                        <div className="w-full h-6 bg-slate-900 flex items-center justify-center shrink-0 border-b border-slate-800">
+                          <div className="h-1.5 w-16 bg-slate-700 rounded-full" />
                         </div>
-
-                        <h3 className="text-lg font-semibold text-white">
-                          {isRegenerate
-                            ? isEnglish
-                              ? "Regenerating your project..."
-                              : "Sedang meregenerasi project..."
-                            : isEnglish
-                            ? "Building your project..."
-                            : "Sedang membangun project..."}
-                        </h3>
-
-                        <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-                          {isRegenerate
-                            ? isEnglish
-                              ? "AI is applying your new request to the existing project and preparing the updated preview."
-                              : "AI sedang menerapkan permintaan baru ke project yang ada dan menyiapkan preview terbaru."
-                            : isEnglish
-                            ? "AI is creating the files and preparing the live preview."
-                            : "AI sedang membuat file dan menyiapkan live preview."}
-                        </p>
-                      </div>
-                    ) : hasPreview ? (
-                      <div className={`h-full transition-all duration-300 overflow-hidden rounded-2xl border border-slate-700 bg-white shadow-2xl ${
-                        deviceMode === "mobile"
-                          ? "max-w-[380px] mx-auto ring-8 ring-slate-800"
-                          : deviceMode === "tablet"
-                            ? "max-w-[768px] mx-auto ring-8 ring-slate-800"
-                            : "w-full"
-                      }`}>
                         <iframe
-                          key={
-                            previewKey
-                          }
-                          title={
-                            project?.projectName ||
-                            "AI Code Preview"
-                          }
-                          srcDoc={
-                            previewHtml
-                          }
+                          key={previewKey}
+                          title={project?.projectName || "AI Code Preview"}
+                          srcDoc={previewHtml}
+                          sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
+                          allow="autoplay; fullscreen"
+                          className="flex-1 w-full border-0 bg-white"
+                        />
+                      </div>
+                    ) : deviceMode === "tablet" ? (
+                      /* TABLET FRAME */
+                      <div className="relative w-[768px] max-w-full h-[620px] rounded-2xl border-[6px] border-slate-800 bg-slate-950 shadow-2xl overflow-hidden ring-1 ring-slate-700 flex flex-col">
+                        <iframe
+                          key={previewKey}
+                          title={project?.projectName || "AI Code Preview"}
+                          srcDoc={previewHtml}
+                          sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
+                          allow="autoplay; fullscreen"
+                          className="flex-1 w-full border-0 bg-white"
+                        />
+                      </div>
+                    ) : (
+                      /* DESKTOP VIEW (100% CANVAS) */
+                      <div className="w-full h-[620px] rounded-2xl border border-slate-800 bg-white shadow-2xl overflow-hidden">
+                        <iframe
+                          key={previewKey}
+                          title={project?.projectName || "AI Code Preview"}
+                          srcDoc={previewHtml}
                           sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
                           allow="autoplay; fullscreen"
                           className="h-full w-full border-0"
                         />
                       </div>
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center text-center">
-                        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800">
-                          <Eye
-                            size={30}
-                            className="text-slate-500"
-                          />
-                        </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex h-full min-h-[580px] flex-col items-center justify-center text-center">
+                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/80 border border-slate-700">
+                      <Eye size={30} className="text-slate-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">
+                      Live Component Sandbox
+                    </h3>
+                    <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
+                      {isEnglish
+                        ? "Enter a prompt like 'Cyberpunk landing page' or 'Neon calculator' to build and preview live!"
+                        : "Ketik prompt seperti 'Landing page cyberpunk' atau 'Kalkulator neon' untuk membangun dan melihat preview interaktifnya di sini!"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
-                        <h3 className="text-lg font-semibold text-white">
-                          Live Preview
-                        </h3>
+            {/* CASE 2: SOURCE CODE VIEW TAB */}
+            {builderTab === "code" && (
+              <div className="grid min-h-[640px] flex-1 lg:grid-cols-[230px_minmax(0,1fr)]">
+                {/* FILE EXPLORER */}
+                <aside className="border-b border-slate-800 bg-[#080D1A] lg:border-b-0 lg:border-r">
+                  <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <FolderOpen size={15} className="text-cyan-400" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        {isEnglish ? "Project Files" : "File Project"}
+                      </span>
+                    </div>
+                    {project && (
+                      <span className="text-[10px] text-slate-500 font-semibold px-2 py-0.5 rounded bg-slate-800">
+                        {projectFiles.length} file
+                      </span>
+                    )}
+                  </div>
 
-                        <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-                          {project
-                            ? isEnglish
-                              ? "The project was generated, but it does not contain an HTML file that can be previewed directly."
-                              : "Project berhasil dibuat, tetapi tidak memiliki file HTML yang dapat dipreview langsung."
-                            : isEnglish
-                            ? "Describe a web project and AI will build it here."
-                            : "Jelaskan project web yang kamu inginkan dan AI akan membangunnya di sini."}
-                        </p>
+                  <div className="max-h-[220px] overflow-y-auto p-2 lg:max-h-[600px] space-y-1">
+                    {projectFiles.map((file) => {
+                      const active = selectedFile?.path === file.path;
+                      return (
+                        <button
+                          key={file.path}
+                          type="button"
+                          onClick={() => handleSelectFile(file)}
+                          className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs transition ${
+                            active
+                              ? "bg-cyan-500/15 text-cyan-300 font-medium border border-cyan-500/30"
+                              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                          }`}
+                        >
+                          <FileCode2 size={14} className="shrink-0" />
+                          <span className="truncate">{file.path}</span>
+                        </button>
+                      );
+                    })}
 
-                        {project &&
-                          !hasPreview && (
-                            <div className="mt-5 flex items-center gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-300">
-                              <AlertCircle
-                                size={14}
-                              />
-
-                              <span>
-                                {isEnglish
-                                  ? "No HTML preview entry was found."
-                                  : "Entry HTML untuk preview tidak ditemukan."}
-                              </span>
-                            </div>
-                          )}
+                    {!project && (
+                      <div className="px-3 py-4 text-xs leading-5 text-slate-600">
+                        {isEnglish ? "Generated files will appear here." : "File hasil AI akan muncul di sini."}
                       </div>
                     )}
                   </div>
-                </div>
+                </aside>
 
-                {/* ==================================
-                    SOURCE CODE VIEWER
-                ================================== */}
-
-                <div className="min-h-0 border-t border-slate-800 bg-[#080D1A]">
-                  <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+                {/* CODE VIEWER / LIVE EDITOR */}
+                <div className="flex flex-col min-h-0 bg-[#060A14]">
+                  <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3 bg-[#080D1A]">
                     <div className="flex min-w-0 items-center gap-2">
-                      <Code2
-                        size={15}
-                        className="shrink-0 text-cyan-400"
-                      />
-
-                      <span className="truncate text-xs font-semibold text-slate-400">
-                        {selectedFile?.path ||
-                          "Source Code"}
+                      <Code2 size={15} className="shrink-0 text-cyan-400" />
+                      <span className="truncate text-xs font-semibold text-slate-300">
+                        {selectedFile?.path || "Source Code"}
                       </span>
+                      {isEditing && (
+                        <span className="rounded bg-amber-500/20 text-amber-300 text-[10px] px-1.5 py-0.2 font-semibold">
+                          Editing
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
                       {selectedFile && !isEditing && (
                         <button
                           type="button"
-                          onClick={
-                            startEditing
-                          }
-                          className="flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800"
+                          onClick={startEditing}
+                          className="flex items-center gap-1.5 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800"
                         >
-                          <Pencil size={14} />
-
-                          <span>
-                            Edit
-                          </span>
+                          <Pencil size={13} />
+                          <span>Edit</span>
                         </button>
                       )}
 
@@ -2295,120 +2261,150 @@ export default function AICodePage() {
                         <>
                           <button
                             type="button"
-                            onClick={
-                              cancelEditing
-                            }
-                            className="flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800"
+                            onClick={cancelEditing}
+                            className="flex items-center gap-1 rounded-xl border border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800"
                           >
-                            <Undo2 size={14} />
-
-                            <span>
-                              {isEnglish
-                                ? "Cancel"
-                                : "Batal"}
-                            </span>
+                            <Undo2 size={13} />
+                            <span>Batal</span>
                           </button>
 
                           <button
                             type="button"
-                            onClick={
-                              saveFileChanges
-                            }
+                            onClick={saveFileChanges}
                             disabled={!editorDirty}
-                            className="flex items-center gap-2 rounded-xl border border-emerald-500/40 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="flex items-center gap-1.5 rounded-xl border border-emerald-500/50 bg-emerald-500/20 px-3 py-1.5 text-xs font-bold text-emerald-300 shadow-sm transition hover:bg-emerald-500/30 disabled:opacity-40"
                           >
-                            <Save size={14} />
-
-                            <span>
-                              {isEnglish
-                                ? "Save Changes"
-                                : "Simpan Perubahan"}
-                            </span>
+                            <Zap size={13} />
+                            <span>Update Preview</span>
                           </button>
                         </>
                       )}
 
                       <button
                         type="button"
-                        onClick={
-                          copySelectedFile
-                        }
+                        onClick={copySelectedFile}
                         disabled={!selectedFile}
-                        className="flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex items-center gap-1.5 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:opacity-40"
                       >
-                        {copied ? (
-                          <>
-                            <Check
-                              size={14}
-                            />
-
-                            <span>
-                              {isEnglish
-                                ? "Copied"
-                                : "Tersalin"}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy
-                              size={14}
-                            />
-
-                            <span>
-                              {isEnglish
-                                ? "Copy"
-                                : "Salin"}
-                            </span>
-                          </>
-                        )}
+                        {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                        <span>{copied ? "Tersalin" : "Salin"}</span>
                       </button>
                     </div>
                   </div>
 
-                  <div className="h-[calc(100%-45px)] overflow-auto p-4">
+                  <div className="flex-1 overflow-auto p-4 font-mono text-xs leading-6 text-slate-300">
                     {selectedFile ? (
                       isEditing ? (
                         <textarea
-                          value={
-                            editingContent
-                          }
-                          onChange={(event) => {
-                            const value =
-                              event.target.value;
-
-                            setEditingContent(
-                              value
-                            );
-
-                            setEditorDirty(
-                              value !== selectedFile.content
-                            );
+                          value={editingContent}
+                          onChange={(e) => {
+                            setEditingContent(e.target.value);
+                            setEditorDirty(e.target.value !== selectedFile.content);
                           }}
                           spellCheck={false}
                           wrap="off"
                           autoFocus
-                          className="h-full min-h-full w-full resize-none border-0 bg-transparent p-0 font-mono text-xs leading-6 text-slate-300 outline-none focus:ring-0"
+                          className="h-full min-h-[540px] w-full resize-none border-0 bg-transparent p-0 font-mono text-xs leading-6 text-cyan-200 outline-none focus:ring-0"
                         />
                       ) : (
-                        <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-slate-300">
-                          {selectedFile.content}
-                        </pre>
+                        <pre className="whitespace-pre-wrap break-words">{selectedFile.content}</pre>
                       )
                     ) : (
                       <div className="flex h-full items-center justify-center text-center text-xs text-slate-600">
-                        {isEnglish
-                          ? "Select a generated file to inspect its source code."
-                          : "Pilih file hasil AI untuk melihat source code-nya."}
+                        {isEnglish ? "Select a file to inspect its code." : "Pilih file untuk melihat kodenya."}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* CASE 3: SPLIT SANDBOX TAB (CODE ON LEFT, LIVE PREVIEW ON RIGHT) */}
+            {builderTab === "split" && (
+              <div className="grid min-h-[640px] flex-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-800">
+                {/* LEFT: CODE VIEW & EDITOR */}
+                <div className="flex flex-col min-h-0 bg-[#060A14]">
+                  {/* File Selector Pills */}
+                  <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-800 p-2 bg-[#080D1A]">
+                    {projectFiles.map((file) => (
+                      <button
+                        key={file.path}
+                        type="button"
+                        onClick={() => handleSelectFile(file)}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition ${
+                          selectedFile?.path === file.path
+                            ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                            : "text-slate-400 hover:bg-slate-800"
+                        }`}
+                      >
+                        {file.path}
+                      </button>
+                    ))}
+                    {selectedFile && isEditing && (
+                      <button
+                        type="button"
+                        onClick={saveFileChanges}
+                        disabled={!editorDirty}
+                        className="ml-auto flex items-center gap-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30"
+                      >
+                        <Zap size={12} />
+                        <span>Run</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-auto p-4 font-mono text-xs leading-6 text-slate-300">
+                    {selectedFile ? (
+                      isEditing ? (
+                        <textarea
+                          value={editingContent}
+                          onChange={(e) => {
+                            setEditingContent(e.target.value);
+                            setEditorDirty(e.target.value !== selectedFile.content);
+                          }}
+                          spellCheck={false}
+                          wrap="off"
+                          className="h-full min-h-[540px] w-full resize-none border-0 bg-transparent p-0 font-mono text-xs leading-6 text-cyan-200 outline-none"
+                        />
+                      ) : (
+                        <div
+                          onClick={startEditing}
+                          className="cursor-pointer"
+                          title="Klik untuk mengedit kode ini live"
+                        >
+                          <pre className="whitespace-pre-wrap break-words">{selectedFile.content}</pre>
+                        </div>
+                      )
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* RIGHT: LIVE INTERACTIVE PREVIEW */}
+                <div className="flex flex-col min-h-0 bg-[#020617] p-3 sm:p-4">
+                  {hasPreview ? (
+                    <div className="w-full h-full min-h-[560px] rounded-xl border border-slate-800 bg-white overflow-hidden shadow-2xl">
+                      <iframe
+                        key={previewKey}
+                        title={project?.projectName || "AI Code Preview"}
+                        srcDoc={previewHtml}
+                        sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
+                        allow="autoplay; fullscreen"
+                        className="h-full w-full border-0"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-center text-xs text-slate-500">
+                      Live Preview akan muncul di sini.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </div>
       </div>
+
 
       {/* ==========================================
           FULLSCREEN BACKDROP

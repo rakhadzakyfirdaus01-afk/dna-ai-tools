@@ -256,6 +256,55 @@ ${html}
 `;
 }
 
+function injectTailwindAndFonts(html: string): string {
+  let result = html;
+
+  const fontAndTailwindBlock = `
+  <!-- DNA AI Sandbox Modern Runtime: Tailwind & Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cyber: {
+              cyan: '#06B6D4',
+              neon: '#22D3EE',
+              dark: '#0B1120',
+              card: '#0F172A',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    .font-cyber {
+      font-family: 'Orbitron', monospace, sans-serif;
+    }
+  </style>
+`;
+
+  if (/<\/head>/i.test(result)) {
+    return result.replace(/<\/head>/i, `${fontAndTailwindBlock}\n</head>`);
+  } else if (/<head[\s>]/i.test(result)) {
+    return result.replace(/<head([^>]*)>/i, `<head$1>\n${fontAndTailwindBlock}`);
+  } else if (/<body[\s>]/i.test(result)) {
+    return result.replace(/<body([^>]*)>/i, `<head>${fontAndTailwindBlock}</head>\n<body$1>`);
+  }
+
+  return `${fontAndTailwindBlock}\n${result}`;
+}
+
+
 function injectPreviewStorage(html: string): string {
   const storageScript = `
 <script data-ai-code-preview-storage="true">
@@ -828,10 +877,14 @@ export function buildPreviewHtml(
     buildJavaScript(normalizedFiles);
 
   html =
+    injectTailwindAndFonts(html);
+
+  html =
     injectCss(
       html,
       css
     );
+
 
   /*
    * Storage fallback harus masuk

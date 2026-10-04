@@ -584,18 +584,18 @@ export default function SettingsPage() {
         {/* =========================================================
             SECTION 2: PROFILE USER (DENGAN TIKTOK LIVE / BIASA BACKGROUND)
             ========================================================= */}
-        <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 sm:p-5 lg:p-6 transition-all shadow-sm">
+        <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm lg:p-6 transition-all">
           {/* TIKTOK STYLE PROFILE COVER / BANNER */}
           {bannerConfig.enabled && (
-            <div className="relative -mx-4 -mt-4 mb-4 sm:-mx-5 sm:-mt-5 sm:mb-5 lg:-mx-6 lg:-mt-6 group">
+            <div className="relative -mx-5 -mt-5 mb-6 lg:-mx-6 lg:-mt-6 group">
               <ProfileBannerView
                 config={bannerConfig}
-                className="h-32 sm:h-40 md:h-48 w-full"
+                className="h-36 sm:h-44 md:h-48 w-full"
               />
 
-              {/* Tombol Ganti Background Langsung dari Banner lewat File Explorer (Responsif HP & PC) */}
-              <label className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-black/70 hover:bg-black/90 border border-white/20 backdrop-blur-md text-[11px] sm:text-xs font-semibold text-white shadow-lg cursor-pointer transition active:scale-95 touch-manipulation">
-                <ImageIcon size={13} className="text-cyan-400 shrink-0" />
+              {/* Tombol Ganti Background Langsung dari Banner lewat File Explorer */}
+              <label className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 border border-white/20 backdrop-blur-md text-xs font-semibold text-white shadow-lg cursor-pointer transition active:scale-95">
+                <ImageIcon size={13} className="text-cyan-400" />
                 <span>Ganti Background</span>
                 <input
                   type="file"
@@ -610,7 +610,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 shrink-0">
                 <UserIcon size={22} />
@@ -620,29 +620,25 @@ export default function SettingsPage() {
                   Profil Pengguna
                 </h2>
                 <p className="text-xs text-muted-foreground sm:text-sm">
-                  Kelola informasi nama, foto profil, dan background akun Anda.
+                  Kelola informasi nama dan foto profil akun Anda.
                 </p>
               </div>
             </div>
 
-            {/* Tombol Kustomisasi Background (Responsif HP) */}
+            {/* Tombol Kustomisasi Background */}
             <button
               type="button"
               onClick={() => setBannerCustomizerOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-3.5 py-2.5 text-xs font-semibold text-cyan-300 hover:border-cyan-400 hover:bg-cyan-500/25 transition active:scale-95 shadow-sm cursor-pointer w-full sm:w-auto"
+              className="flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-3.5 py-2 text-xs font-semibold text-cyan-300 hover:border-cyan-400 hover:bg-cyan-500/25 transition active:scale-95 shadow-sm cursor-pointer"
             >
               <Sparkles size={14} className="text-cyan-400" />
               <span>Kustomisasi Background</span>
             </button>
           </div>
 
-          <div
-            className={`flex flex-col items-center gap-4 sm:gap-6 sm:flex-row ${
-              bannerConfig.enabled ? "-mt-10 sm:-mt-12" : ""
-            }`}
-          >
-            {/* Profile Avatar (Mendukung Foto Biasa & Live Video Gaya TikTok di HP & PC) */}
-            <div className="relative h-[88px] w-[88px] sm:h-[96px] sm:w-[96px] overflow-hidden rounded-full border-4 border-card ring-2 ring-cyan-500/50 shadow-2xl bg-slate-900 shrink-0">
+          <div className="flex flex-col items-center gap-6 sm:flex-row">
+            {/* Profile Avatar (Mendukung Foto Biasa & Live Video Gaya TikTok) */}
+            <div className="relative h-[96px] w-[96px] overflow-hidden rounded-full border-2 border-cyan-500/40 shadow-md bg-slate-900 shrink-0">
               <ProfileAvatar
                 src={profileImage}
                 alt="Profile"
@@ -653,7 +649,7 @@ export default function SettingsPage() {
             </div>
 
             {/* User Info */}
-            <div className="w-full min-w-0 sm:w-auto text-center sm:text-left">
+            <div className="w-full min-w-0 sm:w-auto">
               <h3 className="text-xl font-semibold text-foreground">
                 {name || "User"}
               </h3>

@@ -20,6 +20,7 @@ import {
   LogOut,
   Bot,
   Sliders,
+  Image as ImageIcon,
 } from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
 import {
@@ -90,6 +91,58 @@ export default function SettingsPage() {
       localStorage.setItem(BANNER_STORAGE_KEY, JSON.stringify(newCfg));
       window.dispatchEvent(new CustomEvent("dna-profile-bg-updated"));
     } catch {}
+  };
+
+  const [bannerUploading, setBannerUploading] = useState(false);
+
+  // Ganti background profil langsung lewat Windows File Explorer (foto bebas / video)
+  const handleDirectBackgroundFile = async (file: File) => {
+    const isVideo =
+      file.type.startsWith("video/") ||
+      file.name.endsWith(".mp4") ||
+      file.name.endsWith(".webm") ||
+      file.name.endsWith(".mov");
+
+    // Instant preview (0 ms)
+    const localUrl = URL.createObjectURL(file);
+    const instantCfg: ProfileBannerConfig = {
+      ...bannerConfig,
+      enabled: true,
+      mode: isVideo ? "live" : "image",
+      customUrl: localUrl,
+      customType: isVideo ? "video" : "image",
+    };
+    handleUpdateBanner(instantCfg);
+    toast.success(
+      isVideo
+        ? "Video LIVE background berhasil dipasang!"
+        : "Foto background berhasil dipasang!"
+    );
+
+    // Upload ke server agar tersimpan permanen
+    try {
+      setBannerUploading(true);
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const res = await fetch("/api/profile", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.image) {
+        const persistedCfg: ProfileBannerConfig = {
+          ...instantCfg,
+          customUrl: data.image,
+        };
+        handleUpdateBanner(persistedCfg);
+      }
+    } catch (e) {
+      console.error("Background upload error:", e);
+    } finally {
+      setBannerUploading(false);
+    }
   };
 
   useEffect(() => {
@@ -534,8 +587,23 @@ export default function SettingsPage() {
         <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm lg:p-6 transition-all">
           {/* TIKTOK STYLE PROFILE COVER / BANNER */}
           {bannerConfig.enabled && (
-            <div className="-mx-5 -mt-5 mb-5 lg:-mx-6 lg:-mt-6">
-              <ProfileBannerView config={bannerConfig} height={140} />
+            <div className="relative -mx-5 -mt-5 mb-5 lg:-mx-6 lg:-mt-6 group">
+              <ProfileBannerView config={bannerConfig} height={150} />
+
+              {/* Tombol Ganti Background Langsung dari Banner lewat Windows File Explorer */}
+              <label className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 border border-white/20 backdrop-blur-md text-xs font-semibold text-white shadow-lg cursor-pointer transition active:scale-95">
+                <ImageIcon size={13} className="text-cyan-400" />
+                <span>Ganti Background (Explorer)</span>
+                <input
+                  type="file"
+                  accept="image/*,video/mp4,video/webm,video/quicktime,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleDirectBackgroundFile(file);
+                  }}
+                />
+              </label>
             </div>
           )}
 
@@ -549,25 +617,19 @@ export default function SettingsPage() {
                   Profil Pengguna
                 </h2>
                 <p className="text-xs text-muted-foreground sm:text-sm">
-                  Kelola informasi nama, foto profil live/biasa, dan background akun Anda.
+                  Kelola informasi nama, foto profil, dan background akun Anda.
                 </p>
               </div>
             </div>
 
-            {/* Tombol Kustomisasi Background Gaya TikTok */}
+            {/* Tombol Kustomisasi Background */}
             <button
               type="button"
               onClick={() => setBannerCustomizerOpen(true)}
               className="flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-3.5 py-2 text-xs font-semibold text-cyan-300 hover:border-cyan-400 hover:bg-cyan-500/25 transition active:scale-95 shadow-sm cursor-pointer"
             >
               <Sparkles size={14} className="text-cyan-400" />
-              <span>Ganti Background Profil</span>
-              {bannerConfig.enabled && bannerConfig.mode === "live" && (
-                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-300 text-[9px] font-bold border border-red-500/40">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-ping" />
-                  LIVE
-                </span>
-              )}
+              <span>Kustomisasi Background</span>
             </button>
           </div>
 
@@ -666,6 +728,45 @@ export default function SettingsPage() {
                 <span className="rounded bg-cyan-500/20 px-1.5 py-0.2 text-[10px] text-cyan-300 font-bold">
                   {selectedImage.type.startsWith("video/") ? "🎬 VIDEO LIVE TIKTOK" : "📷 FOTO BIASA"}
                 </span>
+              </p>
+            )}
+          </div>
+
+          {/* Upload Background Profil Langsung dari File Explorer (Bisa Foto Bebas atau Live Video) */}
+          <div className="mt-5 border-t border-border pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
+              <label className="block text-sm font-medium text-foreground">
+                Ganti Background Profil
+              </label>
+              <span className="text-[11px] text-cyan-400 font-medium">
+                Pilih foto apapun dari Explorer (sepak bola, anime, dll.) atau video live
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <input
+                type="file"
+                accept="image/*,video/mp4,video/webm,video/quicktime,image/gif"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleDirectBackgroundFile(file);
+                }}
+                className="text-sm text-muted-foreground file:mr-3 file:rounded-xl file:border file:border-border file:bg-secondary file:px-3 file:py-2 file:text-xs file:font-semibold file:text-foreground hover:file:bg-accent cursor-pointer"
+              />
+
+              <button
+                type="button"
+                onClick={() => setBannerCustomizerOpen(true)}
+                className="shrink-0 flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition active:scale-95"
+              >
+                <Sliders size={13} />
+                <span>Pilih Efek Animasi & Preset</span>
+              </button>
+            </div>
+
+            {bannerUploading && (
+              <p className="mt-2 text-xs text-cyan-400 animate-pulse">
+                Sedang memproses dan menyimpan background...
               </p>
             )}
           </div>

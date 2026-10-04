@@ -442,26 +442,6 @@ export function ProfileBannerView({
 
       {/* Gradient Overlay for seamless integration with card content */}
       <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent pointer-events-none" />
-
-      {/* Live / Static Indicator Tag */}
-      <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-md text-[11px] font-semibold text-white pointer-events-none shadow-lg">
-        {config.mode === "live" ? (
-          <>
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-            </span>
-            <span className="tracking-wider uppercase text-[10px] text-red-300 font-bold">
-              TikTok Live BG
-            </span>
-          </>
-        ) : (
-          <>
-            <ImageIcon size={12} className="text-cyan-400" />
-            <span className="text-[10px] text-slate-300">Foto Biasa</span>
-          </>
-        )}
-      </div>
     </div>
   );
 }

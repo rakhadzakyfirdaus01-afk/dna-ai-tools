@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
+import { ProfileAvatar } from "@/components/profile/profile-media";
 
 import LanguageSwitcher from "@/components/shared/language-switcher";
 import { useLanguage } from "@/components/shared/language-provider";
@@ -243,19 +244,15 @@ export default function Header({
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-base font-bold lg:h-12 lg:w-12 lg:text-lg">
 
               {profileImage ? (
-
-                <Image
+                <ProfileAvatar
                   src={profileImage}
                   alt="Profile"
-                  width={48}
-                  height={48}
-                  className="h-full w-full object-cover"
+                  size={48}
+                  className="h-full w-full"
+                  showLiveBadge={false}
                 />
-
               ) : (
-
                 session?.user?.name?.charAt(0) ?? "U"
-
               )}
 
             </div>

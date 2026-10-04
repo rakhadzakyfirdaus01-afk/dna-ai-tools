@@ -29,6 +29,14 @@ import {
   COMPANION_EVENT_KEY,
   type CompanionConfig,
 } from "@/lib/companion-store";
+import {
+  ProfileAvatar,
+  ProfileBannerView,
+  type ProfileBannerConfig,
+  BANNER_STORAGE_KEY,
+  DEFAULT_BANNER_CONFIG,
+} from "@/components/profile/profile-media";
+import { ProfileBannerCustomizer } from "@/components/profile/profile-banner-customizer";
 
 export default function SettingsPage() {
 
@@ -50,6 +58,39 @@ export default function SettingsPage() {
 
   // DNA Companion (Karakter Kecil)
   const [companionEnabled, setCompanionEnabled] = useState(true);
+
+  // Background Profil (Gaya TikTok Live / Biasa)
+  const [bannerConfig, setBannerConfig] = useState<ProfileBannerConfig>(DEFAULT_BANNER_CONFIG);
+  const [bannerCustomizerOpen, setBannerCustomizerOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(BANNER_STORAGE_KEY);
+      if (saved) {
+        setBannerConfig(JSON.parse(saved));
+      }
+    } catch {}
+
+    const handleBannerUpdate = () => {
+      try {
+        const saved = localStorage.getItem(BANNER_STORAGE_KEY);
+        if (saved) setBannerConfig(JSON.parse(saved));
+      } catch {}
+    };
+
+    window.addEventListener("dna-profile-bg-updated", handleBannerUpdate);
+    return () => {
+      window.removeEventListener("dna-profile-bg-updated", handleBannerUpdate);
+    };
+  }, []);
+
+  const handleUpdateBanner = (newCfg: ProfileBannerConfig) => {
+    setBannerConfig(newCfg);
+    try {
+      localStorage.setItem(BANNER_STORAGE_KEY, JSON.stringify(newCfg));
+      window.dispatchEvent(new CustomEvent("dna-profile-bg-updated"));
+    } catch {}
+  };
 
   useEffect(() => {
     const cfg = getCompanionConfig();
@@ -488,37 +529,62 @@ export default function SettingsPage() {
         </section>
 
         {/* =========================================================
-            SECTION 2: PROFILE USER
+            SECTION 2: PROFILE USER (DENGAN TIKTOK LIVE / BIASA BACKGROUND)
             ========================================================= */}
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:p-6">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
-              <UserIcon size={22} />
+        <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm lg:p-6 transition-all">
+          {/* TIKTOK STYLE PROFILE COVER / BANNER */}
+          {bannerConfig.enabled && (
+            <div className="-mx-5 -mt-5 mb-5 lg:-mx-6 lg:-mt-6">
+              <ProfileBannerView config={bannerConfig} height={140} />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground lg:text-xl">
-                Profil Pengguna
-              </h2>
-              <p className="text-xs text-muted-foreground sm:text-sm">
-                Kelola informasi nama dan foto profil akun Anda.
-              </p>
+          )}
+
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
+                <UserIcon size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground lg:text-xl">
+                  Profil Pengguna
+                </h2>
+                <p className="text-xs text-muted-foreground sm:text-sm">
+                  Kelola informasi nama, foto profil live/biasa, dan background akun Anda.
+                </p>
+              </div>
             </div>
+
+            {/* Tombol Kustomisasi Background Gaya TikTok */}
+            <button
+              type="button"
+              onClick={() => setBannerCustomizerOpen(true)}
+              className="flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 px-3.5 py-2 text-xs font-semibold text-cyan-300 hover:border-cyan-400 hover:bg-cyan-500/25 transition active:scale-95 shadow-sm cursor-pointer"
+            >
+              <Sparkles size={14} className="text-cyan-400" />
+              <span>Ganti Background Profil</span>
+              {bannerConfig.enabled && bannerConfig.mode === "live" && (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-300 text-[9px] font-bold border border-red-500/40">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-ping" />
+                  LIVE
+                </span>
+              )}
+            </button>
           </div>
 
           <div className="flex flex-col items-center gap-6 sm:flex-row">
-            {/* Profile Image */}
-            <div className="relative h-[96px] w-[96px] overflow-hidden rounded-full border-2 border-cyan-500/40 shadow-md">
-              <Image
+            {/* Profile Avatar (Mendukung Foto Biasa & Live Video Gaya TikTok) */}
+            <div className="relative h-[96px] w-[96px] overflow-hidden rounded-full border-2 border-cyan-500/50 shadow-lg ring-4 ring-cyan-500/10 bg-slate-900 shrink-0">
+              <ProfileAvatar
                 src={profileImage}
                 alt="Profile"
-                width={96}
-                height={96}
-                className="h-full w-full object-cover"
+                size={96}
+                className="h-full w-full"
+                showLiveBadge={true}
               />
             </div>
 
             {/* User Info */}
-            <div className="w-full min-w-0 sm:w-auto">
+            <div className="w-full min-w-0 sm:w-auto text-center sm:text-left">
               <h3 className="text-xl font-semibold text-foreground">
                 {name || "User"}
               </h3>
@@ -563,20 +629,25 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Upload Photo */}
+          {/* Upload Photo (Mendukung Foto Biasa & Live Video TikTok Style) */}
           <div className="mt-5 border-t border-border pt-5">
-            <label className="mb-2 block text-sm font-medium text-foreground">
-              Ganti Foto Profil
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
+              <label className="block text-sm font-medium text-foreground">
+                Ganti Foto Profil
+              </label>
+              <span className="text-[11px] text-cyan-400 font-medium">
+                Bisa pasang Foto Biasa atau Video Profil LIVE TikTok
+              </span>
+            </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,video/mp4,video/webm,video/quicktime"
                 onChange={(e) => {
                   setSelectedImage(e.target.files?.[0] ?? null);
                 }}
-                className="text-sm text-muted-foreground file:mr-3 file:rounded-xl file:border file:border-border file:bg-secondary file:px-3 file:py-2 file:text-xs file:font-semibold file:text-foreground hover:file:bg-accent"
+                className="text-sm text-muted-foreground file:mr-3 file:rounded-xl file:border file:border-border file:bg-secondary file:px-3 file:py-2 file:text-xs file:font-semibold file:text-foreground hover:file:bg-accent cursor-pointer"
               />
 
               <button
@@ -585,13 +656,16 @@ export default function SettingsPage() {
                 disabled={uploading || !selectedImage}
                 className="shrink-0 rounded-xl bg-cyan-500 px-5 py-2 font-medium text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {uploading ? "Mengunggah..." : "Upload Foto"}
+                {uploading ? "Mengunggah..." : "Upload Foto / Video"}
               </button>
             </div>
 
             {selectedImage && (
-              <p className="mt-2 text-xs text-cyan-400">
-                File siap diunggah: {selectedImage.name}
+              <p className="mt-2 text-xs text-cyan-400 flex items-center gap-1.5">
+                <span className="font-semibold">File siap diunggah:</span> {selectedImage.name}
+                <span className="rounded bg-cyan-500/20 px-1.5 py-0.2 text-[10px] text-cyan-300 font-bold">
+                  {selectedImage.type.startsWith("video/") ? "🎬 VIDEO LIVE TIKTOK" : "📷 FOTO BIASA"}
+                </span>
               </p>
             )}
           </div>
@@ -793,6 +867,14 @@ export default function SettingsPage() {
             Kembali ke AI Asisten
           </button>
         </div>
+
+        {/* Modal Kustomisasi Background Profil Gaya TikTok */}
+        <ProfileBannerCustomizer
+          isOpen={bannerCustomizerOpen}
+          onClose={() => setBannerCustomizerOpen(false)}
+          config={bannerConfig}
+          onUpdate={handleUpdateBanner}
+        />
       </div>
     </AppLayout>
   );

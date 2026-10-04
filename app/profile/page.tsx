@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { ProfileAvatar } from "@/components/profile/profile-media";
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -16,7 +17,7 @@ export default function ProfilePage() {
 
   async function uploadImage() {
     if (!selectedImage) {
-      toast.error("Please select an image");
+      toast.error("Please select an image or video");
       return;
     }
 
@@ -46,14 +47,18 @@ export default function ProfilePage() {
 
         setSelectedImage(null);
 
-        toast.success("Profile photo updated");
+        toast.success(
+          selectedImage.type.startsWith("video/")
+            ? "Live Video Profile updated!"
+            : "Profile photo updated!"
+        );
       }
     } catch (error) {
       console.error("PROFILE UPLOAD ERROR:", error);
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to upload profile photo"
+          : "Failed to upload profile media"
       );
     } finally {
       setUploading(false);
@@ -68,19 +73,21 @@ export default function ProfilePage() {
         </h1>
 
         <p className="mt-2 text-slate-400">
-          Manage your account information.
+          Manage your account information and live/static profile media.
         </p>
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-[#111827] p-8">
         <div className="flex items-center gap-6">
-          <Image
-            src={profileImage}
-            alt="Profile"
-            width={100}
-            height={100}
-            className="h-[100px] w-[100px] rounded-full object-cover"
-          />
+          <div className="relative h-[100px] w-[100px] rounded-full overflow-hidden border-2 border-cyan-500/50 shadow-md">
+            <ProfileAvatar
+              src={profileImage}
+              alt="Profile"
+              size={100}
+              className="h-full w-full"
+              showLiveBadge={true}
+            />
+          </div>
 
           <div>
             <h2 className="text-2xl font-semibold text-white">
@@ -94,9 +101,15 @@ export default function ProfilePage() {
         </div>
 
         <div className="mt-6">
+          <div className="mb-2">
+            <span className="text-xs text-slate-400">
+              Supports static photos (JPG/PNG) & TikTok-style LIVE video profiles (MP4/WebM/GIF)
+            </span>
+          </div>
+
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,video/mp4,video/webm,video/quicktime"
             onChange={(e) =>
               setSelectedImage(
                 e.target.files?.[0] ?? null
@@ -107,10 +120,10 @@ export default function ProfilePage() {
 
           <button
             onClick={uploadImage}
-            disabled={uploading}
+            disabled={uploading || !selectedImage}
             className="mt-3 rounded-xl bg-cyan-500 px-5 py-2 text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {uploading ? "Uploading..." : "Upload Photo"}
+            {uploading ? "Uploading..." : "Upload Photo / Video"}
           </button>
         </div>
       </div>

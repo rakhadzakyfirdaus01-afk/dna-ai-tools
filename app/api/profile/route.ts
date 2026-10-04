@@ -96,6 +96,7 @@ export async function POST(request: Request) {
           .upload_stream(
             {
               folder: "dna-ai-tools/profile",
+              resource_type: "auto",
             },
             (error, result) => {
               if (error) {

@@ -221,10 +221,12 @@ export const BANNER_PRESETS = [
  */
 export function ProfileBannerView({
   config,
-  height = 140,
+  height,
+  className = "",
 }: {
   config: ProfileBannerConfig;
   height?: number;
+  className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const preset =
@@ -391,9 +393,9 @@ export function ProfileBannerView({
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-t-2xl select-none"
+      className={`relative w-full overflow-hidden rounded-t-2xl select-none ${className}`}
       style={{
-        height,
+        ...(height ? { height } : {}),
         opacity: config.opacity,
       }}
     >

@@ -117,18 +117,18 @@ export function ProfileBannerCustomizer({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-700 bg-[#0B1120] p-6 shadow-2xl text-white"
+        className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl border border-slate-700 bg-[#0B1120] p-4 sm:p-6 shadow-2xl text-white custom-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <Sparkles size={20} />
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3 sm:pb-4">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0">
+              <Sparkles size={18} />
             </div>
             <div>
-              <h3 className="text-lg font-bold">Kustomisasi Background Profil</h3>
-              <p className="text-xs text-slate-400">
+              <h3 className="text-base sm:text-lg font-bold">Kustomisasi Background</h3>
+              <p className="text-[11px] sm:text-xs text-slate-400">
                 Pilih foto biasa atau live video/animasi bergerak gaya TikTok.
               </p>
             </div>
@@ -137,15 +137,15 @@ export function ProfileBannerCustomizer({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            className="rounded-xl p-1.5 sm:p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* LIVE PREVIEW BANNER */}
-        <div className="my-5 overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950 shadow-inner">
-          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-slate-800 text-[11px] text-slate-400">
+        <div className="my-4 sm:my-5 overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950 shadow-inner">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-slate-800 text-[10px] sm:text-[11px] text-slate-400">
             <span className="flex items-center gap-1.5 font-medium">
               <Eye size={12} className="text-cyan-400" />
               Preview Tampilan Profil
@@ -154,9 +154,9 @@ export function ProfileBannerCustomizer({
           </div>
 
           <div className="relative">
-            <ProfileBannerView config={localConfig} height={120} />
+            <ProfileBannerView config={localConfig} className="h-28 sm:h-32 w-full" />
             {!localConfig.enabled && (
-              <div className="h-[120px] flex items-center justify-center bg-slate-900 text-xs text-slate-500">
+              <div className="h-28 sm:h-32 flex items-center justify-center bg-slate-900 text-xs text-slate-500">
                 Background dinonaktifkan (polos)
               </div>
             )}

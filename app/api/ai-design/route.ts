@@ -8,6 +8,9 @@ if (process.env.NODE_ENV !== "production") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 // ==========================================
 // POLLINATIONS.AI — FREE IMAGE GENERATOR
 // No API key required. No credits. No cost.
@@ -104,7 +107,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
 
     const promptValue = formData.get("prompt");
-    const prompt =
+    let prompt =
       typeof promptValue === "string" ? promptValue.trim() : "";
 
     const referenceImageFile = formData.get("referenceImage");
@@ -129,6 +132,10 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.warn("Gagal membaca file gambar referensi:", err);
       }
+    }
+
+    if (!prompt && referenceImage) {
+      prompt = "buat gambar persis seperti ini";
     }
 
     if (!prompt && !referenceImage) {

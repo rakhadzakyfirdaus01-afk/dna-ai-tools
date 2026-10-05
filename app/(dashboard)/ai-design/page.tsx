@@ -454,8 +454,73 @@ export default function AIDesignPage() {
     });
   }
 
+  async function compressImageForUpload(file: File): Promise<Blob> {
+    // If file is already small JPEG (< 400KB), return as is
+    if (file.size <= 400 * 1024 && file.type === "image/jpeg") {
+      return file;
+    }
+
+    return new Promise((resolve) => {
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const maxDimension = 1280;
+              let width = img.naturalWidth || img.width || 1280;
+              let height = img.naturalHeight || img.height || 720;
+
+              if (width > maxDimension || height > maxDimension) {
+                if (width > height) {
+                  height = Math.round((height * maxDimension) / width);
+                  width = maxDimension;
+                } else {
+                  width = Math.round((width * maxDimension) / height);
+                  height = maxDimension;
+                }
+              }
+
+              const canvas = document.createElement("canvas");
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) {
+                resolve(file);
+                return;
+              }
+
+              ctx.drawImage(img, 0, 0, width, height);
+
+              canvas.toBlob(
+                (blob) => {
+                  if (blob) {
+                    resolve(blob);
+                  } else {
+                    resolve(file);
+                  }
+                },
+                "image/jpeg",
+                0.85
+              );
+            } catch {
+              resolve(file);
+            }
+          };
+          img.onerror = () => resolve(file);
+          img.src = e.target?.result as string;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+      } catch {
+        resolve(file);
+      }
+    });
+  }
+
   async function generateDesign() {
-    if (!prompt.trim()) {
+    const finalPrompt = prompt.trim() || (referenceImage ? "buat gambar persis seperti ini" : "");
+    if (!finalPrompt) {
       setError(ui.emptyPrompt);
       return;
     }
@@ -473,7 +538,7 @@ export default function AIDesignPage() {
 
       formData.append(
         "prompt",
-        prompt.trim()
+        finalPrompt
       );
 
       formData.append(
@@ -502,10 +567,19 @@ export default function AIDesignPage() {
       );
 
       if (referenceImage) {
-        formData.append(
-          "referenceImage",
-          referenceImage
-        );
+        try {
+          const optimizedBlob = await compressImageForUpload(referenceImage);
+          formData.append(
+            "referenceImage",
+            optimizedBlob,
+            "reference.jpg"
+          );
+        } catch {
+          formData.append(
+            "referenceImage",
+            referenceImage
+          );
+        }
       }
 
       const generateResponse = await fetch(
@@ -516,18 +590,33 @@ export default function AIDesignPage() {
         }
       );
 
-      const generateData =
-        await generateResponse.json();
+      let generateData: any = null;
+      let responseText = "";
+      try {
+        responseText = await generateResponse.text();
+        generateData = JSON.parse(responseText);
+      } catch {
+        // Response bukan JSON
+      }
 
       if (!generateResponse.ok) {
+        if (
+          generateResponse.status === 413 ||
+          responseText.includes("Request Entity Too Large")
+        ) {
+          throw new Error(
+            isEnglish
+              ? "Image file is too large. Please use a smaller image."
+              : "Ukuran file gambar terlalu besar. Silakan gunakan gambar yang lebih kecil."
+          );
+        }
         throw new Error(
-          generateData?.error ||
-            ui.generateFailed
+          generateData?.error || responseText || ui.generateFailed
         );
       }
 
       const projectId =
-        generateData.projectId;
+        generateData?.projectId;
 
       if (!projectId) {
         throw new Error(ui.noProjectId);

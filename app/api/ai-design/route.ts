@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { optimizeDesignVisualPrompt } from "@/lib/gemini-design";
+import {
+  optimizeDesignVisualPrompt,
+  analyzeAndReplicateImageDesign,
+} from "@/lib/gemini-design";
 
 if (process.env.NODE_ENV !== "production") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -25,19 +28,24 @@ function buildPollinationsUrl(
 
   if (
     lowerSize === "landscape" ||
-    lowerSize === "youtube thumbnail"
+    lowerSize === "youtube thumbnail" ||
+    lowerSize === "16:9" ||
+    lowerSize === "horizontal"
   ) {
     width = 1344;
     height = 768;
   } else if (
     lowerSize === "portrait" ||
-    lowerSize === "instagram story"
+    lowerSize === "instagram story" ||
+    lowerSize === "9:16" ||
+    lowerSize === "vertical"
   ) {
     width = 768;
     height = 1344;
   } else if (
     lowerSize === "instagram post" ||
-    lowerSize === "square"
+    lowerSize === "square" ||
+    lowerSize === "1:1"
   ) {
     width = 1024;
     height = 1024;
@@ -64,24 +72,24 @@ function buildFullVisualPrompt(
 ): string {
   const parts: string[] = [basePrompt.trim()];
 
-  if (designType && designType !== "Auto") {
+  if (designType && designType !== "Auto" && !basePrompt.toLowerCase().includes(designType.toLowerCase())) {
     parts.push(`design type: ${designType}`);
   }
 
-  if (style && style !== "Auto") {
+  if (style && style !== "Auto" && !basePrompt.toLowerCase().includes(style.toLowerCase())) {
     parts.push(`style: ${style}`);
   }
 
-  if (template && template !== "Auto") {
+  if (template && template !== "Auto" && !basePrompt.toLowerCase().includes(template.toLowerCase())) {
     parts.push(`template: ${template}`);
   }
 
-  if (color && color !== "Auto") {
+  if (color && color !== "Auto" && !basePrompt.toLowerCase().includes(color.toLowerCase())) {
     parts.push(`color palette: ${color}`);
   }
 
   parts.push(
-    "professional commercial quality, high detail, sharp focus, 8K resolution"
+    "professional commercial quality, high detail, sharp focus, 8K resolution, no watermark"
   );
 
   return parts.join(", ");
@@ -99,11 +107,35 @@ export async function POST(request: NextRequest) {
     const prompt =
       typeof promptValue === "string" ? promptValue.trim() : "";
 
-    if (!prompt) {
+    const referenceImageFile = formData.get("referenceImage");
+    let referenceImage: { mimeType: string; data: string } | null = null;
+
+    if (
+      referenceImageFile &&
+      typeof referenceImageFile === "object" &&
+      "arrayBuffer" in referenceImageFile &&
+      typeof (referenceImageFile as File).size === "number" &&
+      (referenceImageFile as File).size > 0
+    ) {
+      try {
+        const file = referenceImageFile as File;
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const mimeType = file.type || "image/jpeg";
+        referenceImage = {
+          mimeType,
+          data: buffer.toString("base64"),
+        };
+      } catch (err) {
+        console.warn("Gagal membaca file gambar referensi:", err);
+      }
+    }
+
+    if (!prompt && !referenceImage) {
       return NextResponse.json(
         {
           success: false,
-          error: "Prompt desain wajib diisi.",
+          error: "Prompt desain atau gambar referensi wajib diisi.",
         },
         { status: 400 }
       );
@@ -135,39 +167,52 @@ export async function POST(request: NextRequest) {
         : "Auto";
 
     // ==========================================
-    // 2. OPTIMIZE PROMPT WITH GEMINI (FREE)
-    // ==========================================
-    //
-    // Gemini cleans and improves the prompt before
-    // sending it to the image generator.
-    // If Gemini is not configured, fall back to
-    // building the prompt manually.
+    // 2. 5X SMARTER PROMPT ENGINE (WITH VISION SUPPORT)
     // ==========================================
 
     let visualPrompt: string;
 
     try {
-      const optimized = await optimizeDesignVisualPrompt(prompt);
-      visualPrompt = buildFullVisualPrompt(
-        optimized,
-        designType,
-        style,
-        template,
-        color
-      );
+      if (referenceImage) {
+        console.log("=== AI DESIGN: IMAGE-TO-IMAGE REPLICATION ACTIVE ===");
+        const replicatedPrompt = await analyzeAndReplicateImageDesign(
+          referenceImage,
+          prompt,
+          { designType, style, template, color }
+        );
+        visualPrompt = buildFullVisualPrompt(
+          replicatedPrompt,
+          designType,
+          style,
+          template,
+          color
+        );
+      } else {
+        console.log("=== AI DESIGN: 5X SMARTER TEXT-TO-IMAGE ACTIVE ===");
+        const optimized = await optimizeDesignVisualPrompt(
+          prompt,
+          { designType, style, template, color }
+        );
+        visualPrompt = buildFullVisualPrompt(
+          optimized,
+          designType,
+          style,
+          template,
+          color
+        );
+      }
 
-      console.log("=== AI DESIGN (FREE / POLLINATIONS) ===");
       console.log("USER PROMPT:", prompt);
-      console.log("OPTIMIZED VISUAL PROMPT:", visualPrompt);
+      console.log("FINAL VISUAL PROMPT:", visualPrompt);
       console.log("SIZE:", size);
     } catch (geminiError) {
       console.warn(
-        "Gemini prompt optimization skipped:",
+        "Gemini visual engine fallback triggered:",
         geminiError
       );
 
       // Smart translation fallback for common Indonesian design keywords
-      const fallbackText = prompt
+      const fallbackText = (prompt || "high quality commercial design")
         .replace(/buat poster lowongan kerja/gi, "modern corporate job vacancy recruitment poster design")
         .replace(/lowongan kerja/gi, "corporate job recruitment")
         .replace(/latar belakang biru gelap/gi, "deep navy blue background")
@@ -177,7 +222,8 @@ export async function POST(request: NextRequest) {
         .replace(/pencahayaan studio/gi, "soft studio lighting, no people")
         .replace(/toko game/gi, "gaming store")
         .replace(/iklan/gi, "commercial advertisement")
-        .replace(/poster/gi, "graphic design poster");
+        .replace(/poster/gi, "graphic design poster")
+        .replace(/bilboard|billboard/gi, "giant 3D high-resolution commercial outdoor advertising billboard mockup in modern city");
 
       visualPrompt = buildFullVisualPrompt(
         fallbackText,
@@ -187,18 +233,11 @@ export async function POST(request: NextRequest) {
         color
       );
 
-      console.log("=== AI DESIGN (FREE / POLLINATIONS, no Gemini) ===");
-      console.log("USER PROMPT:", prompt);
       console.log("FALLBACK VISUAL PROMPT:", visualPrompt);
     }
 
     // ==========================================
     // 3. BUILD POLLINATIONS URL
-    // ==========================================
-    //
-    // Random seed so every generation is unique.
-    // The URL is the "project ID" — the status endpoint
-    // decodes it and returns the image immediately.
     // ==========================================
 
     const seed = Math.floor(Math.random() * 2_000_000_000);
@@ -209,7 +248,7 @@ export async function POST(request: NextRequest) {
     console.log("========================================");
 
     // Encode the URL as the project ID so the status
-    // endpoint can decode it without any extra storage.
+    // endpoint can decode it without extra storage.
     const projectId = Buffer.from(imageUrl, "utf8").toString("base64url");
 
     return NextResponse.json({

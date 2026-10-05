@@ -95,6 +95,7 @@ export default function AIDesignPage() {
     useState<File | null>(null);
   const [referencePreview, setReferencePreview] =
     useState("");
+  const [detectedRatio, setDetectedRatio] = useState<string>("landscape");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -433,6 +434,18 @@ export default function AIDesignPage() {
     const previewUrl =
       URL.createObjectURL(file);
 
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > img.naturalHeight * 1.2) {
+        setDetectedRatio("landscape");
+      } else if (img.naturalHeight > img.naturalWidth * 1.2) {
+        setDetectedRatio("portrait");
+      } else {
+        setDetectedRatio("square");
+      }
+    };
+    img.src = previewUrl;
+
     setReferencePreview((previous) => {
       if (previous) {
         URL.revokeObjectURL(previous);
@@ -558,7 +571,7 @@ export default function AIDesignPage() {
 
       formData.append(
         "size",
-        "Auto"
+        referenceImage ? detectedRatio : "Auto"
       );
 
       formData.append(

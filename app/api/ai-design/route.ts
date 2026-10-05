@@ -24,20 +24,12 @@ function buildPollinationsUrl(
   size: string,
   seed: number
 ): string {
-  let width = 1024;
-  let height = 1024;
+  let width = 1344;
+  let height = 768;
 
   const lowerSize = size.toLowerCase();
 
   if (
-    lowerSize === "landscape" ||
-    lowerSize === "youtube thumbnail" ||
-    lowerSize === "16:9" ||
-    lowerSize === "horizontal"
-  ) {
-    width = 1344;
-    height = 768;
-  } else if (
     lowerSize === "portrait" ||
     lowerSize === "instagram story" ||
     lowerSize === "9:16" ||
@@ -52,6 +44,10 @@ function buildPollinationsUrl(
   ) {
     width = 1024;
     height = 1024;
+  } else {
+    // Default to widescreen landscape 16:9 for cinematic composition
+    width = 1344;
+    height = 768;
   }
 
   const encoded = encodeURIComponent(visualPrompt);
@@ -62,6 +58,7 @@ function buildPollinationsUrl(
     `&width=${width}` +
     `&height=${height}` +
     `&nologo=true` +
+    `&enhance=false` +
     `&seed=${seed}`
   );
 }

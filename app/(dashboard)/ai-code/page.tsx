@@ -1722,11 +1722,11 @@ export default function AICodePage() {
                 ))}
 
                 {mode === "game" && [
-                  isEnglish ? "Cyberpunk Bullet Hell + Boss Fight & Particle FX" : "Cyberpunk Bullet Hell + Boss Fight & Efek Partikel",
-                  isEnglish ? "Galaxy Space Fighter + Weapon Power-ups & Screen Shake" : "Galaxy Space Fighter + Power-up Senjata & Screen Shake",
-                  isEnglish ? "2D Physics Platformer + Double Jump & Synth Audio" : "Platformer Fisika 2D + Double Jump & Synthesizer Audio",
-                  isEnglish ? "Neon Cyber Snake + Speed Combos & Mobile D-Pad" : "Cyber Snake Neon + Speed Combo & Virtual D-Pad HP",
-                  isEnglish ? "Retro Brick Breaker Deluxe + Multi-ball & Particle Burst" : "Brick Breaker Deluxe + Multi-ball & Ledakan Partikel",
+                  isEnglish ? "Cyberpunk Space Fighter (Neon Bloom, Boss Titan & Synthwave Audio)" : "Cyberpunk Space Fighter (Neon Bloom, Boss Titan & Synthwave Audio)",
+                  isEnglish ? "3D Space Dogfight WebGL (Three.js 3D Ships, Lasers & Dynamic Lighting)" : "3D Space Dogfight WebGL (Three.js 3D Ships, Laser & Pencahayaan Dinamis)",
+                  isEnglish ? "Neon Cyber Ninja (Physics Dash, Ghost Trail, Katana Slash & Particle FX)" : "Neon Cyber Ninja (Physics Dash, Ghost Trail, Katana Slash & Efek Partikel)",
+                  isEnglish ? "Horde Survivor Roguelite (Skill Upgrades, Swarm AI & Heavy Screen Shake)" : "Horde Survivor Roguelite (Upgrade Skill, Swarm AI & Screen Shake)",
+                  isEnglish ? "Synthwave 2.5D Highway Racer (Neon Horizon, Speed Boost & Audio Synth)" : "Synthwave 2.5D Highway Racer (Neon Horizon, Speed Boost & Audio Synth)",
                 ].map((preset) => (
                   <button
                     key={preset}

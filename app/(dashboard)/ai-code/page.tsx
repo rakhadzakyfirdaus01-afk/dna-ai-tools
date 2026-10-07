@@ -2214,8 +2214,8 @@ export default function AICodePage() {
                           key={previewKey}
                           title={project?.projectName || "AI Code Preview"}
                           srcDoc={previewHtml}
-                          sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
-                          allow="autoplay; fullscreen"
+                          sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-pointer-lock"
+                          allow="autoplay; fullscreen; pointer-lock"
                           className="flex-1 w-full border-0 bg-white"
                         />
                       </div>
@@ -2226,8 +2226,8 @@ export default function AICodePage() {
                           key={previewKey}
                           title={project?.projectName || "AI Code Preview"}
                           srcDoc={previewHtml}
-                          sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
-                          allow="autoplay; fullscreen"
+                          sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-pointer-lock"
+                          allow="autoplay; fullscreen; pointer-lock"
                           className="flex-1 w-full border-0 bg-white"
                         />
                       </div>
@@ -2238,8 +2238,8 @@ export default function AICodePage() {
                           key={previewKey}
                           title={project?.projectName || "AI Code Preview"}
                           srcDoc={previewHtml}
-                          sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
-                          allow="autoplay; fullscreen"
+                          sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-pointer-lock"
+                          allow="autoplay; fullscreen; pointer-lock"
                           className="h-full w-full border-0"
                         />
                       </div>
@@ -2503,8 +2503,8 @@ export default function AICodePage() {
                         key={previewKey}
                         title={project?.projectName || "AI Code Preview"}
                         srcDoc={previewHtml}
-                        sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
-                        allow="autoplay; fullscreen"
+                        sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-pointer-lock"
+                        allow="autoplay; fullscreen; pointer-lock"
                         className="h-full w-full border-0"
                       />
                     </div>

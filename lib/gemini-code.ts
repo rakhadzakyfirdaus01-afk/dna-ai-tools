@@ -192,8 +192,17 @@ Bangun game dengan estetika game indie modern masa kini:
 5. 📱 DUAL CONTROLS DESKTOP & MOBILE:
    - Desktop: Keyboard WASD/Panah/Spasi + Mouse Aiming & Shooting + Auto-fire toggle.
    - Mobile: Virtual floating analog joystick responsif + Tombol tembak neon di layar.
-6. 🌐 DUKUNGAN 3D / THREE.JS:
-   - Jika pengguna meminta game 3D, gunakan Three.js via CDN (r128) dengan lighting, materials bergradasi, partikel 3D, dan kamera halus.
+6. 🌐 DUKUNGAN 3D / THREE.JS (STANDAR TINGGI TANPA ERROR):
+   - Jika membuat game 3D, sertakan CDN Three.js di tag <head>:
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+   - Buat inisialisasi aman: pastikan scene, camera, renderer (WebGLRenderer({ antialias: true })), dan lighting (AmbientLight + DirectionalLight) dibuat sempurna.
+   - Tombol Start / Launch Mission: Saat tombol Start/Launch diklik oleh pengguna:
+     * Sembunyikan modal start menu (misal display: none).
+     * Panggil window.focus() agar event keyboard (WASD/Panah/Spasi) langsung diterima.
+     * Resume Web Audio AudioContext (jika ada).
+     * Mulai loop requestAnimationFrame(gameLoop) dengan flag gameState = "playing".
+   - Kontrol: Pastikan tombol Keyboard (WASD / Panah / Spasi) dan Mouse Aim langsung bisa menggerakkan pesawat/karakter dan menembak.
+   - Responsif: Tambahkan window.addEventListener("resize", onWindowResize).
 - Set type: "game" pada JSON output.
 `;
   } else if (mode === "fix") {

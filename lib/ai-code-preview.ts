@@ -127,24 +127,46 @@ ${file.content}
 }
 
 function removeExternalStylesheets(html: string): string {
+  // Hanya hapus stylesheet relatif lokal (karena sudah di-inline oleh buildCssWithAssets).
+  // Pertahankan link stylesheet CDN eksternal (Google Fonts, CDN CSS, dll.).
   return html.replace(
-    /<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi,
-    ""
+    /<link\b[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+    (match, href) => {
+      const trimmed = href.trim();
+      if (
+        trimmed.startsWith("http://") ||
+        trimmed.startsWith("https://") ||
+        trimmed.startsWith("//")
+      ) {
+        return match;
+      }
+      return "";
+    }
   );
 }
 
 function removeExternalScripts(html: string): string {
+  // Hanya hapus script tag yang mengarah ke file relatif lokal (karena sudah di-inline oleh buildJavaScript).
+  // JANGAN PERNAH menghapus script CDN eksternal seperti Three.js, Tone.js, Tailwind, FontAwesome, dll.!
   return html.replace(
-    /<script\b[^>]*src=["'][^"']+["'][^>]*>\s*<\/script>/gi,
-    ""
+    /<script\b([^>]*)src=["']([^"']+)["']([^>]*)>\s*<\/script>/gi,
+    (match, _before, src, _after) => {
+      const trimmed = src.trim();
+      if (
+        trimmed.startsWith("http://") ||
+        trimmed.startsWith("https://") ||
+        trimmed.startsWith("//")
+      ) {
+        return match;
+      }
+      return "";
+    }
   );
 }
 
 function removeModuleScripts(html: string): string {
-  return html.replace(
-    /<script\b[^>]*type=["']module["'][^>]*>[\s\S]*?<\/script>/gi,
-    ""
-  );
+  // Pertahankan module scripts karena penting untuk library modern & Three.js ES modules
+  return html;
 }
 
 function removeDuplicatePreviewAssets(html: string): string {

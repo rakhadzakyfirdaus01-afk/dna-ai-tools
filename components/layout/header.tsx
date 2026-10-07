@@ -81,6 +81,10 @@ export default function Header({
       path: "/ai-design",
     },
     {
+      name: "Magic Studio",
+      path: "/ai-studio",
+    },
+    {
       name: "AI Animation",
       path: "/ai-animation",
     },

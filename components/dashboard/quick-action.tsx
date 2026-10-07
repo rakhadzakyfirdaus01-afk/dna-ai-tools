@@ -10,6 +10,7 @@ import {
   ScanText,
   Languages,
   ArrowRight,
+  Wand2,
 } from "lucide-react";
 
 import { useLanguage } from "@/components/shared/language-provider";
@@ -38,6 +39,14 @@ const actions = [
     descriptionEn: "Create modern UI/UX ideas with AI.",
     href: "/ai-design",
     icon: Palette,
+  },
+  {
+    titleId: "Magic Studio",
+    titleEn: "Magic Studio",
+    descriptionId: "Hapus background & foto studio produk.",
+    descriptionEn: "Isolate background & product staging.",
+    href: "/ai-studio",
+    icon: Wand2,
   },
   {
     titleId: "Animasi AI",

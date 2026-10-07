@@ -29,7 +29,6 @@ import {
   Undo2,
   Globe,
   Wrench,
-  Gamepad2,
   Smartphone,
   Tablet,
   Monitor,
@@ -73,13 +72,13 @@ type GeneratedProject = {
   files: GeneratedFile[];
 };
 
-export type CodeCategory = "all" | "web" | "software" | "game" | "fix" | "general";
+export type CodeCategory = "all" | "web" | "software" | "fix" | "general";
 
 export type CodeSession = {
   id: string;
   title: string;
-  category: "web" | "software" | "game" | "fix" | "general";
-  mode: "web" | "software" | "fix" | "game";
+  category: "web" | "software" | "fix" | "general";
+  mode: "web" | "software" | "fix";
   createdAt: number;
   updatedAt: number;
   prompt: string;
@@ -98,26 +97,23 @@ export const CODE_CATEGORIES: {
 }[] = [
   { id: "all", labelId: "Semua", labelEn: "All", icon: "💬", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
   { id: "web", labelId: "Web & UI", labelEn: "Web & UI", icon: "🌐", badgeColor: "bg-cyan-500/10 text-cyan-300 border-cyan-500/30" },
-  { id: "software", labelId: "Semua Bahasa", labelEn: "All Languages", icon: "💻", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
+  { id: "software", labelId: "Software & Backend", labelEn: "Software & Backend", icon: "💻", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
   { id: "fix", labelId: "Perbaiki Error", labelEn: "Fix Code", icon: "🛠️", badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
-  { id: "game", labelId: "Game 2D", labelEn: "2D Game", icon: "🎮", badgeColor: "bg-pink-500/10 text-pink-300 border-pink-500/30" },
   { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
 ];
 
 const CODE_SESSIONS_STORAGE_KEY = "dna_ai_code_sessions_v1";
 
 function createNewCodeSession(
-  mode: "web" | "software" | "fix" | "game" = "web",
-  category: "web" | "software" | "game" | "fix" | "general" = "web",
+  mode: "web" | "software" | "fix" = "web",
+  category: "web" | "software" | "fix" | "general" = "web",
   isEn = false
 ): CodeSession {
   const defaultTitle =
-    mode === "game"
-      ? (isEn ? "New 2D Game" : "Game 2D Baru")
-      : mode === "fix"
+    mode === "fix"
       ? (isEn ? "New Bug Fix" : "Perbaikan Kode Baru")
       : mode === "software"
-      ? (isEn ? "New Program / Script" : "Program / Skrip Baru")
+      ? (isEn ? "New Software / Script" : "Program / Skrip Baru")
       : (isEn ? "New Web Project" : "Proyek Web Baru");
 
 
@@ -170,8 +166,8 @@ export default function AICodePage() {
 
   const isEnglish = locale === "en";
 
-  // Codex Modes: web (Modern Web App), software (Semua Bahasa), fix (Perbaiki Kode), game (Game 2D)
-  const [mode, setMode] = useState<"web" | "software" | "fix" | "game">("web");
+  // Codex Modes: web (Modern Web App), software (Software & Backend), fix (Perbaiki Kode)
+  const [mode, setMode] = useState<"web" | "software" | "fix">("web");
   const [deviceMode, setDeviceMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [builderTab, setBuilderTab] = useState<"preview" | "code" | "split">("preview");
 
@@ -205,7 +201,8 @@ export default function AICodePage() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           setSessions(parsed);
           setActiveSessionId(parsed[0].id);
-          setMode(parsed[0].mode || "web");
+          const validMode = (parsed[0].mode === "fix" || parsed[0].mode === "software") ? parsed[0].mode : "web";
+          setMode(validMode);
           setPrompt(parsed[0].prompt || "");
           setCodeContext(parsed[0].codeContext || "");
           setFileName(parsed[0].fileName || "");
@@ -224,7 +221,7 @@ export default function AICodePage() {
     isInitialLoadRef.current = false;
   }, []);
 
-  // Cek apakah ada prompt remix dari AI Arcade atau Showcase Gallery
+  // Cek apakah ada prompt remix dari Showcase Gallery
   useEffect(() => {
     try {
       const incomingPrompt =
@@ -233,12 +230,12 @@ export default function AICodePage() {
       if (incomingPrompt) {
         setPrompt(incomingPrompt);
         const incomingCategory = sessionStorage.getItem("showcase_category") || "web";
-        if (incomingCategory === "game" || sessionStorage.getItem("ai_code_remix_prompt")) {
-          setMode("game");
-          setSelectedCategory("game");
+        if (incomingCategory === "software" || incomingCategory === "fix") {
+          setMode(incomingCategory);
+          setSelectedCategory(incomingCategory);
         } else {
-          setMode(incomingCategory as any);
-          setSelectedCategory(incomingCategory as any);
+          setMode("web");
+          setSelectedCategory("web");
         }
         sessionStorage.removeItem("ai_code_remix_prompt");
         sessionStorage.removeItem("showcase_prompt");
@@ -259,12 +256,10 @@ export default function AICodePage() {
           const defaultTitles = [
             "Proyek Web Baru",
             "New Web Project",
-            "Game 2D Baru",
-            "New 2D Game",
-            "Perbaiki Kode Baru",
+            "Perbaikan Kode Baru",
             "New Bug Fix",
             "Program / Skrip Baru",
-            "New Program / Script",
+            "New Software / Script",
           ];
           if (defaultTitles.includes(s.title)) {
             if (project?.projectName) {
@@ -317,8 +312,8 @@ export default function AICodePage() {
     setMobileSidebarOpen(false);
   }
 
-  function handleCreateNewProject(category?: "web" | "software" | "game" | "fix" | "general") {
-    const targetMode = category === "game" ? "game" : category === "fix" ? "fix" : category === "software" ? "software" : "web";
+  function handleCreateNewProject(category?: "web" | "software" | "fix" | "general") {
+    const targetMode = category === "fix" ? "fix" : category === "software" ? "software" : "web";
     const cat = category || (selectedCategory === "all" ? targetMode : selectedCategory);
     const fresh = createNewCodeSession(targetMode, cat, isEnglish);
     setSessions((prev) => {
@@ -394,7 +389,7 @@ export default function AICodePage() {
     setEditingSessionId(null);
   }
 
-  function handleChangeCategory(targetId: string, newCat: "web" | "game" | "fix" | "general", e?: React.MouseEvent) {
+  function handleChangeCategory(targetId: string, newCat: "web" | "software" | "fix" | "general", e?: React.MouseEvent) {
     e?.stopPropagation();
     setSessions((prev) => {
       const updated = prev.map((s) => (s.id === targetId ? { ...s, category: newCat } : s));
@@ -872,11 +867,11 @@ export default function AICodePage() {
       // Kirim notifikasi HP jika pengguna sedang membuka game atau aplikasi lain
       if (typeof document !== "undefined" && document.hidden) {
         const notifTitle =
-          mode === "game"
-            ? "DNA AI Code - Game Selesai! 🎮"
-            : mode === "fix"
-              ? "DNA AI Code - Kodingan Diperbaiki! 🛠️"
-              : "DNA AI Code - Project Selesai! 💻";
+          mode === "fix"
+            ? "DNA AI Code - Kodingan Diperbaiki! 🛠️"
+            : mode === "software"
+            ? "DNA AI Code - Software Selesai! 💻"
+            : "DNA AI Code - Web App Selesai! 🌐";
 
         const previewMsg = isEnglish
           ? `"${normalizedProject.projectName}" (${normalizedProject.files.length} files) is ready! Tap to view.`
@@ -1600,7 +1595,7 @@ export default function AICodePage() {
                 {isEnglish ? "Codex Engine Mode" : "Mode Kemampuan AI"}
               </label>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-2xl border border-slate-800 bg-[#060A14] p-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-2xl border border-slate-800 bg-[#060A14] p-1.5">
                 <button
                   type="button"
                   onClick={() => setMode("web")}
@@ -1612,7 +1607,7 @@ export default function AICodePage() {
                 >
                   <Globe size={18} className={mode === "web" ? "text-emerald-400" : "text-slate-400"} />
                   <span className="text-xs font-medium leading-none">
-                    {isEnglish ? "Web & UI" : "Web & UI"}
+                    {isEnglish ? "Web & Fullstack App" : "Web & Aplikasi Modern"}
                   </span>
                 </button>
 
@@ -1627,7 +1622,7 @@ export default function AICodePage() {
                 >
                   <Terminal size={18} className={mode === "software" ? "text-blue-400" : "text-slate-400"} />
                   <span className="text-xs font-medium leading-none">
-                    {isEnglish ? "All Languages" : "Semua Bahasa"}
+                    {isEnglish ? "Software & Backend" : "Software & Backend"}
                   </span>
                 </button>
 
@@ -1642,22 +1637,7 @@ export default function AICodePage() {
                 >
                   <Wrench size={18} className={mode === "fix" ? "text-amber-400" : "text-slate-400"} />
                   <span className="text-xs font-medium leading-none">
-                    {isEnglish ? "Fix Code" : "Perbaiki Error"}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMode("game")}
-                  className={`flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 px-1 text-center transition ${
-                    mode === "game"
-                      ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-pink-300 border border-pink-500/40 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                  }`}
-                >
-                  <Gamepad2 size={18} className={mode === "game" ? "text-pink-400" : "text-slate-400"} />
-                  <span className="text-xs font-medium leading-none">
-                    {isEnglish ? "2D Game" : "Buat Game"}
+                    {isEnglish ? "Fix Code / Debug" : "Perbaiki Error / Debug"}
                   </span>
                 </button>
               </div>
@@ -1666,15 +1646,16 @@ export default function AICodePage() {
             {/* QUICK PRESET CHIPS */}
             <div className="mb-4">
               <label className="mb-1.5 block text-[11px] font-medium text-slate-500">
-                {isEnglish ? "⚡ 5X Smart Inspiration" : "⚡ Inspirasi Pintar Naik Level"}
+                {isEnglish ? "⚡ 50X Smart Architecture Inspiration" : "⚡ 50X Inspirasi Arsitektur Pintar"}
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {mode === "web" && [
-                  isEnglish ? "Enterprise SaaS Dashboard + Live Analytics" : "Dashboard SaaS Enterprise + Analitik Interaktif",
-                  isEnglish ? "E-Commerce Storefront + Cart & Checkout Modal" : "Toko Online Modern + Keranjang & Checkout Modal",
-                  isEnglish ? "Interactive Kanban Task Manager + Drag & Drop" : "Kanban Board Interaktif + Drag & Drop + LocalStorage",
-                  isEnglish ? "Crypto & Stock Portfolio Tracker + Live Charts" : "Pelacak Portofolio Saham/Kripto + Grafik Interaktif",
-                  isEnglish ? "Futuristic AI Prompt Generator Studio" : "Studio Prompt AI Futuristik + Glassmorphism",
+                  isEnglish ? "Enterprise SaaS Analytics Dashboard + Live SVG Charts" : "Dashboard SaaS Enterprise + Analitik Interaktif & Grafik SVG",
+                  isEnglish ? "Fullstack E-Commerce Storefront + Cart Drawer & Modal" : "Toko Online Modern + Keranjang Belanja & Modal Checkout",
+                  isEnglish ? "Interactive Kanban Board + Drag & Drop + LocalStorage Sync" : "Kanban Board Interaktif + Drag & Drop + Sinkronisasi LocalStorage",
+                  isEnglish ? "Real-time Crypto Portfolio Tracker + Dynamic Charts" : "Pelacak Portofolio Saham/Kripto + Grafik Interaktif & Metrik",
+                  isEnglish ? "AI Prompt Studio & Model Playground + Glassmorphism UI" : "Studio Prompt AI Futuristik + Dark Obsidian Glassmorphism",
+                  isEnglish ? "Interactive Medical Booking Portal + Calendar & Filter" : "Portal Reservasi Interaktif + Kalender & Filter Kategori",
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -1687,12 +1668,13 @@ export default function AICodePage() {
                 ))}
 
                 {mode === "software" && [
-                  isEnglish ? "Python Microservice + SQLite ORM + CSV Export" : "Python Microservice + SQLite ORM + Ekspor CSV",
-                  isEnglish ? "Go High-Concurrency Worker Pool REST API" : "Golang High-Concurrency Worker Pool REST API",
-                  isEnglish ? "Rust Fast Multi-threaded File Indexer" : "Rust Multi-threaded File Indexer Berkecepatan Tinggi",
-                  isEnglish ? "C++ High-Performance Graph Algorithm" : "C++ Algoritma Graf Kompleks + Memori Efisien",
-                  isEnglish ? "Java Enterprise Clean Architecture CRUD" : "Java Enterprise Clean Architecture CRUD + Validasi",
-                  isEnglish ? "SQL Advanced Analytics + CTE & Window Functions" : "SQL Analitik Kompleks + CTE & Window Functions",
+                  isEnglish ? "Python FastAPI Microservice + Pydantic + SQLite + CSV Export" : "Python FastAPI Microservice + Pydantic + SQLite + Ekspor CSV",
+                  isEnglish ? "Go High-Concurrency Worker Pool REST API + Channels" : "Golang High-Concurrency Worker Pool REST API + Goroutines",
+                  isEnglish ? "Rust Fast Multi-threaded File Indexer + Regex Search" : "Rust Multi-threaded File Indexer Berkecepatan Tinggi",
+                  isEnglish ? "C++20 High-Performance Memory-Safe Graph Algorithm + STL" : "C++20 Algoritma Graf Kompleks + Memori Efisien & RAII",
+                  isEnglish ? "Java Clean Architecture CRUD + DTO Validation & Service Layer" : "Java Clean Architecture CRUD + Validasi DTO & Service Layer",
+                  isEnglish ? "SQL Advanced Database Schema + Indexes, Views & CTE Queries" : "SQL Skema Database Lanjutan + Indeks, Views & Analitik CTE",
+                  isEnglish ? "Production Bash Automation Script + Argument Parser & Trap" : "Skrip Otomasi Bash Produksi + Parser Argumen & Error Trap",
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -1705,34 +1687,18 @@ export default function AICodePage() {
                 ))}
 
                 {mode === "fix" && [
-                  isEnglish ? "Deep static analysis & memory leak fix" : "Analisis mendalam & perbaiki kebocoran memori (memory leak)",
-                  isEnglish ? "Diagnose async race condition & API error" : "Diagnosa race condition asinkron & penanganan API gagal",
-                  isEnglish ? "Fix layout breaking & React state reactivity" : "Perbaiki error reactivity state & layout glitch",
-                  isEnglish ? "Fix runtime null pointer & undefined trap" : "Perbaiki runtime error, null pointer & jebakan undefined",
-                  isEnglish ? "Optimize O(n²) bottleneck to O(n) clean logic" : "Optimalisasi bottleneck O(n²) ke O(n) & arsitektur bersih",
+                  isEnglish ? "Deep static analysis & zero-defect memory leak repair" : "Analisis mendalam & perbaiki kebocoran memori (memory leak)",
+                  isEnglish ? "Diagnose async race condition, stale closures & API crash" : "Diagnosa race condition asinkron & penanganan API gagal",
+                  isEnglish ? "Fix layout breaking, CSS responsiveness & state reactivity" : "Perbaiki error reactivity state & layout glitch responsif",
+                  isEnglish ? "Fix runtime null pointer, boundary errors & undefined trap" : "Perbaiki runtime error, null pointer & boundary trap",
+                  isEnglish ? "Optimize O(n²) algorithmic bottleneck to O(n) clean logic" : "Optimalisasi bottleneck O(n²) ke O(n) & arsitektur bersih",
+                  isEnglish ? "Security audit & harden input validation against XSS/SQLi" : "Audit keamanan & perkuat validasi input anti-XSS/SQLi",
                 ].map((preset) => (
                   <button
                     key={preset}
                     type="button"
                     onClick={() => setPrompt(preset)}
                     className="rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-amber-500/40 hover:text-amber-300"
-                  >
-                    + {preset}
-                  </button>
-                ))}
-
-                {mode === "game" && [
-                  isEnglish ? "Cyberpunk Space Fighter (Neon Bloom, Boss Titan & Synthwave Audio)" : "Cyberpunk Space Fighter (Neon Bloom, Boss Titan & Synthwave Audio)",
-                  isEnglish ? "3D Space Dogfight WebGL (Three.js 3D Ships, Lasers & Dynamic Lighting)" : "3D Space Dogfight WebGL (Three.js 3D Ships, Laser & Pencahayaan Dinamis)",
-                  isEnglish ? "Neon Cyber Ninja (Physics Dash, Ghost Trail, Katana Slash & Particle FX)" : "Neon Cyber Ninja (Physics Dash, Ghost Trail, Katana Slash & Efek Partikel)",
-                  isEnglish ? "Horde Survivor Roguelite (Skill Upgrades, Swarm AI & Heavy Screen Shake)" : "Horde Survivor Roguelite (Upgrade Skill, Swarm AI & Screen Shake)",
-                  isEnglish ? "Synthwave 2.5D Highway Racer (Neon Horizon, Speed Boost & Audio Synth)" : "Synthwave 2.5D Highway Racer (Neon Horizon, Speed Boost & Audio Synth)",
-                ].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => setPrompt(preset)}
-                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-pink-500/40 hover:text-pink-300"
                   >
                     + {preset}
                   </button>
@@ -1749,15 +1715,11 @@ export default function AICodePage() {
                     : "Salin kode yang eror atau jelaskan masalahnya:"
                   : mode === "software"
                   ? isEnglish
-                    ? "What program, software, or script do you want to build?"
-                    : "Program atau skrip bahasa apa yang ingin kamu buat?"
-                  : mode === "game"
-                  ? isEnglish
-                    ? "What game do you want to create?"
-                    : "Game apa yang ingin kamu buat?"
+                    ? "What program, software, or backend do you want to build?"
+                    : "Program, backend, atau software apa yang ingin kamu buat?"
                   : isEnglish
-                  ? "What web project do you want to build?"
-                  : "Proyek web apa yang ingin kamu buat?"}
+                  ? "What web application do you want to build?"
+                  : "Aplikasi web apa yang ingin kamu buat?"}
               </label>
 
               <textarea
@@ -1768,11 +1730,7 @@ export default function AICodePage() {
                   )
                 }
                 placeholder={
-                  mode === "game"
-                    ? isEnglish
-                      ? "Example: Build a classic Flappy Bird 2D game with jump sound synthesizer, pipe obstacles, score tracking, and on-screen touch buttons for mobile..."
-                      : "Contoh: Buatkan game Flappy Bird 2D dengan efek suara lompat, rintangan pipa, skor, high score, dan tombol sentuh layar untuk HP..."
-                    : mode === "software"
+                  mode === "software"
                     ? isEnglish
                       ? "Example: Build a complete Python CLI tool with SQLite database for inventory tracking, featuring CRUD, CSV export, and clear run instructions. (Or ask in C++, Java, Go, Rust, C#, PHP, etc.)..."
                       : "Contoh: Buatkan program Python lengkap dengan database SQLite untuk manajemen stok barang, fitur tambah/edit/hapus/laporan CSV dan petunjuk menjalankannya. (Atau bahasa lain: C++, Java, C#, Go, Rust, PHP, Bash, dll.)..."
@@ -1781,8 +1739,8 @@ export default function AICodePage() {
                       ? "Example: Paste any broken code, compiler errors, or stack traces here. AI will detect bugs across all languages, explain what broke, and provide 100% fixed, working code..."
                       : "Contoh: Salin kode yang eror, pesan stack trace, atau deskripsi bug bahasa apa saja di sini. AI akan mendiagnosa penyebab eror, memperbaikinya, dan memberikan kode baru yang bersih dan langsung bisa dijalankan..."
                     : isEnglish
-                    ? "Example: Build a modern responsive inventory management website with charts, search filter, and add/edit modals..."
-                    : "Contoh: Buatkan website inventaris barang modern dan responsive dengan filter pencarian, modal tambah barang, dan data tersimpan..."
+                    ? "Example: Build a modern responsive SaaS analytics dashboard with interactive charts, dark mode glassmorphism, search filters, and persistent data..."
+                    : "Contoh: Buatkan website dashboard analitik SaaS modern dan responsif dengan grafik interaktif, dark mode glassmorphism, filter pencarian, dan data tersimpan..."
                 }
                 className="min-h-[160px] w-full resize-y rounded-2xl border border-slate-700 bg-[#020617] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
               />

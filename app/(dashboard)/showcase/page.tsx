@@ -107,21 +107,21 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
 
   // AI CODE
   {
-    id: "code-space-game",
-    titleId: "Game Luar Angkasa 2D Galaxy Defender",
-    titleEn: "2D Space Shooter Game (HTML5 Canvas)",
+    id: "code-analytics-dashboard",
+    titleId: "Dashboard SaaS Analitik Bisnis Real-Time",
+    titleEn: "Real-Time SaaS Business Analytics Dashboard",
     category: "code",
     targetRoute: "ai-code",
-    targetCategory: "game",
+    targetCategory: "web",
     badge: "AI Code",
-    tags: ["Game", "HTML5", "Canvas", "JavaScript"],
+    tags: ["Web", "Dashboard", "SaaS", "Analytics", "Tailwind"],
     gradient: "from-cyan-600/20 via-blue-600/10 to-purple-600/20",
-    icon: Gamepad2,
+    icon: Code2,
     featured: true,
-    descId: "Kode game pesawat luar angkasa lengkap dengan tembakan laser, musuh alien, dan skor.",
-    descEn: "Full 2D space shooter game in HTML5 Canvas with lasers, enemies, and score.",
+    descId: "Dashboard analitik modern lengkap dengan metrik KPI, grafik performa dinamis, dan filter data.",
+    descEn: "Modern fullstack analytics dashboard with real-time KPI metrics, charts, and date filters.",
     prompt:
-      "Buatkan game pesawat luar angkasa 2D lengkap di HTML5 Canvas: kapal pemain bisa bergerak ke kiri/kanan dengan tombol panah, menembak laser dengan spasi, gelombang musuh alien berjatuhan dari atas, partikel ledakan saat musuh terkena peluru, sistem skor, dan layar game over.",
+      "Buatkan aplikasi web Single-Page SaaS Business Analytics Dashboard modern bertema dark obsidian: ada kartu metrik KPI (Total Revenue, Active Users, Conversion Rate, Churn Rate), grafik visual dinamis dengan HTML5 Canvas, filter rentang tanggal dan status, tabel transaksi real-time dengan status badge dan pencarian live, serta penyimpanan data di localStorage.",
   },
   {
     id: "code-cyberpunk-portfolio",

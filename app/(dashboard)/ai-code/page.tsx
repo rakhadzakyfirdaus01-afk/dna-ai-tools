@@ -224,6 +224,19 @@ export default function AICodePage() {
     isInitialLoadRef.current = false;
   }, []);
 
+  // Cek apakah ada prompt remix dari AI Arcade
+  useEffect(() => {
+    try {
+      const remixPrompt = sessionStorage.getItem("ai_code_remix_prompt");
+      if (remixPrompt) {
+        setPrompt(remixPrompt);
+        setMode("game");
+        setSelectedCategory("game");
+        sessionStorage.removeItem("ai_code_remix_prompt");
+      }
+    } catch {}
+  }, []);
+
   // 2. Sinkronkan perubahan project/prompt/mode ke session yang aktif dan LocalStorage
   useEffect(() => {
     if (isInitialLoadRef.current || !activeSessionId) return;

@@ -168,6 +168,10 @@ export default function Header({
       name: locale === "id" ? "Animasi AI" : "AI Animation",
       path: "/ai-animation",
     },
+    {
+      name: locale === "id" ? "Arcade Game" : "AI Arcade",
+      path: "/ai-arcade",
+    },
 
     {
       name: locale === "id" ? "Riwayat" : "History",

@@ -11,6 +11,7 @@ import {
   Languages,
   ArrowRight,
   Wand2,
+  Gamepad2,
 } from "lucide-react";
 
 import { useLanguage } from "@/components/shared/language-provider";
@@ -55,6 +56,14 @@ const actions = [
     descriptionEn: "Generate animation ideas with AI.",
     href: "/ai-animation",
     icon: Clapperboard,
+  },
+  {
+    titleId: "Arcade Game",
+    titleEn: "AI Arcade",
+    descriptionId: "Mainkan game buatan AI langsung di web.",
+    descriptionEn: "Play AI generated games directly in browser.",
+    href: "/ai-arcade",
+    icon: Gamepad2,
   },
   {
     titleId: "Dokumen AI",

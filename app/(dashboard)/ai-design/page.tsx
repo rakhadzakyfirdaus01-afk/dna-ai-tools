@@ -175,6 +175,8 @@ function AIDesignContent() {
   const [studioCustomPrompt, setStudioCustomPrompt] = useState<string>("");
   const [studioAspectRatio, setStudioAspectRatio] = useState<"square" | "landscape" | "portrait">("square");
   const [studioLoading, setStudioLoading] = useState<boolean>(false);
+  const [studioProgress, setStudioProgress] = useState<string>("");
+  const [studioCutoutBlob, setStudioCutoutBlob] = useState<Blob | null>(null);
   const [studioError, setStudioError] = useState<string>("");
   const [studioShowCompare, setStudioShowCompare] = useState<boolean>(false);
   const [studioBgColor, setStudioBgColor] = useState<string>("transparent");
@@ -182,6 +184,7 @@ function AIDesignContent() {
 
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageRendering, setImageRendering] = useState<boolean>(false);
   const [referenceImage, setReferenceImage] =
     useState<File | null>(null);
   const [referencePreview, setReferencePreview] =
@@ -775,8 +778,8 @@ function AIDesignContent() {
           }
 
           setImageUrl(statusData.imageUrl);
-          setStatus(ui.created);
-          setLoading(false);
+          setImageRendering(true);
+          setStatus(ui.rendering);
 
           // Kirim notifikasi HP jika pengguna sedang membuka game atau aplikasi lain
           if (typeof document !== "undefined" && document.hidden) {
@@ -850,6 +853,7 @@ function AIDesignContent() {
 
     setStudioError("");
     setStudioFile(file);
+    setStudioCutoutBlob(null);
     setStudioResultUrl("");
     const url = URL.createObjectURL(file);
     setStudioPreviewUrl(url);
@@ -867,6 +871,180 @@ function AIDesignContent() {
     img.src = url;
   }
 
+  // Pre-scale image to 1440px max PNG to keep WASM neural segmentation fast and light on RAM
+  async function prepareImageForSegmentation(file: File): Promise<Blob> {
+    return new Promise((resolve) => {
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new window.Image();
+          img.onload = () => {
+            const maxDimension = 1440;
+            let width = img.naturalWidth || img.width || 1024;
+            let height = img.naturalHeight || img.height || 1024;
+
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              } else {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              resolve(file);
+              return;
+            }
+
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(
+              (blob) => resolve(blob || file),
+              "image/png"
+            );
+          };
+          img.onerror = () => resolve(file);
+          img.src = e.target?.result as string;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+      } catch {
+        resolve(file);
+      }
+    });
+  }
+
+  // Composite transparent cutout onto selected background color
+  async function applyBackgroundToCutout(cutoutBlob: Blob, bgColor: string): Promise<Blob> {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(cutoutBlob);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          resolve(cutoutBlob);
+          return;
+        }
+
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blob) => resolve(blob || cutoutBlob), "image/png");
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(cutoutBlob);
+      };
+      img.src = url;
+    });
+  }
+
+  // Instant 0ms background tint switching when cutout is already available
+  async function handleStudioBgColorChange(newColor: string) {
+    setStudioBgColor(newColor);
+    if (studioCutoutBlob) {
+      try {
+        if (newColor === "transparent") {
+          setStudioResultUrl(URL.createObjectURL(studioCutoutBlob));
+        } else {
+          const composited = await applyBackgroundToCutout(studioCutoutBlob, newColor);
+          setStudioResultUrl(URL.createObjectURL(composited));
+        }
+      } catch (err) {
+        console.warn("Gagal mengubah warna background:", err);
+      }
+    }
+  }
+
+  // Fallback edge & color isolation for devices that cannot execute WASM models
+  async function fallbackBackgroundRemoval(file: File | Blob, bgColor: string): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const w = Math.min(img.naturalWidth || img.width, 1280);
+          const h = Math.round((img.naturalHeight / (img.naturalWidth || 1)) * w);
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            URL.revokeObjectURL(url);
+            resolve(file);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, w, h);
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const d = imgData.data;
+
+          const cornerIdxs = [0, (w - 1) * 4, ((h - 1) * w) * 4, ((h - 1) * w + (w - 1)) * 4];
+          let bgR = 0, bgG = 0, bgB = 0;
+          for (const idx of cornerIdxs) {
+            bgR += d[idx];
+            bgG += d[idx + 1];
+            bgB += d[idx + 2];
+          }
+          bgR = Math.round(bgR / 4);
+          bgG = Math.round(bgG / 4);
+          bgB = Math.round(bgB / 4);
+
+          const threshold = 38;
+          for (let i = 0; i < d.length; i += 4) {
+            const diff = Math.sqrt(
+              Math.pow(d[i] - bgR, 2) +
+              Math.pow(d[i + 1] - bgG, 2) +
+              Math.pow(d[i + 2] - bgB, 2)
+            );
+            if (diff < threshold) {
+              d[i + 3] = 0;
+            } else if (diff < threshold + 15) {
+              d[i + 3] = Math.round(((diff - threshold) / 15) * 255);
+            }
+          }
+          ctx.putImageData(imgData, 0, 0);
+
+          if (bgColor && bgColor !== "transparent") {
+            const outCanvas = document.createElement("canvas");
+            outCanvas.width = w;
+            outCanvas.height = h;
+            const outCtx = outCanvas.getContext("2d");
+            if (outCtx) {
+              outCtx.fillStyle = bgColor;
+              outCtx.fillRect(0, 0, w, h);
+              outCtx.drawImage(canvas, 0, 0);
+              URL.revokeObjectURL(url);
+              outCanvas.toBlob((b) => resolve(b || file), "image/png");
+              return;
+            }
+          }
+
+          URL.revokeObjectURL(url);
+          canvas.toBlob((b) => resolve(b || file), "image/png");
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          reject(e);
+        }
+      };
+      img.onerror = (e) => {
+        URL.revokeObjectURL(url);
+        reject(e);
+      };
+      img.src = url;
+    });
+  }
+
   async function handleStudioProcess() {
     if (!studioFile) {
       setStudioError(isEnglish ? "Please upload a photo first." : "Unggah foto terlebih dahulu.");
@@ -875,12 +1053,102 @@ function AIDesignContent() {
 
     setStudioLoading(true);
     setStudioError("");
+    setStudioProgress("");
 
+    // ==========================================
+    // 1. HAPUS BACKGROUND (REAL NEURAL CUTOUT)
+    // ==========================================
+    if (activeMainTab === "remove-bg") {
+      try {
+        setStudioProgress(
+          isEnglish ? "Preparing image for AI analysis..." : "Menyiapkan gambar untuk analisis AI..."
+        );
+
+        const preparedBlob = await prepareImageForSegmentation(studioFile);
+
+        setStudioProgress(
+          isEnglish ? "Loading neural segmentation engine..." : "Memuat model AI neural segmentasi..."
+        );
+
+        // Dynamic import to keep bundle fast and prevent SSR evaluation
+        const imgly = await import("@imgly/background-removal");
+        const removeFn = (imgly.removeBackground || (imgly as any).default) as (
+          image: any,
+          config?: any
+        ) => Promise<Blob>;
+
+        const cutoutBlob = await removeFn(preparedBlob, {
+          model: "isnet_quint8",
+          publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/",
+          progress: (_key: string, current: number, total: number) => {
+            if (total > 0) {
+              const pct = Math.min(99, Math.round((current / total) * 100));
+              setStudioProgress(
+                isEnglish
+                  ? `AI isolating subject (${pct}%)...`
+                  : `AI sedang mengisolasi objek (${pct}%)...`
+              );
+            }
+          },
+        });
+
+        setStudioCutoutBlob(cutoutBlob);
+
+        if (studioBgColor && studioBgColor !== "transparent") {
+          const composited = await applyBackgroundToCutout(cutoutBlob, studioBgColor);
+          setStudioResultUrl(URL.createObjectURL(composited));
+        } else {
+          setStudioResultUrl(URL.createObjectURL(cutoutBlob));
+        }
+
+        // Simpan riwayat di background secara senyap
+        fetch("/api/ai-studio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "remove-bg" }),
+        }).catch(() => {});
+
+        if (typeof document !== "undefined" && document.hidden) {
+          sendBackgroundNotification({
+            title: "DNA AI Design - Background Selesai! ✨",
+            body: isEnglish
+              ? "Your background removal is complete! Tap to view."
+              : "Background foto kamu berhasil dihapus! Ketuk untuk melihat hasilnya.",
+            url: "/ai-design?tab=remove-bg",
+            tag: "dna-ai-studio-done",
+          }).catch(() => {});
+        }
+      } catch (neuralErr: any) {
+        console.warn("Neural removal fallback engaged:", neuralErr);
+        try {
+          setStudioProgress(
+            isEnglish ? "Applying edge isolation..." : "Menerapkan segmentasi visual tepi..."
+          );
+          const fallbackBlob = await fallbackBackgroundRemoval(studioFile, studioBgColor);
+          setStudioCutoutBlob(fallbackBlob);
+          setStudioResultUrl(URL.createObjectURL(fallbackBlob));
+        } catch {
+          setStudioError(
+            isEnglish
+              ? "Failed to remove background. Please try another clear photo."
+              : "Gagal menghapus background. Silakan coba foto lain dengan kontras yang jelas."
+          );
+        }
+      } finally {
+        setStudioLoading(false);
+        setStudioProgress("");
+      }
+      return;
+    }
+
+    // ==========================================
+    // 2. STAGING FOTO PRODUK (AI STUDIO SCENE)
+    // ==========================================
     try {
       const optimizedBlob = await compressImageForUpload(studioFile);
       const formData = new FormData();
       formData.append("image", optimizedBlob, "product.jpg");
-      formData.append("action", activeMainTab === "staging" ? "stage-product" : "remove-bg");
+      formData.append("action", "stage-product");
       formData.append("preset", studioSelectedPreset);
       formData.append("customPrompt", studioCustomPrompt);
       formData.append("size", studioAspectRatio);
@@ -904,11 +1172,11 @@ function AIDesignContent() {
 
       if (typeof document !== "undefined" && document.hidden) {
         sendBackgroundNotification({
-          title: "DNA AI Design - Selesai! ✨",
+          title: "DNA AI Design - Staging Selesai! ✨",
           body: isEnglish
-            ? "Your photo processing is complete! Tap to view."
-            : "Hasil olahan foto kamu sudah selesai! Ketuk untuk melihat.",
-          url: `/ai-design?tab=${activeMainTab}`,
+            ? "Your product photoshoot staging is complete! Tap to view."
+            : "Foto studio produk kamu sudah selesai! Ketuk untuk melihat.",
+          url: "/ai-design?tab=staging",
           tag: "dna-ai-studio-done",
         }).catch(() => {});
       }
@@ -916,21 +1184,18 @@ function AIDesignContent() {
       setStudioError(err.message || (isEnglish ? "Failed to process image." : "Terjadi kesalahan saat memproses gambar."));
     } finally {
       setStudioLoading(false);
+      setStudioProgress("");
     }
   }
 
   async function downloadStudioImage() {
     if (!studioResultUrl) return;
     try {
-      const res = await fetch(studioResultUrl);
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `dna-design-${activeMainTab}-${Date.now()}.png`;
+      a.href = studioResultUrl;
+      a.download = `dna-ai-${activeMainTab}-${Date.now()}.png`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       a.remove();
     } catch {
       window.open(studioResultUrl, "_blank");
@@ -1506,13 +1771,42 @@ function AIDesignContent() {
           </div>
 
           {/* IMAGE RESULT */}
-          <div className="flex min-h-[500px] items-center justify-center overflow-hidden rounded-xl border border-slate-700 bg-slate-950 p-4">
+          <div className="relative flex min-h-[500px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-700 bg-slate-950 p-4">
+            {imageRendering && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-950/80 backdrop-blur-sm">
+                <Loader2 size={36} className="animate-spin text-purple-400" />
+                <p className="text-sm font-semibold text-white">
+                  {isEnglish ? "Rendering Ultra-HD Visual..." : "Sedang Merender Visual Ultra-HD..."}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {isEnglish
+                    ? "Detailing textures, lighting, and composition..."
+                    : "Menyempurnakan tekstur, pencahayaan, dan komposisi 8K..."}
+                </p>
+              </div>
+            )}
 
             {imageUrl ? (
               <img
                 src={imageUrl}
                 alt={ui.alt}
-                className="max-h-[900px] w-auto max-w-full rounded-lg object-contain"
+                onLoad={() => {
+                  setImageRendering(false);
+                  setStatus(ui.created);
+                  setLoading(false);
+                }}
+                onError={() => {
+                  setImageRendering(false);
+                  setLoading(false);
+                  setError(
+                    isEnglish
+                      ? "Failed to load generated image. Please click Generate again."
+                      : "Gagal memuat visual gambar AI. Silakan coba tekan Generate lagi."
+                  );
+                }}
+                className={`max-h-[900px] w-auto max-w-full rounded-lg object-contain transition-opacity duration-300 ${
+                  imageRendering ? "opacity-0" : "opacity-100"
+                }`}
               />
             ) : (
               <div className="text-center text-slate-500">
@@ -1700,7 +1994,7 @@ function AIDesignContent() {
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => setStudioBgColor(c.id)}
+                        onClick={() => handleStudioBgColorChange(c.id)}
                         className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition ${
                           studioBgColor === c.id
                             ? "border-pink-500 bg-pink-500/15 text-white"
@@ -1726,13 +2020,14 @@ function AIDesignContent() {
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span>
-                      {activeMainTab === "staging"
-                        ? isEnglish
-                          ? "Rendering Studio Photo..."
-                          : "Sedang Menyulap Foto..."
-                        : isEnglish
-                        ? "Removing Background..."
-                        : "Sedang Menghapus Background..."}
+                      {studioProgress ||
+                        (activeMainTab === "staging"
+                          ? isEnglish
+                            ? "Rendering Studio Photo..."
+                            : "Sedang Menyulap Foto..."
+                          : isEnglish
+                          ? "Removing Background..."
+                          : "Sedang Menghapus Background...")}
                     </span>
                   </>
                 ) : (
@@ -1813,16 +2108,21 @@ function AIDesignContent() {
                     <div className="flex flex-col items-center gap-3 text-center">
                       <Loader2 className="h-10 w-10 animate-spin text-pink-500" />
                       <p className="text-sm font-medium text-white">
-                        {activeMainTab === "staging"
-                          ? isEnglish
-                            ? "Processing Product Photo..."
-                            : "Sedang Memproses Foto Studio..."
-                          : isEnglish
-                          ? "Isolating Background..."
-                          : "Sedang Mengisolasi Objek..."}
+                        {studioProgress ||
+                          (activeMainTab === "staging"
+                            ? isEnglish
+                              ? "Processing Product Photo..."
+                              : "Sedang Memproses Foto Studio..."
+                            : isEnglish
+                            ? "Isolating Background..."
+                            : "Sedang Mengisolasi Objek...")}
                       </p>
                       <p className="max-w-xs text-xs text-slate-400">
-                        {isEnglish
+                        {activeMainTab === "remove-bg"
+                          ? isEnglish
+                            ? "Neural network is separating foreground subject with pixel precision."
+                            : "Neural network sedang memisahkan objek latar depan dengan presisi piksel tinggi."
+                          : isEnglish
                           ? "AI Vision & neural networks are refining lighting, edges, and studio staging."
                           : "AI Vision sedang menganalisis tepi objek, pencahayaan, dan komposisi studio."}
                       </p>
@@ -1843,7 +2143,9 @@ function AIDesignContent() {
                             {isEnglish ? "AI Processed (After)" : "Hasil AI (After)"}
                           </span>
                           <div
-                            className="relative aspect-square w-full overflow-hidden rounded-xl border border-pink-500/40"
+                            className={`relative aspect-square w-full overflow-hidden rounded-xl border border-pink-500/40 ${
+                              studioBgColor === "transparent" ? "bg-[radial-gradient(#334155_1.5px,transparent_1.5px)] [background-size:16px_16px] bg-slate-950" : ""
+                            }`}
                             style={{ backgroundColor: studioBgColor !== "transparent" ? studioBgColor : undefined }}
                           >
                             <NextImage src={studioResultUrl} alt="After" fill className="object-contain" unoptimized />
@@ -1852,7 +2154,9 @@ function AIDesignContent() {
                       </div>
                     ) : (
                       <div
-                        className="relative aspect-square max-h-[520px] w-full overflow-hidden rounded-xl"
+                        className={`relative aspect-square max-h-[520px] w-full overflow-hidden rounded-xl border border-slate-800 ${
+                          studioBgColor === "transparent" ? "bg-[radial-gradient(#334155_1.5px,transparent_1.5px)] [background-size:16px_16px] bg-slate-950" : ""
+                        }`}
                         style={{ backgroundColor: studioBgColor !== "transparent" ? studioBgColor : undefined }}
                       >
                         <NextImage

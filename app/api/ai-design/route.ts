@@ -50,7 +50,12 @@ function buildPollinationsUrl(
     height = 768;
   }
 
-  const encoded = encodeURIComponent(visualPrompt);
+  // Safe length limit to prevent HTTP 414 URI Too Long on proxies
+  const safePrompt = visualPrompt.length > 900
+    ? visualPrompt.slice(0, 900).replace(/\s+\S*$/, "")
+    : visualPrompt;
+
+  const encoded = encodeURIComponent(safePrompt);
 
   return (
     `${POLLINATIONS_BASE}/${encoded}` +
@@ -58,6 +63,7 @@ function buildPollinationsUrl(
     `&width=${width}` +
     `&height=${height}` +
     `&nologo=true` +
+    `&private=true` +
     `&enhance=false` +
     `&seed=${seed}`
   );

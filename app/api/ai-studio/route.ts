@@ -113,7 +113,7 @@ MANDATORY RULES:
       const seed = Math.floor(Math.random() * 2_000_000_000);
       const encoded = encodeURIComponent(visualPrompt);
 
-      const stagedImageUrl = `${POLLINATIONS_BASE}/${encoded}?model=flux&width=${width}&height=${height}&nologo=true&enhance=false&seed=${seed}`;
+      const stagedImageUrl = `${POLLINATIONS_BASE}/${encoded}?model=flux&width=${width}&height=${height}&nologo=true&private=true&enhance=false&seed=${seed}`;
 
       // Save to history if logged in
       if (session?.user?.email) {
@@ -126,8 +126,8 @@ MANDATORY RULES:
             await prisma.history.create({
               data: {
                 userId: user.id,
-                title: "AI Studio: Product Staging",
-                feature: "AI Magic Studio",
+                title: "AI Design: Staging Foto Produk",
+                feature: "AI Design",
                 prompt: visualPrompt,
                 result: stagedImageUrl,
               },
@@ -147,46 +147,10 @@ MANDATORY RULES:
     }
 
     // ==========================================
-    // 2. BACKGROUND REMOVAL (FLUX STUDIO CUTOUT)
+    // 2. BACKGROUND REMOVAL (HISTORY / STATUS)
     // ==========================================
     if (action === "remove-bg") {
-      let cutoutPrompt =
-        "clean isolated commercial product cutout, centered, pure solid flat white background, sharp crisp edges, high key studio lighting, professional e-commerce catalog image, 8K UHD, no background objects, no shadows";
-
-      if (ai) {
-        try {
-          const visionResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [
-              {
-                inlineData: { mimeType, data: base64Image },
-              },
-              {
-                text: `Analyze the main product/subject in this photo.
-Write a concise prompt to isolate this exact subject cleanly on a flat solid pure white background for an e-commerce catalog cutout with crisp razor-sharp edges and soft even lighting.
-Output ONLY the clean English prompt paragraph without markdown.`,
-              },
-            ],
-            config: {
-              maxOutputTokens: 512,
-            },
-          });
-          if (visionResponse.text?.trim()) {
-            cutoutPrompt = visionResponse.text
-              .replace(/\n/g, " ")
-              .replace(/\*\*/g, "")
-              .trim();
-          }
-        } catch (e) {
-          console.warn("Vision isolate fallback:", e);
-        }
-      }
-
-      const seed = Math.floor(Math.random() * 2_000_000_000);
-      const encoded = encodeURIComponent(cutoutPrompt);
-      const cutoutUrl = `${POLLINATIONS_BASE}/${encoded}?model=flux&width=${width}&height=${height}&nologo=true&enhance=false&seed=${seed}`;
-
-      // Save to history
+      // Save history record if logged in
       if (session?.user?.email) {
         try {
           const user = await prisma.user.findUnique({
@@ -197,10 +161,10 @@ Output ONLY the clean English prompt paragraph without markdown.`,
             await prisma.history.create({
               data: {
                 userId: user.id,
-                title: "AI Studio: Hapus Background",
-                feature: "AI Magic Studio",
-                prompt: cutoutPrompt,
-                result: cutoutUrl,
+                title: "AI Design: Hapus Background",
+                feature: "AI Design",
+                prompt: "Penghapusan latar belakang & isolasi objek neural",
+                result: "Neural High-Precision Cutout",
               },
             });
           }
@@ -212,8 +176,7 @@ Output ONLY the clean English prompt paragraph without markdown.`,
       return NextResponse.json({
         success: true,
         action: "remove-bg",
-        resultUrl: cutoutUrl,
-        prompt: cutoutPrompt,
+        message: "Neural background removal processed successfully.",
       });
     }
 

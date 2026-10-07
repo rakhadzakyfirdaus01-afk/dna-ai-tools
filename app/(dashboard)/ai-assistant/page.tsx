@@ -31,6 +31,15 @@ import {
   Folder,
   MessageSquare,
   MoreVertical,
+  Wand2,
+  Gamepad2,
+  Lightbulb,
+  Languages,
+  FileScan,
+  Bug,
+  Film,
+  Palette,
+  History,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -2782,126 +2791,362 @@ export default function Page() {
                   </button>
 
                   {toolMenuOpen && (
-                    <div className="absolute bottom-full left-0 z-50 mb-2 w-[270px] overflow-hidden rounded-2xl border border-slate-700 bg-[#111827] p-2 shadow-2xl">
+                    <div className="absolute bottom-full left-0 z-50 mb-2 w-[300px] sm:w-[325px] max-h-[440px] overflow-y-auto rounded-2xl border border-slate-700/80 bg-[#111827]/98 p-2 shadow-2xl backdrop-blur-md scrollbar-thin scrollbar-thumb-slate-700 divide-y divide-slate-800/60">
+                      {/* HEADER */}
+                      <div className="flex items-center justify-between px-3 py-2 pb-2.5">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                          {isEnglish ? "All AI Features" : "Semua Fitur AI"}
+                        </span>
+                        <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-semibold text-cyan-300 border border-cyan-500/30">
+                          {isEnglish ? "14 Tools" : "14 Fitur"}
+                        </span>
+                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolMenuOpen(false);
-                          openCamera();
-                        }}
-                        disabled={loading || cameraLoading}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 md:hidden"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10">
-                          <Camera size={18} className="text-cyan-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-white">
-                            {ui.cameraTool}
+                      {/* QUICK INPUT */}
+                      <div className="py-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            openCamera();
+                          }}
+                          disabled={loading || cameraLoading}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 md:hidden"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10">
+                            <Camera size={18} className="text-cyan-400" />
                           </div>
-                          <p className="text-xs text-slate-500">
-                            {ui.cameraDescription}
-                          </p>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolMenuOpen(false);
-                          fileInputRef.current?.click();
-                        }}
-                        disabled={loading}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800">
-                          <Paperclip size={18} className="text-slate-200" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-white">
-                            {ui.attachTool}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white">
+                              {ui.cameraTool}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {ui.cameraDescription}
+                            </p>
                           </div>
-                          <p className="text-xs text-slate-500">
-                            {isEnglish
-                              ? "Upload a file from your device"
-                              : "Unggah file dari perangkat"}
-                          </p>
-                        </div>
-                      </button>
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolMenuOpen(false);
-                          router.push("/ai-code");
-                        }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
-                          <Code2
-                            size={18}
-                            className="text-emerald-400"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-white">
-                            AI Code
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            fileInputRef.current?.click();
+                          }}
+                          disabled={loading}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800">
+                            <Paperclip size={18} className="text-slate-200" />
                           </div>
-                          <p className="text-xs text-slate-500">
-                            {isEnglish
-                              ? "Coding, web and game development"
-                              : "Coding, pembuatan web, dan game"}
-                          </p>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolMenuOpen(false);
-                          router.push("/ai-animation");
-                        }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/10">
-                          <span className="text-lg">🎬</span>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-white">
-                            {ui.animationTool}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white">
+                              {ui.attachTool}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Upload file from device"
+                                : "Unggah file dari perangkat"}
+                            </p>
                           </div>
-                          <p className="text-xs text-slate-500">
-                            {isEnglish
-                              ? "Open AI Animation"
-                              : "Buka fitur Animasi AI"}
-                          </p>
-                        </div>
-                      </button>
+                        </button>
+                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolMenuOpen(false);
-                          router.push("/ai-design");
-                        }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-800"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-500/10">
-                          <span className="text-lg">🎨</span>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-white">
-                            {ui.designTool}
+                      {/* FITUR UNGGULAN & STUDIO */}
+                      <div className="py-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/ai-studio");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800/80 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+                            <Wand2 size={18} className="text-amber-400" />
                           </div>
-                          <p className="text-xs text-slate-500">
-                            {isEnglish
-                              ? "Open AI Design"
-                              : "Buka fitur Desain AI"}
-                          </p>
-                        </div>
-                      </button>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-semibold text-white group-hover:text-amber-300 transition-colors truncate">
+                                Magic Studio
+                              </span>
+                              <span className="rounded bg-gradient-to-r from-amber-500 to-orange-500 px-1.5 py-0.2 text-[9px] font-bold text-white uppercase">
+                                {isEnglish ? "New" : "Baru"}
+                              </span>
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Remove background & product staging"
+                                : "Hapus background & foto produk"}
+                            </p>
+                          </div>
+                        </button>
 
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/ai-arcade");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800/80 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-cyan-500/20">
+                            <Gamepad2 size={18} className="text-indigo-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors truncate">
+                                Arcade Game AI
+                              </span>
+                              <span className="rounded bg-gradient-to-r from-indigo-500 to-cyan-500 px-1.5 py-0.2 text-[9px] font-bold text-white uppercase">
+                                {isEnglish ? "New" : "Baru"}
+                              </span>
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Play & remix games right in browser"
+                                : "Main & remix game langsung di web"}
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/showcase");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800/80 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20">
+                            <Lightbulb size={18} className="text-emerald-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-semibold text-white group-hover:text-emerald-300 transition-colors truncate">
+                                {isEnglish ? "Showcase Gallery" : "Galeri Inspirasi"}
+                              </span>
+                              <span className="rounded bg-gradient-to-r from-emerald-500 to-teal-500 px-1.5 py-0.2 text-[9px] font-bold text-white uppercase">
+                                {isEnglish ? "New" : "Baru"}
+                              </span>
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Curated 1-click prompt presets"
+                                : "Preset & contoh prompt 1-klik"}
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/ai-code");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
+                            <Code2 size={18} className="text-emerald-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white group-hover:text-emerald-300 transition-colors">
+                              AI Code
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Coding, web and game development"
+                                : "Coding, pembuatan web, dan game"}
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/ai-design");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-500/10">
+                            <Palette size={18} className="text-pink-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white group-hover:text-pink-300 transition-colors">
+                              {ui.designTool}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Create designs & visual graphics"
+                                : "Buat gambar & desain visual"}
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/ai-animation");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/10">
+                            <Film size={18} className="text-purple-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors">
+                              {ui.animationTool}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "AI animation & video generator"
+                                : "Video & animasi bergerak AI"}
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/image-prompt");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
+                            <Sparkles size={18} className="text-blue-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white group-hover:text-blue-300 transition-colors">
+                              {isEnglish ? "Image Prompt" : "Prompt Gambar"}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Visual prompt generator & enhancer"
+                                : "Perkaya prompt untuk gambar visual"}
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+
+                      {/* ALAT & PRODUKTIVITAS */}
+                      <div className="py-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/ai-document");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-500/10">
+                            <FileText size={18} className="text-sky-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white group-hover:text-sky-300 transition-colors">
+                              {isEnglish ? "AI Document" : "Dokumen AI"}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Analyze & summarize documents"
+                                : "Analisis & ringkas dokumen PDF"}
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/ai-ocr");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/10">
+                            <FileScan size={18} className="text-teal-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white group-hover:text-teal-300 transition-colors">
+                              {isEnglish ? "Text Recognition (OCR)" : "Pengenal Teks (OCR)"}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Extract text from images automatically"
+                                : "Ekstrak teks otomatis dari foto"}
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/ai-translator");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/10">
+                            <Languages size={18} className="text-violet-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white group-hover:text-violet-300 transition-colors">
+                              {isEnglish ? "AI Translator" : "Penerjemah AI"}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Accurate multilingual translator"
+                                : "Penerjemah akurat antar bahasa"}
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/ai-debugger");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/10">
+                            <Bug size={18} className="text-rose-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white group-hover:text-rose-300 transition-colors">
+                              {isEnglish ? "AI Debugger" : "AI Debugger"}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "Find bugs & fix code errors"
+                                : "Cari bug & solusi error kode"}
+                            </p>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolMenuOpen(false);
+                            router.push("/history");
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-800 group"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-700/50">
+                            <History size={18} className="text-slate-300" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-white group-hover:text-slate-300 transition-colors">
+                              {isEnglish ? "Chat History" : "Riwayat Percakapan"}
+                            </div>
+                            <p className="truncate text-xs text-slate-400">
+                              {isEnglish
+                                ? "View saved chats & activity"
+                                : "Lihat arsip chat & aktivitas"}
+                            </p>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   )}
 

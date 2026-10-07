@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
@@ -277,17 +278,25 @@ export default function Header({
             <Menu size={22} />
           </button>
 
-          <div className="min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <Link href="/ai-assistant" className="shrink-0 transition duration-200 hover:scale-105 active:scale-95">
+              <img
+                src="/logo-dna.png"
+                alt="DNA AI"
+                className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover shadow-sm ring-1 ring-border/50"
+              />
+            </Link>
 
-            <p className="hidden truncate text-xs text-muted-foreground lg:block lg:text-sm">
-              {today}
-            </p>
+            <div className="min-w-0">
+              <p className="hidden truncate text-xs text-muted-foreground lg:block lg:text-sm">
+                {today}
+              </p>
 
-            <h1 className="mt-1 truncate text-lg font-bold text-foreground lg:text-2xl">
-              <span className="lg:hidden">DNA AI</span>
-              <span className="hidden lg:inline">DNA AI Platform</span>
-            </h1>
-
+              <h1 className="mt-0.5 truncate text-lg font-bold text-foreground lg:text-2xl">
+                <span className="lg:hidden">DNA AI</span>
+                <span className="hidden lg:inline">DNA AI Platform</span>
+              </h1>
+            </div>
           </div>
 
         </div>

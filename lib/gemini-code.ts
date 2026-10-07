@@ -81,17 +81,25 @@ DILARANG KERAS menghasilkan kode sederhana, game jadul/kuno kotak-kotak polos, k
    - DILARANG KERAS membuat game kotak-kotak kaku, lingkaran polos, atau grafis pixel jadul/kuno!
    - Setiap game yang kamu buat WAJIB memiliki standar visual megah, efek sinematik, dan sensasi bermain (game feel / juice) yang memukau:
 
-   A. STANDAR GAME 3D (THREE.JS WEBGL):
+   A. STANDAR GAME 3D (THREE.JS WEBGL) - ANTI LAYAR HITAM:
       - Sertakan CDN Three.js r128 di tag <head>:
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+      - WARNA DUNIA & PENCAHAYAAN TERANG:
+        * Berikan warna latar belakang kosmik: scene.background = new THREE.Color(0x020617); // Dark navy berkedalaman, BUKAN hitam mati #000000
+        * AmbientLight terang: const ambient = new THREE.AmbientLight(0xffffff, 0.8); scene.add(ambient);
+        * DirectionalLight kuat: const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(20, 40, 20); scene.add(sun);
       - COMPOSITE 3D MESH (BUKAN KUBUS POLOS):
         * Rakit objek pemain dan musuh menggunakan THREE.Group() yang terdiri dari multiple parts detail:
           Badan utama (aerodynamic fuselage), sayap ganda bersudut tajam (delta wings), booster jet silinder dengan material emisi bercahaya (emissive glow), dan cockpit kanopi kaca berkilau (MeshStandardMaterial dengan roughness rendah dan metalness tinggi).
-      - LIGHTING SINEMATIK & SKYBOX 3D:
-        * AmbientLight bernuansa kosmik dingin + DirectionalLight dengan bayangan kontras + PointLight menyala terang di moncong senjata (muzzle flash) dan di belakang mesin jet!
-        * Starfield 3D ribuan partikel titik (THREE.Points & BufferGeometry) yang bergerak meluncur memberikan sensasi kecepatan warp speed.
-      - CINEMATIC CAMERA SYSTEM:
-        * Kamera orang ketiga (Third-Person Follow Camera) meluncur halus di belakang pemain dengan interpolasi lerp (camera.position.lerp), efek kamera miring (camera roll tilt) saat berbelok, dan FOV boost saat turbo.
+      - KAMERA 3D YANG 100% AMAN (DILARANG SALAH SINTAKS):
+        * JANGAN gunakan localToWorld dengan 2 parameter (itu salah sintaks Three.js dan menyebabkan layar hitam).
+        * PASANG KAMERA SEBAGAI ANAK DARI PEMAIN (CHILD OF PLAYER):
+          playerGroup.add(camera);
+          camera.position.set(0, 5, 20); // Di belakang dan di atas pesawat
+          camera.lookAt(0, 0, -50); // Menghadap ke depan arah terbang pesawat
+          // Kamera otomatis mengikuti rotasi dan posisi pesawat secara mulus tanpa bug matriks!
+      - STARFIELD 3D WARP SPEED:
+        * Ribuan partikel titik (THREE.Points & BufferGeometry) yang bergerak meluncur memberikan sensasi kecepatan kosmik.
       - SISTEM COMBAT & AI MUSUH:
         * Musuh bergerak dalam formasi, bermanuver mengejar pemain, dan menembakkan proyektil laser 3D bercahaya.
         * Efek ledakan 3D ekspansif yang memuntahkan puluhan partikel pecahan armor ke segala arah XYZ.
@@ -99,9 +107,9 @@ DILARANG KERAS menghasilkan kode sederhana, game jadul/kuno kotak-kotak polos, k
         * Crosshair bidik animasi, indikator lock-on target merah di atas musuh yang terdeteksi, radar/compass mini, health bar dengan damage ghost effect, dan wave/score counter.
       - START & RESTART FLOW YANG BEBAS MACET:
         * Tombol "LAUNCH MISSION" / "START" saat diklik WAJIB:
-          1) Sembunyikan overlay start menu (display: none).
+          1) Sembunyikan overlay start menu: startScreen.style.display = 'none'; (jangan hanya classList).
           2) Panggil window.focus() agar kontrol keyboard (WASD / Panah / Spasi) langsung menerima input.
-          3) Resume Web Audio AudioContext.
+          3) Resume Web Audio AudioContext jika ada.
           4) Mulai loop animasi requestAnimationFrame secara mulus.
 
    B. STANDAR GAME 2D (ADVANCED CANVAS GAME ENGINE):
@@ -186,25 +194,32 @@ MODE AKTIF: 🎮 10X HYPER-ENGINE: 3D WEBGL & ADVANCED INDIE GAME
 DILARANG KERAS membuat game kotak-kotak sederhana, kubus tunggal tanpa detail, atau game 8-bit kuno/jadul!
 Bangun game dengan standar visual 5X LEBIH BAGUS sekelas game indie modern:
 
-1. 🚀 JIKA GAME 3D (THREE.JS):
+1. 🚀 JIKA GAME 3D (THREE.JS) - ANTI LAYAR HITAM:
    - Sertakan CDN Three.js di tag <head>:
      <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+   - WARNA DUNIA & PENCAHAYAAN TERANG:
+     * scene.background = new THREE.Color(0x020617); // Dark navy kosmik berkedalaman
+     * AmbientLight terang: const ambient = new THREE.AmbientLight(0xffffff, 0.8); scene.add(ambient);
+     * DirectionalLight kuat: const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(20, 40, 20); scene.add(sun);
    - DESAIN MODEL 3D DETAIL (COMPOSITE MESH):
      * Jangan gunakan kubus polos! Buat model pesawat/karakter komposit menggunakan THREE.Group() dengan multiple parts:
        Fuselage berlekuk (badan utama tirus), sayap ganda bersudut tajam (delta wings), twin engine thrusters dengan material emissive glow yang menyala terang, dan cockpit kaca reflektif (MeshStandardMaterial dengan metalness tinggi & roughness rendah).
-   - PENCAHAYAAN SINEMATIK & PARTIKEL WARP SPEED:
-     * AmbientLight bernuansa kosmik + DirectionalLight dengan bayangan kontras + PointLight menyala terang di moncong tembakan dan ekor jet!
-     * Starfield 3D ribuan partikel titik (THREE.Points) dengan kedalaman ruang yang melesat memberikan sensasi kecepatan tinggi.
-   - KAMERA SINEMATIK LERP:
-     * Third-Person Follow Camera yang melayang halus di belakang pesawat dengan interpolasi lerp, miring saat berbelok (roll tilt), dan zoom mundur saat turbo.
+   - KAMERA 3D YANG 100% BEBAS BUG (CHILD OF PLAYER):
+     * Pasang kamera langsung sebagai anak dari pemain agar tidak pernah terjadi error matriks/layar hitam:
+       playerGroup.add(camera);
+       camera.position.set(0, 5, 20); // Di belakang & atas pesawat
+       camera.lookAt(0, 0, -50); // Menghadap lurus ke depan
+       // JANGAN gunakan localToWorld dengan 2 parameter (itu salah sintaks Three.js!).
+   - STARFIELD 3D WARP SPEED:
+     * Ribuan partikel titik (THREE.Points & BufferGeometry) yang bergerak meluncur memberikan sensasi kecepatan tinggi.
    - SISTEM COMBAT & AI MUSUH:
      * Musuh bermanuver dalam formasi, menembakkan laser 3D merah, dan meledak dengan pancaran serpihan partikel 3D ke segala arah XYZ.
      * Crosshair bidik animasi futuristik dan lock-on box merah saat musuh berada di jangkauan.
    - START MISSION FLOW:
      * Tombol "LAUNCH MISSION" / "START" saat diklik WAJIB:
-       1) Sembunyikan overlay start menu (display: none).
+       1) Sembunyikan overlay start menu: startScreen.style.display = 'none';
        2) Panggil window.focus() agar kontrol keyboard (WASD / Panah / Spasi) langsung merespon.
-       3) Resume Web Audio AudioContext.
+       3) Resume Web Audio AudioContext jika ada.
        4) Mulai loop animasi requestAnimationFrame dengan flag gameState = "playing".
 
 2. 🎨 JIKA GAME 2D (CANVAS ENGINE):

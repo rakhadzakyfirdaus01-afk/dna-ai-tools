@@ -452,6 +452,55 @@ function injectPreviewRuntime(html: string): string {
   const runtime = `
 <script data-ai-code-preview-runtime="true">
 (function () {
+  // 1. Tangani CSS .hidden override agar modal game tertutup sempurna
+  try {
+    const style = document.createElement("style");
+    style.textContent = ".hidden { display: none !important; }";
+    document.head.appendChild(style);
+  } catch (e) {}
+
+  // 2. Klik pada canvas/layar otomatis fokuskan iframe agar keyboard WASD/Panah/Spasi langsung aktif
+  window.addEventListener("pointerdown", function () {
+    try { window.focus(); } catch (e) {}
+  });
+
+  // 3. Polyfill protektif Three.js (Mencegah Layar Hitam dari Bug Matrix/localToWorld)
+  function setupThreeGuards() {
+    if (window.THREE && window.THREE.Object3D) {
+      // Patch localToWorld jika dipanggil dengan 2 parameter oleh AI (offset, target)
+      const origLocalToWorld = window.THREE.Object3D.prototype.localToWorld;
+      window.THREE.Object3D.prototype.localToWorld = function (vector, target) {
+        const res = origLocalToWorld.call(this, vector);
+        if (target && typeof target.copy === "function") {
+          target.copy(res);
+        }
+        return res;
+      };
+
+      // Patch Camera.lookAt agar tidak menghasilkan NaN jika kamera lookAt ke koordinat dirinya sendiri
+      if (window.THREE.Camera) {
+        const origLookAt = window.THREE.Camera.prototype.lookAt;
+        window.THREE.Camera.prototype.lookAt = function (x, y, z) {
+          try {
+            let target;
+            if (x && typeof x === "object") {
+              target = x;
+            } else {
+              target = new window.THREE.Vector3(x, y, z);
+            }
+            if (this.position.distanceTo(target) < 0.0001) {
+              return; // Mencegah zero-length direction vector yang merusak matriks jadi NaN
+            }
+          } catch (e) {}
+          return origLookAt.apply(this, arguments);
+        };
+      }
+    } else {
+      setTimeout(setupThreeGuards, 50);
+    }
+  }
+  setupThreeGuards();
+
   window.addEventListener(
     "error",
     function (event) {

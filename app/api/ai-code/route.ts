@@ -153,30 +153,137 @@ function hasHtmlFile(
   );
 }
 
+function repairJsonEscapes(jsonStr: string): string {
+  // 1. Perbaiki escape sequence ilegal dalam JSON (valid: " \ / b f n r t u)
+  // Ubah unescaped \s, \d, \w, \., \+, dll. menjadi \\s, \\d, \\w, \\., dsb.
+  let repaired = jsonStr.replace(/\\([^"\\\/bfnrtu])/g, "\\\\$1");
+
+  // 2. Bersihkan trailing commas sebelum closing brace atau bracket
+  repaired = repaired.replace(/,\s*([}\]])/g, "$1");
+
+  // 3. Bersihkan ASCII control characters ilegal
+  repaired = repaired.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+
+  return repaired;
+}
+
+function extractProjectByRegex(text: string): Record<string, unknown> | null {
+  try {
+    const nameMatch = text.match(/"(?:projectName|name|project_name|title)"\s*:\s*"([^"]+)"/i);
+    const projectName = nameMatch ? nameMatch[1].trim() : "AI Project";
+
+    const typeMatch = text.match(/"type"\s*:\s*"(web|game|software)"/i);
+    const type = typeMatch ? typeMatch[1] : "web";
+
+    const descMatch = text.match(/"description"\s*:\s*"([^"]+)"/i);
+    const description = descMatch ? descMatch[1].trim() : "";
+
+    const files: Array<{ path: string; content: string }> = [];
+
+    // Match { "path": "...", "content": "..." }
+    const fileRegex = /"path"\s*:\s*"([^"]+)"[\s\S]*?"content"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = fileRegex.exec(text)) !== null) {
+      const path = match[1];
+      let content = match[2];
+
+      try {
+        content = JSON.parse(`"${content}"`);
+      } catch {
+        content = content
+          .replace(/\\n/g, "\n")
+          .replace(/\\r/g, "\r")
+          .replace(/\\t/g, "\t")
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, "\\");
+      }
+
+      if (path && content) {
+        files.push({ path, content });
+      }
+    }
+
+    // Jika objek JSON file tidak terdeteksi, cek apakah ada HTML mentah
+    if (files.length === 0) {
+      const htmlStart = text.indexOf("<!DOCTYPE html");
+      const htmlStartAlt = htmlStart === -1 ? text.indexOf("<html") : htmlStart;
+      const htmlEnd = text.lastIndexOf("</html>");
+
+      if (htmlStartAlt !== -1 && htmlEnd !== -1 && htmlEnd > htmlStartAlt) {
+        const rawHtml = text.substring(htmlStartAlt, htmlEnd + 7);
+        files.push({
+          path: "index.html",
+          content: rawHtml,
+        });
+      }
+    }
+
+    if (files.length > 0) {
+      return {
+        projectName,
+        type,
+        description,
+        files,
+      };
+    }
+  } catch (err) {
+    console.warn("[AI Code Regex Extractor Fallback Error]", err);
+  }
+
+  return null;
+}
+
 function parseGeneratedProject(
   text: string
 ): GeneratedProject {
   const cleaned =
     cleanAIResponse(text);
 
-  let parsed: unknown;
+  let parsed: unknown = null;
 
+  // Layer 1: Parsing JSON langsung
   try {
     parsed =
       JSON.parse(cleaned);
-  } catch (err) {
-    // Fallback 1: repair trailing commas before closing braces/brackets
+  } catch {
+    // Layer 2: Sanitasi escape sequences & trailing commas
     try {
-      const repaired = cleaned
-        .replace(/,\s*([}\]])/g, "$1")
-        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+      const repaired = repairJsonEscapes(cleaned);
       parsed = JSON.parse(repaired);
     } catch {
-      console.error("[AI Code JSON Parse Error] Raw:", text.slice(0, 500));
-      throw new Error(
-        "AI menghasilkan format project yang tidak valid."
-      );
+      // Layer 3: Coba perbaiki pada raw text jika markdown fence merusak struktur
+      try {
+        const repairedRaw = repairJsonEscapes(text.trim());
+        const firstBrace = repairedRaw.indexOf("{");
+        const lastBrace = repairedRaw.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          parsed = JSON.parse(repairedRaw.substring(firstBrace, lastBrace + 1));
+        }
+      } catch {
+        // Abaikan ke Layer 4
+      }
     }
+  }
+
+  // Layer 4: Ekstraksi fallback menggunakan Regex jika parsing JSON masih gagal
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    Array.isArray(parsed)
+  ) {
+    parsed = extractProjectByRegex(text);
+  }
+
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    Array.isArray(parsed)
+  ) {
+    console.error("[AI Code JSON Parse Error] Raw text head:", text.slice(0, 500));
+    throw new Error(
+      "AI menghasilkan format project yang tidak valid."
+    );
   }
 
   if (

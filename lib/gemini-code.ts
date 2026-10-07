@@ -9,12 +9,18 @@ import {
   isModelFallbackError,
 } from "@/lib/ai-models";
 
+function getCleanApiKey(raw?: string): string {
+  if (!raw) return "";
+  return raw.replace(/^["']|["']$/g, "").trim();
+}
+
 // Fallback API key agar tidak pernah gagal jika salah satu key mencapai limit
-const primaryApiKey =
+const primaryApiKey = getCleanApiKey(
   process.env.GEMINI_CODE_API_KEY ||
   process.env.GEMINI_API_KEY ||
   process.env.GEMINI_DEBUGGER_API_KEY ||
-  "";
+  ""
+);
 
 const ai = new GoogleGenAI({
   apiKey: primaryApiKey,

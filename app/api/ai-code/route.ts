@@ -52,21 +52,20 @@ function cleanAIResponse(
 ): string {
   let cleaned = text.trim();
 
-  if (
-    cleaned.startsWith("```")
-  ) {
-    cleaned = cleaned.replace(
-      /^```(?:json)?\s*/i,
-      ""
-    );
-
-    cleaned = cleaned.replace(
-      /\s*```$/i,
-      ""
-    );
+  // 1. Strip markdown code fence anywhere if model wrapped in ```json ... ```
+  const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    cleaned = codeBlockMatch[1].trim();
   }
 
-  return cleaned.trim();
+  // 2. Strip any conversational intro before first { or outro after last }
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1).trim();
+  }
+
+  return cleaned;
 }
 
 function normalizePath(
@@ -162,10 +161,19 @@ function parseGeneratedProject(
   try {
     parsed =
       JSON.parse(cleaned);
-  } catch {
-    throw new Error(
-      "AI menghasilkan format project yang tidak valid."
-    );
+  } catch (err) {
+    // Fallback 1: repair trailing commas before closing braces/brackets
+    try {
+      const repaired = cleaned
+        .replace(/,\s*([}\]])/g, "$1")
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+      parsed = JSON.parse(repaired);
+    } catch {
+      console.error("[AI Code JSON Parse Error] Raw:", text.slice(0, 500));
+      throw new Error(
+        "AI menghasilkan format project yang tidak valid."
+      );
+    }
   }
 
   if (
@@ -184,11 +192,13 @@ function parseGeneratedProject(
       unknown
     >;
 
+  const rawProjectName =
+    project.projectName || project.name || project.project_name || project.title;
+
   const projectName =
-    typeof project.projectName ===
-    "string"
-      ? project.projectName.trim()
-      : "";
+    typeof rawProjectName === "string" && rawProjectName.trim()
+      ? rawProjectName.trim()
+      : "AI Project";
 
   const type =
     project.type === "web" ||
@@ -203,25 +213,18 @@ function parseGeneratedProject(
       ? project.description.trim()
       : "";
 
-  if (!projectName) {
-    throw new Error(
-      "AI tidak menghasilkan nama project."
-    );
-  }
+  const rawFiles =
+    Array.isArray(project.files)
+      ? project.files
+      : Array.isArray(project.fileList)
+      ? project.fileList
+      : Array.isArray(project.project_files)
+      ? project.project_files
+      : null;
 
   if (
-    !Array.isArray(
-      project.files
-    )
-  ) {
-    throw new Error(
-      "AI tidak menghasilkan daftar file project."
-    );
-  }
-
-  if (
-    project.files.length ===
-    0
+    !rawFiles ||
+    rawFiles.length === 0
   ) {
     throw new Error(
       "AI tidak menghasilkan file project."
@@ -229,7 +232,7 @@ function parseGeneratedProject(
   }
 
   if (
-    project.files.length >
+    rawFiles.length >
     MAX_PROJECT_FILES
   ) {
     throw new Error(
@@ -245,11 +248,11 @@ function parseGeneratedProject(
 
   for (
     let index = 0;
-    index < project.files.length;
+    index < rawFiles.length;
     index++
   ) {
     const file =
-      project.files[index];
+      rawFiles[index];
 
     if (
       typeof file !==
@@ -269,15 +272,19 @@ function parseGeneratedProject(
       >;
 
     const rawPath =
-      typeof item.path ===
-      "string"
+      typeof item.path === "string" && item.path.trim()
         ? item.path.trim()
+        : typeof item.filename === "string" && item.filename.trim()
+        ? item.filename.trim()
+        : typeof item.name === "string" && item.name.trim()
+        ? item.name.trim()
         : "";
 
     const content =
-      typeof item.content ===
-      "string"
+      typeof item.content === "string"
         ? item.content
+        : typeof item.code === "string"
+        ? item.code
         : "";
 
     if (!rawPath) {

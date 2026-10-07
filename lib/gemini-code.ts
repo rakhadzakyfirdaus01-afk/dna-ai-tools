@@ -97,6 +97,8 @@ SEMUA BAHASA PEMROGRAMAN LAIN (SOFTWARE & BACKEND):
 PRINSIP OUTPUT WAJIB (JSON OUTPUT ONLY)
 ==================================================
 Kembalikan HANYA SATU JSON VALID MURNI tanpa pembungkus code fence markdown (\`\`\`json).
+- Untuk Web dan Game: Wajib sertakan file "index.html" (boleh menyatukan CSS di tag <style> dan JS di tag <script> di dalam index.html agar self-contained dan bebas error dependensi).
+- Pastikan semua string JSON diescape dengan benar (karakter backslash \\ dan quote \" diescape sesuai standar JSON).
 Format JSON:
 {
   "projectName": "nama-project-keren",
@@ -104,7 +106,7 @@ Format JSON:
   "description": "penjelasan rinci arsitektur, fitur canggih, atau perbaikan bug",
   "files": [
     {
-      "path": "nama_file.ekstensi", // contoh: index.html, style.css, script.js, main.py, main.cpp, App.java, main.go, schema.sql
+      "path": "index.html", // atau file pendukung lainnya
       "content": "isi kode lengkap 100% tanpa potongan atau placeholder"
     }
   ]
@@ -247,6 +249,7 @@ Kembalikan HANYA SATU JSON VALID murni tanpa format markdown code fences.
         contents: userPrompt,
         config: {
           systemInstruction: SYSTEM_PROMPT,
+          responseMimeType: "application/json",
           temperature: 0.3,
           maxOutputTokens: 8192,
           httpOptions: {

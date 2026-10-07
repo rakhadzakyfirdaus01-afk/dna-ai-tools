@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/shared/language-provider";
 
-type GameId = "snake" | "flappy" | "space" | "pong" | "rpg";
+type GameId = "snake" | "flappy" | "space" | "pong";
 
 type GameMeta = {
   id: GameId;
@@ -83,17 +83,6 @@ const GAMES: GameMeta[] = [
     controlsEn: "Arrow Up/Down / Touch Drag",
     difficulty: "Medium",
   },
-  {
-    id: "rpg",
-    title: "Dungeon Explorer RPG",
-    genre: "Text RPG / Choice",
-    icon: "⚔️",
-    descId: "Petualangan penjelajahan ruang bawah tanah dengan monster dan harta karun.",
-    descEn: "Procedural dungeon crawling text adventure with monsters and loot.",
-    controlsId: "Klik Pilihan Tombol Aksi",
-    controlsEn: "Click Action Choices",
-    difficulty: "Easy",
-  },
 ];
 
 export default function AIArcadePage() {
@@ -107,12 +96,6 @@ export default function AIArcadePage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-
-  // RPG state
-  const [rpgLog, setRpgLog] = useState<string[]>([]);
-  const [rpgHp, setRpgHp] = useState(100);
-  const [rpgGold, setRpgGold] = useState(0);
-  const [rpgFloor, setRpgFloor] = useState(1);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameIdRef = useRef<number | null>(null);
@@ -196,14 +179,11 @@ export default function AIArcadePage() {
     setIsPlaying(false);
     setIsGameOver(false);
     setScore(0);
-    if (activeGame === "rpg") {
-      initRpgGame();
-    }
   }, [activeGame]);
 
   // Game Loop Trigger
   useEffect(() => {
-    if (!isPlaying || isGameOver || activeGame === "rpg") return;
+    if (!isPlaying || isGameOver) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -691,93 +671,6 @@ export default function AIArcadePage() {
     return () => {};
   }
 
-  // 5. DUNGEON TEXT RPG
-  function initRpgGame() {
-    setRpgHp(100);
-    setRpgGold(0);
-    setRpgFloor(1);
-    setScore(0);
-    setRpgLog([
-      isEn
-        ? "🗡️ You enter the mysterious Cyber Dungeon Floor 1. Ahead lies danger and treasure!"
-        : "🗡️ Kamu melangkah ke dalam Cyber Dungeon Lantai 1. Di depan terbentang bahaya dan harta karun!",
-    ]);
-  }
-
-  function handleRpgAction(type: "explore" | "rest" | "boss") {
-    playBeep(480, "sine", 0.08);
-
-    if (type === "explore") {
-      const outcome = Math.random();
-      if (outcome < 0.45) {
-        // Monster battle
-        const damage = Math.floor(Math.random() * 18) + 8;
-        const reward = Math.floor(Math.random() * 30) + 15;
-        const newHp = Math.max(0, rpgHp - damage);
-        const newGold = rpgGold + reward;
-        setRpgHp(newHp);
-        setRpgGold(newGold);
-        setScore(newGold);
-        setRpgLog((prev) => [
-          ...prev,
-          isEn
-            ? `⚔️ Fought a Cyber Goblin! Took ${damage} DMG, looted +${reward} Gold.`
-            : `⚔️ Bertarung melawan Cyber Goblin! Terkena ${damage} DMG, rampas +${reward} Gold.`,
-        ]);
-        if (newHp <= 0) {
-          playBeep(150, "sawtooth", 0.3);
-          setIsGameOver(true);
-          saveHighScore("rpg", newGold);
-        }
-      } else {
-        // Chest
-        const reward = Math.floor(Math.random() * 40) + 20;
-        const newGold = rpgGold + reward;
-        setRpgGold(newGold);
-        setScore(newGold);
-        setRpgLog((prev) => [
-          ...prev,
-          isEn
-            ? `💎 Found a glowing Cyber Chest! Gained +${reward} Gold!`
-            : `💎 Menemukan Peti Harta Karun! Mendapatkan +${reward} Gold!`,
-        ]);
-      }
-    } else if (type === "rest") {
-      const heal = Math.min(100, rpgHp + 25);
-      setRpgHp(heal);
-      setRpgLog((prev) => [
-        ...prev,
-        isEn
-          ? `☕ Rested at a campfire. Restored +25 HP (Current HP: ${heal}).`
-          : `☕ Beristirahat di api unggun. Memulihkan +25 HP (HP Sekarang: ${heal}).`,
-      ]);
-    } else if (type === "boss") {
-      const bossDmg = Math.floor(Math.random() * 35) + 20;
-      if (rpgHp > bossDmg) {
-        const reward = 100;
-        const nextFloor = rpgFloor + 1;
-        setRpgHp(rpgHp - bossDmg);
-        setRpgFloor(nextFloor);
-        setRpgGold(rpgGold + reward);
-        setScore(rpgGold + reward);
-        setRpgLog((prev) => [
-          ...prev,
-          isEn
-            ? `👑 BOSS DEFEATED! Advanced to Floor ${nextFloor}! Gained +${reward} Gold!`
-            : `👑 BOS BERHASIL DIKALAHKAN! Naik ke Lantai ${nextFloor}! Dapat +${reward} Gold!`,
-        ]);
-      } else {
-        setRpgHp(0);
-        setIsGameOver(true);
-        saveHighScore("rpg", rpgGold);
-        setRpgLog((prev) => [
-          ...prev,
-          isEn ? "💀 Slain by the Dungeon Overlord! Game Over." : "💀 Dikalahkan oleh Raja Dungeon! Game Over.",
-        ]);
-      }
-    }
-  }
-
   // Virtual Controls Trigger
   function triggerVirtualKey(key: string) {
     keysRef.current[key] = true;
@@ -885,30 +778,27 @@ export default function AIArcadePage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {activeGame !== "rpg" && (
-                    <button
-                      onClick={() => setIsPlaying(!isPlaying)}
-                      disabled={isGameOver}
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700"
-                    >
-                      {isPlaying ? (
-                        <>
-                          <Pause className="h-3.5 w-3.5" /> {isEn ? "Pause" : "Jeda"}
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-3.5 w-3.5" /> {isEn ? "Play" : "Mulai"}
-                        </>
-                      )}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    disabled={isGameOver}
+                    className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700"
+                  >
+                    {isPlaying ? (
+                      <>
+                        <Pause className="h-3.5 w-3.5" /> {isEn ? "Pause" : "Jeda"}
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5" /> {isEn ? "Play" : "Mulai"}
+                      </>
+                    )}
+                  </button>
 
                   <button
                     onClick={() => {
                       setIsGameOver(false);
                       setScore(0);
-                      if (activeGame === "rpg") initRpgGame();
-                      else setIsPlaying(true);
+                      setIsPlaying(true);
                     }}
                     className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-700 hover:text-white"
                   >
@@ -920,183 +810,112 @@ export default function AIArcadePage() {
 
               {/* Game Screen Container */}
               <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-[#070A12]">
-                {activeGame === "rpg" ? (
-                  // RPG TEXT ADVENTURE UI
-                  <div className="flex h-full w-full flex-col justify-between p-6">
-                    <div>
-                      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400">HP:</span>
-                          <div className="h-3 w-32 overflow-hidden rounded-full bg-slate-800">
-                            <div
-                              className="h-full bg-gradient-to-r from-red-500 to-emerald-400 transition-all duration-300"
-                              style={{ width: `${rpgHp}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-bold text-white">{rpgHp}/100</span>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs">
-                          <span className="text-amber-400 font-bold">💰 {rpgGold} Gold</span>
-                          <span className="text-purple-400 font-bold">🏰 Floor {rpgFloor}</span>
-                        </div>
-                      </div>
+                <canvas
+                  ref={canvasRef}
+                  width={640}
+                  height={480}
+                  className="h-full w-full object-contain"
+                />
 
-                      <div className="mt-4 max-h-[220px] space-y-2 overflow-y-auto pr-2 text-xs">
-                        {rpgLog.map((log, i) => (
-                          <div key={i} className="rounded-lg bg-slate-900/60 p-2.5 text-slate-200">
-                            {log}
-                          </div>
-                        ))}
-                      </div>
+                {/* Start Overlay */}
+                {!isPlaying && !isGameOver && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 shadow-xl shadow-purple-600/30">
+                      <Play className="ml-1 h-8 w-8 text-white" />
                     </div>
-
-                    {!isGameOver ? (
-                      <div className="mt-4 grid grid-cols-3 gap-2">
-                        <button
-                          onClick={() => handleRpgAction("explore")}
-                          className="rounded-xl border border-purple-500/40 bg-purple-500/10 py-3 text-xs font-bold text-purple-300 transition hover:bg-purple-500/20"
-                        >
-                          🧭 {isEn ? "Explore" : "Jelajahi"}
-                        </button>
-                        <button
-                          onClick={() => handleRpgAction("rest")}
-                          className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 py-3 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500/20"
-                        >
-                          ☕ {isEn ? "Rest (+25 HP)" : "Istirahat"}
-                        </button>
-                        <button
-                          onClick={() => handleRpgAction("boss")}
-                          className="rounded-xl border border-pink-500/40 bg-pink-500/10 py-3 text-xs font-bold text-pink-300 transition hover:bg-pink-500/20"
-                        >
-                          👑 {isEn ? "Fight Floor Boss" : "Lawan Boss"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-red-400">💀 GAME OVER</p>
-                        <button
-                          onClick={initRpgGame}
-                          className="mt-2 rounded-xl bg-purple-600 px-6 py-2 text-xs font-bold text-white shadow"
-                        >
-                          {isEn ? "Try Again" : "Coba Lagi"}
-                        </button>
-                      </div>
-                    )}
+                    <h2 className="mt-4 text-xl font-bold text-white">{currentGameMeta.title}</h2>
+                    <p className="mt-1 text-xs text-slate-400">{isEn ? currentGameMeta.descEn : currentGameMeta.descId}</p>
+                    <button
+                      onClick={() => setIsPlaying(true)}
+                      className="mt-5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg transition hover:scale-105"
+                    >
+                      {isEn ? "Start Game" : "Mulai Mainkan"}
+                    </button>
                   </div>
-                ) : (
-                  // CANVAS GAMES
-                  <>
-                    <canvas
-                      ref={canvasRef}
-                      width={640}
-                      height={480}
-                      className="h-full w-full object-contain"
-                    />
+                )}
 
-                    {/* Start Overlay */}
-                    {!isPlaying && !isGameOver && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 shadow-xl shadow-purple-600/30">
-                          <Play className="ml-1 h-8 w-8 text-white" />
-                        </div>
-                        <h2 className="mt-4 text-xl font-bold text-white">{currentGameMeta.title}</h2>
-                        <p className="mt-1 text-xs text-slate-400">{isEn ? currentGameMeta.descEn : currentGameMeta.descId}</p>
-                        <button
-                          onClick={() => setIsPlaying(true)}
-                          className="mt-5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg transition hover:scale-105"
-                        >
-                          {isEn ? "Start Game" : "Mulai Mainkan"}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Game Over Overlay */}
-                    {isGameOver && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-sm">
-                        <Flame className="h-12 w-12 text-pink-500 animate-bounce" />
-                        <h2 className="mt-2 text-2xl font-black text-white">GAME OVER</h2>
-                        <p className="mt-1 text-sm text-slate-300">
-                          {isEn ? "Final Score:" : "Skor Akhir:"} <span className="font-bold text-purple-400">{score}</span>
-                        </p>
-                        <div className="mt-5 flex gap-3">
-                          <button
-                            onClick={() => {
-                              setIsGameOver(false);
-                              setScore(0);
-                              setIsPlaying(true);
-                            }}
-                            className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-xs font-bold text-white shadow transition hover:scale-105"
-                          >
-                            {isEn ? "Play Again" : "Main Lagi"}
-                          </button>
-                          <button
-                            onClick={handleRemixInAICode}
-                            className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-700"
-                          >
-                            {isEn ? "Remix di AI Code" : "Remix di AI Code"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </>
+                {/* Game Over Overlay */}
+                {isGameOver && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-sm">
+                    <Flame className="h-12 w-12 text-pink-500 animate-bounce" />
+                    <h2 className="mt-2 text-2xl font-black text-white">GAME OVER</h2>
+                    <p className="mt-1 text-sm text-slate-300">
+                      {isEn ? "Final Score:" : "Skor Akhir:"} <span className="font-bold text-purple-400">{score}</span>
+                    </p>
+                    <div className="mt-5 flex gap-3">
+                      <button
+                        onClick={() => {
+                          setIsGameOver(false);
+                          setScore(0);
+                          setIsPlaying(true);
+                        }}
+                        className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-xs font-bold text-white shadow transition hover:scale-105"
+                      >
+                        {isEn ? "Play Again" : "Main Lagi"}
+                      </button>
+                      <button
+                        onClick={handleRemixInAICode}
+                        className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-700"
+                      >
+                        {isEn ? "Remix di AI Code" : "Remix di AI Code"}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
               {/* On-Screen Mobile Virtual Controls (HP / Touchpad) */}
-              {activeGame !== "rpg" && (
-                <div className="mt-4 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-slate-400">
-                      📱 {isEn ? "Virtual Touchpad / D-Pad" : "Kontrol Sentuh Layar (HP / Tablet)"}
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      {isEn ? currentGameMeta.controlsEn : currentGameMeta.controlsId}
-                    </span>
-                  </div>
+              <div className="mt-4 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    📱 {isEn ? "Virtual Touchpad / D-Pad" : "Kontrol Sentuh Layar (HP / Tablet)"}
+                  </span>
+                  <span className="text-[10px] text-slate-500">
+                    {isEn ? currentGameMeta.controlsEn : currentGameMeta.controlsId}
+                  </span>
+                </div>
 
-                  <div className="mt-3 flex items-center justify-center gap-6">
-                    {/* D-Pad */}
-                    <div className="grid grid-cols-3 gap-1">
-                      <div />
-                      <button
-                        onPointerDown={() => triggerVirtualKey("ArrowUp")}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-300 active:bg-purple-600 active:text-white"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </button>
-                      <div />
-
-                      <button
-                        onPointerDown={() => triggerVirtualKey("ArrowLeft")}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-300 active:bg-purple-600 active:text-white"
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                      </button>
-                      <button
-                        onPointerDown={() => triggerVirtualKey("ArrowDown")}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-300 active:bg-purple-600 active:text-white"
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </button>
-                      <button
-                        onPointerDown={() => triggerVirtualKey("ArrowRight")}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-300 active:bg-purple-600 active:text-white"
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    {/* Action Button (Jump / Shoot) */}
+                <div className="mt-3 flex items-center justify-center gap-6">
+                  {/* D-Pad */}
+                  <div className="grid grid-cols-3 gap-1">
+                    <div />
                     <button
-                      onPointerDown={() => triggerVirtualKey(" ")}
-                      className="flex h-16 w-16 flex-col items-center justify-center rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-600 font-black text-white shadow-lg active:scale-95"
+                      onPointerDown={() => triggerVirtualKey("ArrowUp")}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-300 active:bg-purple-600 active:text-white"
                     >
-                      <Zap className="h-5 w-5" />
-                      <span className="text-[10px]">{activeGame === "space" ? "SHOOT" : "ACTION"}</span>
+                      <ArrowUp className="h-4 w-4" />
+                    </button>
+                    <div />
+                    <button
+                      onPointerDown={() => triggerVirtualKey("ArrowLeft")}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-300 active:bg-purple-600 active:text-white"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      onPointerDown={() => triggerVirtualKey("ArrowDown")}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-300 active:bg-purple-600 active:text-white"
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </button>
+                    <button
+                      onPointerDown={() => triggerVirtualKey("ArrowRight")}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-300 active:bg-purple-600 active:text-white"
+                    >
+                      <ArrowRight className="h-4 w-4" />
                     </button>
                   </div>
+
+                  {/* Action Button (Jump / Shoot) */}
+                  <button
+                    onPointerDown={() => triggerVirtualKey(" ")}
+                    className="flex h-16 w-16 flex-col items-center justify-center rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-600 font-black text-white shadow-lg active:scale-95"
+                  >
+                    <Zap className="h-5 w-5" />
+                    <span className="text-[10px]">{activeGame === "space" ? "SHOOT" : "ACTION"}</span>
+                  </button>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 

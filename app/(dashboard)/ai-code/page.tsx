@@ -1658,15 +1658,15 @@ export default function AICodePage() {
             {/* QUICK PRESET CHIPS */}
             <div className="mb-4">
               <label className="mb-1.5 block text-[11px] font-medium text-slate-500">
-                {isEnglish ? "Quick Inspiration" : "Inspirasi Cepat"}
+                {isEnglish ? "⚡ 5X Smart Inspiration" : "⚡ Inspirasi Pintar Naik Level"}
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {mode === "web" && [
-                  isEnglish ? "Cyberpunk Landing Page" : "Landing Page Cyberpunk",
-                  isEnglish ? "Futuristic Neon Calculator" : "Kalkulator Neon Futuristik",
-                  isEnglish ? "Animated Glassmorphism Profile Card" : "Kartu Profil Animasi Glassmorphism",
-                  isEnglish ? "E-Commerce Landing Page" : "Landing Page Toko Online",
-                  isEnglish ? "Interactive Dashboard" : "Dashboard Dark Mode",
+                  isEnglish ? "Enterprise SaaS Dashboard + Live Analytics" : "Dashboard SaaS Enterprise + Analitik Interaktif",
+                  isEnglish ? "E-Commerce Storefront + Cart & Checkout Modal" : "Toko Online Modern + Keranjang & Checkout Modal",
+                  isEnglish ? "Interactive Kanban Task Manager + Drag & Drop" : "Kanban Board Interaktif + Drag & Drop + LocalStorage",
+                  isEnglish ? "Crypto & Stock Portfolio Tracker + Live Charts" : "Pelacak Portofolio Saham/Kripto + Grafik Interaktif",
+                  isEnglish ? "Futuristic AI Prompt Generator Studio" : "Studio Prompt AI Futuristik + Glassmorphism",
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -1679,13 +1679,12 @@ export default function AICodePage() {
                 ))}
 
                 {mode === "software" && [
-                  isEnglish ? "Python Web Scraper / Bot" : "Python Web Scraper / Bot Otomatis",
-                  isEnglish ? "C++ Fast Algorithm" : "C++ Algoritma / Kinerja Cepat",
-                  isEnglish ? "Java REST API / Backend" : "Java REST API / CRUD Backend",
-                  isEnglish ? "Golang Microservice" : "Golang Microservice REST",
-                  isEnglish ? "SQL Schema & Query" : "SQL Database Schema & Query Kompleks",
-                  isEnglish ? "Bash Automation Script" : "Bash Script Automasi Server",
-                  isEnglish ? "Rust CLI Tool" : "Rust CLI Tool Kinerja Tinggi",
+                  isEnglish ? "Python Microservice + SQLite ORM + CSV Export" : "Python Microservice + SQLite ORM + Ekspor CSV",
+                  isEnglish ? "Go High-Concurrency Worker Pool REST API" : "Golang High-Concurrency Worker Pool REST API",
+                  isEnglish ? "Rust Fast Multi-threaded File Indexer" : "Rust Multi-threaded File Indexer Berkecepatan Tinggi",
+                  isEnglish ? "C++ High-Performance Graph Algorithm" : "C++ Algoritma Graf Kompleks + Memori Efisien",
+                  isEnglish ? "Java Enterprise Clean Architecture CRUD" : "Java Enterprise Clean Architecture CRUD + Validasi",
+                  isEnglish ? "SQL Advanced Analytics + CTE & Window Functions" : "SQL Analitik Kompleks + CTE & Window Functions",
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -1698,11 +1697,11 @@ export default function AICodePage() {
                 ))}
 
                 {mode === "fix" && [
-                  isEnglish ? "Fix syntax & compiler errors" : "Perbaiki error syntax & compiler",
-                  isEnglish ? "Fix logic bug & infinite loop" : "Diagnosa & perbaiki bug logika",
-                  isEnglish ? "Fix button click / DOM issue" : "Perbaiki tombol / event listener macet",
-                  isEnglish ? "Fix runtime & null pointer exception" : "Perbaiki runtime error & null pointer",
-                  isEnglish ? "Fix database query / async await" : "Perbaiki query database & async/await",
+                  isEnglish ? "Deep static analysis & memory leak fix" : "Analisis mendalam & perbaiki kebocoran memori (memory leak)",
+                  isEnglish ? "Diagnose async race condition & API error" : "Diagnosa race condition asinkron & penanganan API gagal",
+                  isEnglish ? "Fix layout breaking & React state reactivity" : "Perbaiki error reactivity state & layout glitch",
+                  isEnglish ? "Fix runtime null pointer & undefined trap" : "Perbaiki runtime error, null pointer & jebakan undefined",
+                  isEnglish ? "Optimize O(n²) bottleneck to O(n) clean logic" : "Optimalisasi bottleneck O(n²) ke O(n) & arsitektur bersih",
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -1715,10 +1714,11 @@ export default function AICodePage() {
                 ))}
 
                 {mode === "game" && [
-                  isEnglish ? "Snake Game + Touch Controls" : "Game Snake + Kontrol Sentuh HP",
-                  isEnglish ? "Flappy Bird 2D + Sound Effects" : "Flappy Bird + Efek Suara Bawaan",
-                  isEnglish ? "Space Shooter 2D Retro" : "Space Shooter 2D Retro Arcade",
-                  isEnglish ? "Brick Breaker (Breakout)" : "Game Brick Breaker + Skor",
+                  isEnglish ? "Cyberpunk Bullet Hell + Boss Fight & Particle FX" : "Cyberpunk Bullet Hell + Boss Fight & Efek Partikel",
+                  isEnglish ? "Galaxy Space Fighter + Weapon Power-ups & Screen Shake" : "Galaxy Space Fighter + Power-up Senjata & Screen Shake",
+                  isEnglish ? "2D Physics Platformer + Double Jump & Synth Audio" : "Platformer Fisika 2D + Double Jump & Synthesizer Audio",
+                  isEnglish ? "Neon Cyber Snake + Speed Combos & Mobile D-Pad" : "Cyber Snake Neon + Speed Combo & Virtual D-Pad HP",
+                  isEnglish ? "Retro Brick Breaker Deluxe + Multi-ball & Particle Burst" : "Brick Breaker Deluxe + Multi-ball & Ledakan Partikel",
                 ].map((preset) => (
                   <button
                     key={preset}

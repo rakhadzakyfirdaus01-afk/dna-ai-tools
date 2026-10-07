@@ -901,12 +901,20 @@ export default function AICodePage() {
         }).catch(() => {});
       }
 
+      const rawMsg = err instanceof Error ? err.message : "";
+      const isNetworkOrDown =
+        rawMsg.toLowerCase().includes("failed to fetch") ||
+        rawMsg.toLowerCase().includes("network");
+
       setError(
-        err instanceof Error
-          ? err.message
-          : isEnglish
-          ? "An unexpected error occurred."
-          : "Terjadi kesalahan yang tidak diketahui."
+        isNetworkOrDown
+          ? (isEnglish
+              ? "Connection to server failed. Please ensure your connection is active and try again."
+              : "Koneksi ke server terputus. Pastikan koneksi aktif dan coba klik kirim kembali.")
+          : rawMsg ||
+            (isEnglish
+              ? "An unexpected error occurred."
+              : "Terjadi kesalahan yang tidak diketahui.")
       );
     } finally {
       setLoading(false);

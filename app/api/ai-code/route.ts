@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
+export const maxDuration = 120;
+export const dynamic = "force-dynamic";
+
 import { authOptions } from "@/auth";
 import { askCode } from "@/lib/gemini-code";
 

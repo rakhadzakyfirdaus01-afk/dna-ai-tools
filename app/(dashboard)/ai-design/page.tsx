@@ -69,6 +69,49 @@ export type StagingPreset = {
 };
 
 export const STAGING_PRESETS: StagingPreset[] = [
+  // Billboard & Mockup Presets
+  {
+    id: "billboard_highway",
+    nameId: "Billboard Jalan Raya",
+    nameEn: "Highway Billboard",
+    icon: "🛣️",
+    descId: "Reklame billboard outdoor jalan raya modern berlatar langit biru & kota",
+    descEn: "Modern outdoor highway billboard with clear sky and realistic roadway",
+  },
+  {
+    id: "billboard_city",
+    nameId: "Billboard Kota 3D",
+    nameEn: "Metropolitan 3D Billboard",
+    icon: "🏙️",
+    descId: "Layar reklame megah di antara gedung pencakar langit Times Square / Shibuya",
+    descEn: "Colossal 3D advertising billboard surrounded by iconic skyscrapers",
+  },
+  {
+    id: "billboard_night",
+    nameId: "Billboard Malam Sinematik",
+    nameEn: "Night Illuminated Billboard",
+    icon: "🌃",
+    descId: "Lampu sorot dramatis & suasana kota malam bercahaya sinematik",
+    descEn: "Dramatic spotlight illumination and glowing evening urban atmosphere",
+  },
+  {
+    id: "art_gallery",
+    nameId: "Pigura Galeri Seni",
+    nameEn: "Luxury Gallery Frame",
+    icon: "🖼️",
+    descId: "Pigura minimalis di dinding galeri seni arsitektural mewah",
+    descEn: "Minimalist exhibition frame mounted on concrete art museum wall",
+  },
+  {
+    id: "tech_mockup",
+    nameId: "Mockup Layar Gadget",
+    nameEn: "Device Screen Mockup",
+    icon: "📱",
+    descId: "Layar gadget modern di atas meja kerja arsitektural elegan",
+    descEn: "Modern bezel-less tech device screen on a minimalist designer desk",
+  },
+
+  // Physical Product Studio Presets
   {
     id: "marble",
     nameId: "Podium Marmer Mewah",
@@ -105,7 +148,7 @@ export const STAGING_PRESETS: StagingPreset[] = [
     id: "cyberpunk",
     nameId: "Neon Tech & Refleksi",
     nameEn: "Cyberpunk Neon Tech",
-    icon: "🏙️",
+    icon: "⚡",
     descId: "Platform gelap reflektif & cahaya neon futuristik",
     descEn: "Dark reflective platform & futuristic neon glow",
   },
@@ -1921,19 +1964,24 @@ function AIDesignContent() {
                 </div>
               </div>
 
-              {/* Opsi Staging Produk */}
+              {/* Opsi Staging Produk & Mockup Reklame */}
               {activeMainTab === "staging" && (
                 <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
-                  <h2 className="text-base font-semibold text-white">
-                    {isEnglish ? "Select Studio Setting" : "Pilih Suasana Studio"}
-                  </h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-white">
+                      {isEnglish ? "Select Staging & Mockup Theme" : "Pilih Suasana Staging & Reklame"}
+                    </h2>
+                    <span className="rounded-full bg-purple-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-purple-400 border border-purple-500/20">
+                      100X Adaptive AI
+                    </span>
+                  </div>
                   <p className="mt-1 text-xs text-slate-400">
                     {isEnglish
-                      ? "Pick the aesthetic environment for your product photoshoot"
-                      : "Pilih tempat di mana produkmu akan diletakkan"}
+                      ? "Pick the ideal setting for your product, billboard mockup, or commercial display"
+                      : "Pilih suasana yang pas untuk produk, mockup billboard, atau reklame komersial"}
                   </p>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 max-h-[340px] overflow-y-auto pr-1">
                     {STAGING_PRESETS.map((p) => {
                       const isSelected = studioSelectedPreset === p.id;
                       return (
@@ -1941,39 +1989,46 @@ function AIDesignContent() {
                           key={p.id}
                           type="button"
                           onClick={() => setStudioSelectedPreset(p.id)}
-                          className={`flex flex-col items-center justify-center rounded-xl border p-3 text-center transition ${
+                          className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition ${
                             isSelected
-                              ? "border-purple-500 bg-purple-500/20 text-white shadow-sm"
+                              ? "border-purple-500 bg-purple-500/20 text-white shadow-sm ring-1 ring-purple-500/50"
                               : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-white"
                           }`}
                         >
-                          <span className="text-2xl">{p.icon}</span>
-                          <span className="mt-2 text-xs font-medium line-clamp-1">
+                          <span className="text-xl">{p.icon}</span>
+                          <span className="mt-1.5 text-xs font-medium line-clamp-1">
                             {isEnglish ? p.nameEn : p.nameId}
+                          </span>
+                          <span className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                            {isEnglish ? p.descEn : p.descId}
                           </span>
                         </button>
                       );
                     })}
                   </div>
 
-                  {studioSelectedPreset === "custom" && (
-                    <div className="mt-4">
-                      <label className="text-xs font-medium text-slate-300">
-                        {isEnglish ? "Custom Scene Description" : "Deskripsi Suasana Kustom"}
+                  {/* Instruksi Bebas / Isi Iklan (Selalu Tersedia) */}
+                  <div className="mt-4 pt-3 border-t border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-300">
+                        {isEnglish ? "Ad Content / Custom Prompt (Optional)" : "Isi Iklan / Instruksi Khusus (Opsional)"}
                       </label>
-                      <textarea
-                        value={studioCustomPrompt}
-                        onChange={(e) => setStudioCustomPrompt(e.target.value)}
-                        placeholder={
-                          isEnglish
-                            ? "e.g., sitting on golden desert sand during sunset with soft warm rim lighting..."
-                            : "Contoh: diletakkan di atas pasir pantai saat matahari terbenam dengan deburan ombak lembut..."
-                        }
-                        className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-xs text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none"
-                        rows={3}
-                      />
+                      <span className="text-[10px] text-purple-400">
+                        {isEnglish ? "Smart Context" : "Konteks Cerdas"}
+                      </span>
                     </div>
-                  )}
+                    <textarea
+                      value={studioCustomPrompt}
+                      onChange={(e) => setStudioCustomPrompt(e.target.value)}
+                      placeholder={
+                        isEnglish
+                          ? "e.g., Feature an electric sports car advertisement on this billboard / Luxury perfume commercial with gold sparks..."
+                          : "Contoh: Tampilkan iklan mobil sport listrik futuristik di billboard ini / Iklan parfum mewah berlatar kota modern..."
+                      }
+                      className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-xs text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none"
+                      rows={2}
+                    />
+                  </div>
                 </div>
               )}
 

@@ -10,7 +10,6 @@ import {
   ArrowRight,
   Palette,
   Code2,
-  Wand2,
   Clapperboard,
   Gamepad2,
   Flame,
@@ -21,13 +20,13 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/shared/language-provider";
 
-type ShowcaseTarget = "ai-design" | "ai-code" | "ai-studio" | "ai-animation";
+type ShowcaseTarget = "ai-design" | "ai-code" | "ai-animation";
 
 type ShowcaseItem = {
   id: string;
   titleId: string;
   titleEn: string;
-  category: "design" | "code" | "studio" | "animation";
+  category: "design" | "code" | "animation";
   targetRoute: ShowcaseTarget;
   targetCategory?: string; // e.g. "game" or "web" for ai-code
   badge: string;
@@ -174,17 +173,17 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
       "Buatkan kalkulator investasi bunga majemuk (compound interest calculator) interaktif: input modal awal, setoran bulanan, bunga per tahun, dan jangka waktu tahun. Tampilkan total modal, total bunga yang didapat, dan tabel pertumbuhan dari tahun ke tahun.",
   },
 
-  // AI STUDIO
+  // AI DESIGN - PRODUCT STAGING
   {
     id: "studio-perfume-marble",
     titleId: "Staging Parfum di Podium Marmer Mewah",
     titleEn: "Luxury Perfume on Marble Podium",
-    category: "studio",
-    targetRoute: "ai-studio",
-    badge: "AI Studio",
+    category: "design",
+    targetRoute: "ai-design",
+    badge: "AI Design",
     tags: ["Studio", "Cosmetic", "Luxury", "Marble"],
     gradient: "from-pink-600/20 via-purple-600/10 to-slate-800/40",
-    icon: Wand2,
+    icon: Palette,
     featured: true,
     descId: "Menata produk botol parfum ke atas marmer putih dengan pencahayaan mewah.",
     descEn: "Stage perfume bottle on polished white Carrara marble with studio reflections.",
@@ -195,12 +194,12 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     id: "studio-sneaker-stone",
     titleId: "Sneakers di Bebatuan Sungai & Cipratan Air",
     titleEn: "Sneakers on River Stone & Water Splash",
-    category: "studio",
-    targetRoute: "ai-studio",
-    badge: "AI Studio",
+    category: "design",
+    targetRoute: "ai-design",
+    badge: "AI Design",
     tags: ["Studio", "Footwear", "Nature", "Water"],
     gradient: "from-blue-600/20 via-cyan-600/10 to-emerald-600/20",
-    icon: Wand2,
+    icon: Palette,
     descId: "Menempatkan sepatu ke atas batu alam gelap dengan tetesan air segar alami.",
     descEn: "Display sneakers on dark wet river stones with fresh natural water droplets.",
     prompt:
@@ -335,7 +334,6 @@ export default function ShowcasePage() {
               { id: "all", label: isEn ? "All" : "Semua" },
               { id: "design", label: "AI Design" },
               { id: "code", label: "AI Code" },
-              { id: "studio", label: "AI Studio" },
               { id: "animation", label: "Animation" },
             ].map((tab) => (
               <button

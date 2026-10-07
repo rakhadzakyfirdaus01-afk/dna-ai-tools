@@ -162,10 +162,6 @@ export default function Header({
       path: "/ai-design",
     },
     {
-      name: locale === "id" ? "Magic Studio" : "Magic Studio",
-      path: "/ai-studio",
-    },
-    {
       name: locale === "id" ? "Animasi AI" : "AI Animation",
       path: "/ai-animation",
     },

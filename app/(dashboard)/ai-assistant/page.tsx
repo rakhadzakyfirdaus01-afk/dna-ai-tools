@@ -2857,29 +2857,6 @@ export default function Page() {
                         </div>
                       </button>
 
-                      {/* 3. MAGIC STUDIO */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolMenuOpen(false);
-                          router.push("/ai-studio");
-                        }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-slate-800/80 group"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20">
-                          <Wand2 size={18} className="text-amber-400" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold text-white group-hover:text-amber-300 transition-colors">
-                            Magic Studio
-                          </div>
-                          <p className="truncate text-xs text-slate-400">
-                            {isEnglish
-                              ? "Remove bg & product staging"
-                              : "Hapus background & foto produk"}
-                          </p>
-                        </div>
-                      </button>
 
                       {/* 4. ARCADE GAME AI */}
                       <button
@@ -2971,8 +2948,8 @@ export default function Page() {
                           </div>
                           <p className="truncate text-xs text-slate-400">
                             {isEnglish
-                              ? "Create designs & visuals"
-                              : "Buat gambar & desain visual"}
+                              ? "Graphic design, remove bg & product staging"
+                              : "Desain grafis, hapus bg & studio foto"}
                           </p>
                         </div>
                       </button>

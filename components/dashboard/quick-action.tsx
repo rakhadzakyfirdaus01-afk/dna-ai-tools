@@ -10,7 +10,6 @@ import {
   ScanText,
   Languages,
   ArrowRight,
-  Wand2,
   Gamepad2,
   Sparkles,
 } from "lucide-react";
@@ -37,18 +36,10 @@ const actions = [
   {
     titleId: "Desain AI",
     titleEn: "AI Design",
-    descriptionId: "Buat ide UI/UX modern dengan AI.",
-    descriptionEn: "Create modern UI/UX ideas with AI.",
+    descriptionId: "Desain grafis, hapus background & staging foto produk.",
+    descriptionEn: "Graphic design, background remover & product staging.",
     href: "/ai-design",
     icon: Palette,
-  },
-  {
-    titleId: "Magic Studio",
-    titleEn: "Magic Studio",
-    descriptionId: "Hapus background & foto studio produk.",
-    descriptionEn: "Isolate background & product staging.",
-    href: "/ai-studio",
-    icon: Wand2,
   },
   {
     titleId: "Animasi AI",

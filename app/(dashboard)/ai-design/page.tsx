@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import NextImage from "next/image";
 import {
   ArrowLeft,
   Download,
@@ -19,6 +20,11 @@ import {
   MessageSquare,
   X,
   Check,
+  Layers,
+  Upload,
+  RefreshCw,
+  SplitSquareVertical,
+  Wand2,
 } from "lucide-react";
 import { useLanguage } from "@/components/shared/language-provider";
 import {
@@ -53,6 +59,66 @@ export const DESIGN_CATEGORIES: {
   { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
 ];
 
+export type StagingPreset = {
+  id: string;
+  nameId: string;
+  nameEn: string;
+  icon: string;
+  descId: string;
+  descEn: string;
+};
+
+export const STAGING_PRESETS: StagingPreset[] = [
+  {
+    id: "marble",
+    nameId: "Podium Marmer Mewah",
+    nameEn: "Luxury Marble Podium",
+    icon: "🏛️",
+    descId: "Marmer putih Carrara & pencahayaan studio lembut",
+    descEn: "White Carrara marble & soft studio lighting",
+  },
+  {
+    id: "wooden",
+    nameId: "Meja Kayu & Tanaman",
+    nameEn: "Warm Oak & Greenery",
+    icon: "🪵",
+    descId: "Nuansa kayu alami & bayangan daun monstera estetik",
+    descEn: "Natural oak wood & aesthetic monstera leaf shadows",
+  },
+  {
+    id: "nature",
+    nameId: "Bebatuan Alam & Air",
+    nameEn: "River Stone & Fresh Water",
+    icon: "🌊",
+    descId: "Batu sungai gelap & tetesan air segar alami",
+    descEn: "Dark basalt stones & fresh morning water droplets",
+  },
+  {
+    id: "pastel",
+    nameId: "Studio Pastel Modern",
+    nameEn: "Minimalist Pastel Studio",
+    icon: "🌸",
+    descId: "Geometris minimalis & bayangan jendela elegan",
+    descEn: "Geometric pedestal & elegant window sunlight",
+  },
+  {
+    id: "cyberpunk",
+    nameId: "Neon Tech & Refleksi",
+    nameEn: "Cyberpunk Neon Tech",
+    icon: "🏙️",
+    descId: "Platform gelap reflektif & cahaya neon futuristik",
+    descEn: "Dark reflective platform & futuristic neon glow",
+  },
+  {
+    id: "custom",
+    nameId: "Suasana Kustom",
+    nameEn: "Custom Scene",
+    icon: "✍️",
+    descId: "Ketik suasana latar yang kamu inginkan secara bebas",
+    descEn: "Write any custom scene or background you want",
+  },
+];
+
 const DESIGN_SESSIONS_STORAGE_KEY = "dna_ai_design_sessions_v1";
 
 function createNewDesignSession(
@@ -84,10 +150,35 @@ function formatTimeAgo(timestamp: number, locale = "id"): string {
   });
 }
 
-export default function AIDesignPage() {
+function AIDesignContent() {
   const { locale } = useLanguage();
   const isEnglish = locale === "en";
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Mode Tabs: design, remove-bg, staging
+  const [activeMainTab, setActiveMainTab] = useState<"design" | "remove-bg" | "staging">("design");
+
+  // Sync tab from URL query param
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "staging" || tabParam === "remove-bg" || tabParam === "design") {
+      setActiveMainTab(tabParam);
+    }
+  }, [searchParams]);
+
+  // Studio (Remove-BG & Staging) States
+  const [studioFile, setStudioFile] = useState<File | null>(null);
+  const [studioPreviewUrl, setStudioPreviewUrl] = useState<string>("");
+  const [studioResultUrl, setStudioResultUrl] = useState<string>("");
+  const [studioSelectedPreset, setStudioSelectedPreset] = useState<string>("marble");
+  const [studioCustomPrompt, setStudioCustomPrompt] = useState<string>("");
+  const [studioAspectRatio, setStudioAspectRatio] = useState<"square" | "landscape" | "portrait">("square");
+  const [studioLoading, setStudioLoading] = useState<boolean>(false);
+  const [studioError, setStudioError] = useState<string>("");
+  const [studioShowCompare, setStudioShowCompare] = useState<boolean>(false);
+  const [studioBgColor, setStudioBgColor] = useState<string>("transparent");
+  const studioFileInputRef = useRef<HTMLInputElement>(null);
 
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -748,6 +839,104 @@ export default function AIDesignPage() {
     }
   }
 
+  function handleStudioFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setStudioError(isEnglish ? "Please select a valid image file." : "Silakan pilih file gambar yang valid.");
+      return;
+    }
+
+    setStudioError("");
+    setStudioFile(file);
+    setStudioResultUrl("");
+    const url = URL.createObjectURL(file);
+    setStudioPreviewUrl(url);
+
+    const img = new window.Image();
+    img.onload = () => {
+      if (img.naturalWidth > img.naturalHeight * 1.25) {
+        setStudioAspectRatio("landscape");
+      } else if (img.naturalHeight > img.naturalWidth * 1.25) {
+        setStudioAspectRatio("portrait");
+      } else {
+        setStudioAspectRatio("square");
+      }
+    };
+    img.src = url;
+  }
+
+  async function handleStudioProcess() {
+    if (!studioFile) {
+      setStudioError(isEnglish ? "Please upload a photo first." : "Unggah foto terlebih dahulu.");
+      return;
+    }
+
+    setStudioLoading(true);
+    setStudioError("");
+
+    try {
+      const optimizedBlob = await compressImageForUpload(studioFile);
+      const formData = new FormData();
+      formData.append("image", optimizedBlob, "product.jpg");
+      formData.append("action", activeMainTab === "staging" ? "stage-product" : "remove-bg");
+      formData.append("preset", studioSelectedPreset);
+      formData.append("customPrompt", studioCustomPrompt);
+      formData.append("size", studioAspectRatio);
+
+      const res = await fetch("/api/ai-studio", {
+        method: "POST",
+        body: formData,
+      });
+
+      let data: any = null;
+      const text = await res.text();
+      try {
+        data = JSON.parse(text);
+      } catch {}
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || text || (isEnglish ? "Failed to process photo." : "Gagal memproses gambar."));
+      }
+
+      setStudioResultUrl(data.resultUrl);
+
+      if (typeof document !== "undefined" && document.hidden) {
+        sendBackgroundNotification({
+          title: "DNA AI Design - Selesai! ✨",
+          body: isEnglish
+            ? "Your photo processing is complete! Tap to view."
+            : "Hasil olahan foto kamu sudah selesai! Ketuk untuk melihat.",
+          url: `/ai-design?tab=${activeMainTab}`,
+          tag: "dna-ai-studio-done",
+        }).catch(() => {});
+      }
+    } catch (err: any) {
+      setStudioError(err.message || (isEnglish ? "Failed to process image." : "Terjadi kesalahan saat memproses gambar."));
+    } finally {
+      setStudioLoading(false);
+    }
+  }
+
+  async function downloadStudioImage() {
+    if (!studioResultUrl) return;
+    try {
+      const res = await fetch(studioResultUrl);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dna-design-${activeMainTab}-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch {
+      window.open(studioResultUrl, "_blank");
+    }
+  }
+
   const renderSidebarContent = () => (
     <div className="flex flex-col h-full p-4 space-y-3">
       {/* HEADER */}
@@ -997,41 +1186,53 @@ export default function AIDesignPage() {
                 </h1>
 
                 <p className="mt-1 text-white/80">
-                  {ui.headerDescription}
+                  {activeMainTab === "remove-bg"
+                    ? isEnglish
+                      ? "1-Click instant transparent PNG background remover with crystal clarity."
+                      : "Hapus background foto 1-klik menjadi PNG transparan dengan resolusi tajam."
+                    : activeMainTab === "staging"
+                    ? isEnglish
+                      ? "Turn product photos into world-class luxury commercial catalog scenes."
+                      : "Sulap foto produk jualanmu menjadi foto katalog studio mewah kelas dunia."
+                    : ui.headerDescription}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setSidebarOpen((prev) => !prev);
-                  setMobileSidebarOpen((prev) => !prev);
-                }}
-                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-3 text-sm font-semibold transition ${
-                  sidebarOpen || mobileSidebarOpen
-                    ? "border-pink-300 bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.3)]"
-                    : "border-white/20 bg-white/10 text-white hover:bg-white/20"
-                }`}
-                title={sidebarOpen ? (isEnglish ? "Hide Designs" : "Sembunyikan Desain") : (isEnglish ? "Show Designs" : "Daftar Desain")}
-              >
-                <PanelLeft size={18} />
-                <span className="hidden sm:inline">{isEnglish ? "Designs" : "Daftar Desain"}</span>
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
-                  {sessions.length}
-                </span>
-              </button>
+              {activeMainTab === "design" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSidebarOpen((prev) => !prev);
+                      setMobileSidebarOpen((prev) => !prev);
+                    }}
+                    className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-3 text-sm font-semibold transition ${
+                      sidebarOpen || mobileSidebarOpen
+                        ? "border-pink-300 bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                        : "border-white/20 bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                    title={sidebarOpen ? (isEnglish ? "Hide Designs" : "Sembunyikan Desain") : (isEnglish ? "Show Designs" : "Daftar Desain")}
+                  >
+                    <PanelLeft size={18} />
+                    <span className="hidden sm:inline">{isEnglish ? "Designs" : "Daftar Desain"}</span>
+                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
+                      {sessions.length}
+                    </span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => handleCreateNewDesign()}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-purple-700 shadow-lg transition hover:bg-white/90 active:scale-95"
-                title={isEnglish ? "New Design" : "+ Desain Baru"}
-              >
-                <Plus size={18} />
-                <span>{isEnglish ? "New Design" : "+ Desain Baru"}</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateNewDesign()}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-purple-700 shadow-lg transition hover:bg-white/90 active:scale-95"
+                    title={isEnglish ? "New Design" : "+ Desain Baru"}
+                  >
+                    <Plus size={18} />
+                    <span>{isEnglish ? "New Design" : "+ Desain Baru"}</span>
+                  </button>
+                </>
+              )}
 
               <button
                 type="button"
@@ -1048,7 +1249,62 @@ export default function AIDesignPage() {
           </div>
         </div>
 
+        {/* MODE TABS (DESIGN / REMOVE-BG / STAGING) */}
+        <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/90 p-1.5 shadow-xl backdrop-blur">
+          <button
+            type="button"
+            onClick={() => setActiveMainTab("design")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition ${
+              activeMainTab === "design"
+                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/25"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+            }`}
+          >
+            <Palette size={16} />
+            <span>{isEnglish ? "Graphic & Poster Design" : "Desain Grafis & Poster"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMainTab("remove-bg");
+              setStudioResultUrl("");
+            }}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition ${
+              activeMainTab === "remove-bg"
+                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/25"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+            }`}
+          >
+            <Layers size={16} />
+            <span>{isEnglish ? "Remove Background" : "Hapus Background"}</span>
+            <span className="rounded-full bg-pink-500/20 px-2 py-0.5 text-[10px] font-bold text-pink-300 border border-pink-500/30">
+              1-Click
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMainTab("staging");
+              setStudioResultUrl("");
+            }}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition ${
+              activeMainTab === "staging"
+                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/25"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+            }`}
+          >
+            <Sparkles size={16} />
+            <span>{isEnglish ? "Product Staging Photoshoot" : "Staging Foto Produk"}</span>
+            <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] font-bold text-purple-300 border border-purple-500/30">
+              Studio AI
+            </span>
+          </button>
+        </div>
+
         {/* MAIN LAYOUT: SIDEBAR + GENERATOR */}
+        {activeMainTab === "design" && (
         <div className="relative flex gap-6 items-start">
           {/* DESKTOP SIDEBAR */}
           {sidebarOpen && (
@@ -1279,8 +1535,361 @@ export default function AIDesignPage() {
         </div>
           </div>
         </div>
+        )}
+
+        {/* STUDIO WORKSPACE (REMOVE-BG & STAGING) */}
+        {activeMainTab !== "design" && (
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+            {/* Left Column: Upload & Controls */}
+            <div className="space-y-6 lg:col-span-5">
+              {/* Box Upload Foto */}
+              <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
+                <h2 className="text-base font-semibold text-white">
+                  {isEnglish ? "Upload Object / Product Photo" : "Unggah Foto Objek / Produk"}
+                </h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  {isEnglish
+                    ? "Supports JPG, PNG, WebP (Higher clarity produces better results)"
+                    : "Format JPG, PNG, atau WebP (Foto yang jelas menghasilkan kualitas terbaik)"}
+                </p>
+
+                <input
+                  ref={studioFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleStudioFileChange}
+                  className="hidden"
+                />
+
+                {!studioPreviewUrl ? (
+                  <div
+                    onClick={() => studioFileInputRef.current?.click()}
+                    className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-950/60 p-8 transition hover:border-pink-500 hover:bg-slate-900/60"
+                  >
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-pink-500/10 text-pink-400">
+                      <Upload className="h-6 w-6" />
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-white">
+                      {isEnglish ? "Click to upload photo" : "Klik untuk upload foto"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {isEnglish ? "or drag and drop here" : "atau drag & drop gambar ke sini"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+                      <NextImage
+                        src={studioPreviewUrl}
+                        alt="Preview Produk"
+                        fill
+                        className="object-contain p-2"
+                        unoptimized
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => studioFileInputRef.current?.click()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      {isEnglish ? "Change Photo" : "Ganti Foto Lain"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Pilihan Rasio Tampilan */}
+              <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
+                <h2 className="text-base font-semibold text-white">
+                  {isEnglish ? "Aspect Ratio" : "Rasio Ukuran Hasil"}
+                </h2>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {[
+                    { id: "square", label: "Square (1:1)", sub: "1024x1024" },
+                    { id: "landscape", label: "Wide (16:9)", sub: "1344x768" },
+                    { id: "portrait", label: "Story (9:16)", sub: "768x1344" },
+                  ].map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setStudioAspectRatio(r.id as any)}
+                      className={`flex flex-col items-center justify-center rounded-xl border py-2.5 px-2 text-center transition ${
+                        studioAspectRatio === r.id
+                          ? "border-pink-500 bg-pink-500/15 text-white"
+                          : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-white"
+                      }`}
+                    >
+                      <span className="text-xs font-medium">{r.label}</span>
+                      <span className="text-[10px] text-slate-500">{r.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Opsi Staging Produk */}
+              {activeMainTab === "staging" && (
+                <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
+                  <h2 className="text-base font-semibold text-white">
+                    {isEnglish ? "Select Studio Setting" : "Pilih Suasana Studio"}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {isEnglish
+                      ? "Pick the aesthetic environment for your product photoshoot"
+                      : "Pilih tempat di mana produkmu akan diletakkan"}
+                  </p>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {STAGING_PRESETS.map((p) => {
+                      const isSelected = studioSelectedPreset === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setStudioSelectedPreset(p.id)}
+                          className={`flex flex-col items-center justify-center rounded-xl border p-3 text-center transition ${
+                            isSelected
+                              ? "border-purple-500 bg-purple-500/20 text-white shadow-sm"
+                              : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-white"
+                          }`}
+                        >
+                          <span className="text-2xl">{p.icon}</span>
+                          <span className="mt-2 text-xs font-medium line-clamp-1">
+                            {isEnglish ? p.nameEn : p.nameId}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {studioSelectedPreset === "custom" && (
+                    <div className="mt-4">
+                      <label className="text-xs font-medium text-slate-300">
+                        {isEnglish ? "Custom Scene Description" : "Deskripsi Suasana Kustom"}
+                      </label>
+                      <textarea
+                        value={studioCustomPrompt}
+                        onChange={(e) => setStudioCustomPrompt(e.target.value)}
+                        placeholder={
+                          isEnglish
+                            ? "e.g., sitting on golden desert sand during sunset with soft warm rim lighting..."
+                            : "Contoh: diletakkan di atas pasir pantai saat matahari terbenam dengan deburan ombak lembut..."
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-xs text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none"
+                        rows={3}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Opsi Warna untuk Hapus Background */}
+              {activeMainTab === "remove-bg" && (
+                <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
+                  <h2 className="text-base font-semibold text-white">
+                    {isEnglish ? "Background Color Tint" : "Warna Latar Belakang Baru"}
+                  </h2>
+                  <div className="mt-4 flex flex-wrap gap-2.5">
+                    {[
+                      { id: "transparent", label: isEnglish ? "Transparent" : "Transparan", color: "bg-transparent border-dashed" },
+                      { id: "#ffffff", label: isEnglish ? "Pure White" : "Putih Katalog", color: "bg-white" },
+                      { id: "#0f172a", label: isEnglish ? "Dark Slate" : "Hitam Slate", color: "bg-slate-900" },
+                      { id: "#fce7f3", label: isEnglish ? "Pastel Pink" : "Pastel Pink", color: "bg-pink-100" },
+                      { id: "#e0f2fe", label: isEnglish ? "Soft Blue" : "Soft Blue", color: "bg-sky-100" },
+                    ].map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setStudioBgColor(c.id)}
+                        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                          studioBgColor === c.id
+                            ? "border-pink-500 bg-pink-500/15 text-white"
+                            : "border-slate-800 bg-slate-950 text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        <span className={`h-3.5 w-3.5 rounded-full border border-slate-700 ${c.color}`} />
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tombol Eksekusi Studio */}
+              <button
+                type="button"
+                onClick={handleStudioProcess}
+                disabled={studioLoading || !studioFile}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 py-4 font-semibold text-white shadow-lg shadow-purple-600/25 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {studioLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>
+                      {activeMainTab === "staging"
+                        ? isEnglish
+                          ? "Rendering Studio Photo..."
+                          : "Sedang Menyulap Foto..."
+                        : isEnglish
+                        ? "Removing Background..."
+                        : "Sedang Menghapus Background..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5" />
+                    <span>
+                      {activeMainTab === "staging"
+                        ? isEnglish
+                          ? "Generate Studio Photo"
+                          : "Generate Foto Studio"
+                        : isEnglish
+                        ? "Remove Background Now"
+                        : "Hapus Background Sekarang"}
+                    </span>
+                  </>
+                )}
+              </button>
+
+              {studioError && (
+                <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-xs text-red-200">
+                  {studioError}
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Hasil Visual & Before/After */}
+            <div className="lg:col-span-7">
+              <div className="h-full rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-white">
+                      {isEnglish ? "Result Showcase" : "Hasil Visual"}
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      {isEnglish
+                        ? "High-definition AI visual output with professional detail"
+                        : "Preview hasil olahan AI dengan resolusi tajam dan jernih"}
+                    </p>
+                  </div>
+
+                  {studioResultUrl && (
+                    <div className="flex items-center gap-2">
+                      {studioPreviewUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setStudioShowCompare(!studioShowCompare)}
+                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                            studioShowCompare
+                              ? "border-pink-500 bg-pink-500/20 text-pink-300"
+                              : "border-slate-700 bg-slate-800 text-slate-300 hover:text-white"
+                          }`}
+                        >
+                          <SplitSquareVertical className="h-3.5 w-3.5" />
+                          {studioShowCompare
+                            ? isEnglish
+                              ? "Result Only"
+                              : "Lihat Hasil Saja"
+                            : isEnglish
+                            ? "Compare Before/After"
+                            : "Bandingkan (Before/After)"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={downloadStudioImage}
+                        className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-slate-200"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Download HD
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Canvas / Gambar Result */}
+                <div className="mt-6 flex min-h-[480px] items-center justify-center rounded-xl border border-slate-800 bg-slate-950/80 p-4">
+                  {studioLoading ? (
+                    <div className="flex flex-col items-center gap-3 text-center">
+                      <Loader2 className="h-10 w-10 animate-spin text-pink-500" />
+                      <p className="text-sm font-medium text-white">
+                        {activeMainTab === "staging"
+                          ? isEnglish
+                            ? "Processing Product Photo..."
+                            : "Sedang Memproses Foto Studio..."
+                          : isEnglish
+                          ? "Isolating Background..."
+                          : "Sedang Mengisolasi Objek..."}
+                      </p>
+                      <p className="max-w-xs text-xs text-slate-400">
+                        {isEnglish
+                          ? "AI Vision & neural networks are refining lighting, edges, and studio staging."
+                          : "AI Vision sedang menganalisis tepi objek, pencahayaan, dan komposisi studio."}
+                      </p>
+                    </div>
+                  ) : studioResultUrl ? (
+                    studioShowCompare && studioPreviewUrl ? (
+                      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="flex flex-col items-center">
+                          <span className="mb-2 text-xs font-medium text-slate-400">
+                            {isEnglish ? "Original (Before)" : "Foto Asli (Before)"}
+                          </span>
+                          <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-slate-800">
+                            <NextImage src={studioPreviewUrl} alt="Before" fill className="object-contain" unoptimized />
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="mb-2 text-xs font-medium text-pink-400">
+                            {isEnglish ? "AI Processed (After)" : "Hasil AI (After)"}
+                          </span>
+                          <div
+                            className="relative aspect-square w-full overflow-hidden rounded-xl border border-pink-500/40"
+                            style={{ backgroundColor: studioBgColor !== "transparent" ? studioBgColor : undefined }}
+                          >
+                            <NextImage src={studioResultUrl} alt="After" fill className="object-contain" unoptimized />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="relative aspect-square max-h-[520px] w-full overflow-hidden rounded-xl"
+                        style={{ backgroundColor: studioBgColor !== "transparent" ? studioBgColor : undefined }}
+                      >
+                        <NextImage
+                          src={studioResultUrl}
+                          alt="Hasil AI"
+                          fill
+                          className="object-contain"
+                          unoptimized
+                        />
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-center text-slate-500">
+                      <Sparkles className="h-10 w-10 text-slate-700" />
+                      <p className="text-sm font-medium">{isEnglish ? "No result yet" : "Belum ada hasil"}</p>
+                      <p className="max-w-xs text-xs">
+                        {isEnglish
+                          ? "Upload your image on the left panel and click the generate button."
+                          : "Unggah gambar di panel sebelah kiri lalu klik tombol proses."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
+  );
+}
+
+export default function AIDesignPage() {
+  return (
+    <Suspense fallback={null}>
+      <AIDesignContent />
+    </Suspense>
   );
 }

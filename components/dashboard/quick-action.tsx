@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Wand2,
   Gamepad2,
+  Sparkles,
 } from "lucide-react";
 
 import { useLanguage } from "@/components/shared/language-provider";
@@ -64,6 +65,14 @@ const actions = [
     descriptionEn: "Play AI generated games directly in browser.",
     href: "/ai-arcade",
     icon: Gamepad2,
+  },
+  {
+    titleId: "Galeri Inspirasi",
+    titleEn: "Showcase Hub",
+    descriptionId: "Kumpulan prompt desain, game, dan coding 1-klik.",
+    descriptionEn: "Curated 1-click prompts for design, games, and code.",
+    href: "/showcase",
+    icon: Sparkles,
   },
   {
     titleId: "Dokumen AI",

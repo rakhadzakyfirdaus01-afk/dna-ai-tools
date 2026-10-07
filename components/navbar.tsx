@@ -172,6 +172,10 @@ export default function Header({
       name: locale === "id" ? "Arcade Game" : "AI Arcade",
       path: "/ai-arcade",
     },
+    {
+      name: locale === "id" ? "Galeri Inspirasi" : "Showcase",
+      path: "/showcase",
+    },
 
     {
       name: locale === "id" ? "Riwayat" : "History",

@@ -93,6 +93,10 @@ export default function Header({
       path: "/ai-arcade",
     },
     {
+      name: "Showcase",
+      path: "/showcase",
+    },
+    {
       name: "History",
       path: "/history",
     },

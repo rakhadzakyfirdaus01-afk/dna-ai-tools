@@ -224,15 +224,25 @@ export default function AICodePage() {
     isInitialLoadRef.current = false;
   }, []);
 
-  // Cek apakah ada prompt remix dari AI Arcade
+  // Cek apakah ada prompt remix dari AI Arcade atau Showcase Gallery
   useEffect(() => {
     try {
-      const remixPrompt = sessionStorage.getItem("ai_code_remix_prompt");
-      if (remixPrompt) {
-        setPrompt(remixPrompt);
-        setMode("game");
-        setSelectedCategory("game");
+      const incomingPrompt =
+        sessionStorage.getItem("ai_code_remix_prompt") ||
+        sessionStorage.getItem("showcase_prompt");
+      if (incomingPrompt) {
+        setPrompt(incomingPrompt);
+        const incomingCategory = sessionStorage.getItem("showcase_category") || "web";
+        if (incomingCategory === "game" || sessionStorage.getItem("ai_code_remix_prompt")) {
+          setMode("game");
+          setSelectedCategory("game");
+        } else {
+          setMode(incomingCategory as any);
+          setSelectedCategory(incomingCategory as any);
+        }
         sessionStorage.removeItem("ai_code_remix_prompt");
+        sessionStorage.removeItem("showcase_prompt");
+        sessionStorage.removeItem("showcase_category");
       }
     } catch {}
   }, []);

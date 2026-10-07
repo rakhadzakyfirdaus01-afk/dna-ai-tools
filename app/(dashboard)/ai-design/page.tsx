@@ -137,6 +137,17 @@ export default function AIDesignPage() {
     isInitialLoadRef.current = false;
   }, []);
 
+  // Cek apakah ada prompt yang dikirim dari Showcase Gallery
+  useEffect(() => {
+    try {
+      const showcasePrompt = sessionStorage.getItem("showcase_prompt");
+      if (showcasePrompt) {
+        setPrompt(showcasePrompt);
+        sessionStorage.removeItem("showcase_prompt");
+      }
+    } catch {}
+  }, []);
+
   // 2. Sync changes to active session and LocalStorage
   useEffect(() => {
     if (isInitialLoadRef.current || !activeSessionId) return;

@@ -257,7 +257,7 @@ Kembalikan HANYA SATU JSON VALID murni tanpa format markdown code fences.
           systemInstruction: SYSTEM_PROMPT,
           responseMimeType: "application/json",
           temperature: 0.3,
-          maxOutputTokens: 8192,
+          maxOutputTokens: 65536,
           httpOptions: {
             timeout: 120000,
           },

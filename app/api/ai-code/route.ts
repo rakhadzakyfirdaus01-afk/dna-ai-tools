@@ -56,9 +56,14 @@ function cleanAIResponse(
   let cleaned = text.trim();
 
   // 1. Strip markdown code fence anywhere if model wrapped in ```json ... ```
-  const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-  if (codeBlockMatch && codeBlockMatch[1]) {
-    cleaned = codeBlockMatch[1].trim();
+  // Gunakan indeks pagar awal dan akhir untuk menghindari pemotongan oleh inner code blocks
+  const firstFence = cleaned.indexOf("```");
+  if (firstFence !== -1) {
+    const afterFirstFence = cleaned.indexOf("\n", firstFence);
+    const lastFence = cleaned.lastIndexOf("```");
+    if (lastFence > firstFence && afterFirstFence !== -1 && lastFence > afterFirstFence) {
+      cleaned = cleaned.substring(afterFirstFence + 1, lastFence).trim();
+    }
   }
 
   // 2. Strip any conversational intro before first { or outro after last }
@@ -180,11 +185,11 @@ function extractProjectByRegex(text: string): Record<string, unknown> | null {
 
     const files: Array<{ path: string; content: string }> = [];
 
-    // Match { "path": "...", "content": "..." }
-    const fileRegex = /"path"\s*:\s*"([^"]+)"[\s\S]*?"content"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+    // Pola A: "path" diikuti "content"
+    const fileRegexA = /"path"\s*:\s*"([^"]+)"[\s\S]*?"content"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
     let match: RegExpExecArray | null;
 
-    while ((match = fileRegex.exec(text)) !== null) {
+    while ((match = fileRegexA.exec(text)) !== null) {
       const path = match[1];
       let content = match[2];
 
@@ -204,18 +209,82 @@ function extractProjectByRegex(text: string): Record<string, unknown> | null {
       }
     }
 
-    // Jika objek JSON file tidak terdeteksi, cek apakah ada HTML mentah
+    // Pola B: "content" diikuti "path" jika pola A kosong
+    if (files.length === 0) {
+      const fileRegexB = /"content"\s*:\s*"((?:[^"\\]|\\.)*)"[\s\S]*?"path"\s*:\s*"([^"]+)"/g;
+      while ((match = fileRegexB.exec(text)) !== null) {
+        const path = match[2];
+        let content = match[1];
+
+        try {
+          content = JSON.parse(`"${content}"`);
+        } catch {
+          content = content
+            .replace(/\\n/g, "\n")
+            .replace(/\\r/g, "\r")
+            .replace(/\\t/g, "\t")
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, "\\");
+        }
+
+        if (path && content) {
+          files.push({ path, content });
+        }
+      }
+    }
+
+    // Pola C: Response terpotong di tengah content file (quote penutup hilang)
+    if (files.length === 0) {
+      const truncatedMatch = text.match(/"path"\s*:\s*"([^"]+)"[\s\S]*?"content"\s*:\s*"([\s\S]*)$/);
+      if (truncatedMatch) {
+        const path = truncatedMatch[1];
+        let content = truncatedMatch[2].replace(/["\s}\]]+$/, "");
+        try {
+          content = JSON.parse(`"${content}"`);
+        } catch {
+          content = content
+            .replace(/\\n/g, "\n")
+            .replace(/\\r/g, "\r")
+            .replace(/\\t/g, "\t")
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, "\\");
+        }
+
+        if (path.endsWith(".html")) {
+          if (content.includes("<script") && !content.includes("</script>")) content += "\n</script>";
+          if (content.includes("<body") && !content.includes("</body>")) content += "\n</body>";
+          if (content.includes("<html") && !content.includes("</html>")) content += "\n</html>";
+        }
+
+        if (path && content) {
+          files.push({ path, content });
+        }
+      }
+    }
+
+    // Pola D: Deteksi dokumen HTML mentah
     if (files.length === 0) {
       const htmlStart = text.indexOf("<!DOCTYPE html");
       const htmlStartAlt = htmlStart === -1 ? text.indexOf("<html") : htmlStart;
-      const htmlEnd = text.lastIndexOf("</html>");
+      if (htmlStartAlt !== -1) {
+        let rawHtml = text.substring(htmlStartAlt);
+        const htmlEnd = rawHtml.lastIndexOf("</html>");
+        if (htmlEnd !== -1) {
+          rawHtml = rawHtml.substring(0, htmlEnd + 7);
+        } else {
+          if (rawHtml.includes("<script") && !rawHtml.includes("</script>")) rawHtml += "\n</script>";
+          if (!rawHtml.includes("</body>")) rawHtml += "\n</body>";
+          if (!rawHtml.includes("</html>")) rawHtml += "\n</html>";
+        }
+        files.push({ path: "index.html", content: rawHtml });
+      }
+    }
 
-      if (htmlStartAlt !== -1 && htmlEnd !== -1 && htmlEnd > htmlStartAlt) {
-        const rawHtml = text.substring(htmlStartAlt, htmlEnd + 7);
-        files.push({
-          path: "index.html",
-          content: rawHtml,
-        });
+    // Pola E: Markdown code block fallback
+    if (files.length === 0) {
+      const codeMatch = text.match(/```(?:html|javascript|js)?\s*([\s\S]+?)\s*```/);
+      if (codeMatch && codeMatch[1]) {
+        files.push({ path: "index.html", content: codeMatch[1].trim() });
       }
     }
 
@@ -286,21 +355,14 @@ function parseGeneratedProject(
     );
   }
 
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    Array.isArray(parsed)
-  ) {
-    throw new Error(
-      "Format project AI tidak valid."
-    );
-  }
-
+  // Dukung format bersarang seperti { project: { ... } } atau { data: { ... } }
+  const rawObj = parsed as Record<string, unknown>;
   const project =
-    parsed as Record<
-      string,
-      unknown
-    >;
+    (typeof rawObj.project === "object" && rawObj.project !== null && !Array.isArray(rawObj.project))
+      ? (rawObj.project as Record<string, unknown>)
+      : (typeof rawObj.data === "object" && rawObj.data !== null && !Array.isArray(rawObj.data))
+      ? (rawObj.data as Record<string, unknown>)
+      : rawObj;
 
   const rawProjectName =
     project.projectName || project.name || project.project_name || project.title;
@@ -323,7 +385,7 @@ function parseGeneratedProject(
       ? project.description.trim()
       : "";
 
-  const rawFiles =
+  let rawFiles =
     Array.isArray(project.files)
       ? project.files
       : Array.isArray(project.fileList)
@@ -331,6 +393,14 @@ function parseGeneratedProject(
       : Array.isArray(project.project_files)
       ? project.project_files
       : null;
+
+  // Jika files kosong di JSON, coba selamatkan dengan regex extractor dari text mentah
+  if (!rawFiles || rawFiles.length === 0) {
+    const regexFallback = extractProjectByRegex(text);
+    if (regexFallback && Array.isArray(regexFallback.files) && regexFallback.files.length > 0) {
+      rawFiles = regexFallback.files;
+    }
+  }
 
   if (
     !rawFiles ||

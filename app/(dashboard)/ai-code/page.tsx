@@ -623,25 +623,31 @@ export default function AICodePage() {
           }
         );
 
-      let data: AICodeResponse;
+      const rawText = await response.text();
+      let data: AICodeResponse | null = null;
 
       try {
-        data =
-          await response.json();
+        data = JSON.parse(rawText);
       } catch {
+        // Respons bukan JSON (misal HTML error dari proxy / gateway)
+      }
+
+      if (!response.ok) {
+        const errorMsg =
+          data?.error ||
+          (rawText.includes("504") || rawText.includes("TIMEOUT")
+            ? (isEnglish ? "AI processing timed out. Please try again." : "Waktu tunggu server AI habis (Timeout 504). Silakan coba klik 'Build Project' kembali.")
+            : (isEnglish
+                ? "An error occurred while building the project."
+                : "Terjadi kesalahan saat membangun project."));
+        throw new Error(errorMsg);
+      }
+
+      if (!data) {
         throw new Error(
           isEnglish
             ? "The server returned an invalid response."
             : "Server mengembalikan response yang tidak valid."
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            (isEnglish
-              ? "An error occurred while building the project."
-              : "Terjadi kesalahan saat membangun project.")
         );
       }
 

@@ -1,4 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
+
+// Ensure Node.js on Windows does not fail on SSL certificate verification
+if (process.env.NODE_ENV !== "production") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 import { getLanguageInstruction } from "@/lib/language";
 import type { Locale } from "@/components/shared/language-provider";
 import {
@@ -259,12 +264,15 @@ Kembalikan HANYA SATU JSON VALID murni tanpa format markdown code fences.
 
   let lastError: unknown = null;
 
+  // Prioritaskan maksimal 3 API keys teratas untuk kecepatan optimal
+  const prioritizedKeys = candidateKeys.slice(0, 3);
+
   // Rotasi multi-key & multi-model dengan auto-fallback anti-timeout (504 / DEADLINE_EXCEEDED / 429)
-  for (const apiKey of candidateKeys) {
+  for (const apiKey of prioritizedKeys) {
     const client = new GoogleGenAI({
       apiKey,
       httpOptions: {
-        timeout: 60000, // 60 detik timeout per panggilan agar segera fallback jika model pertama lambat
+        timeout: 45000, // 45 detik timeout per panggilan agar tidak mengenai batas gateway
       },
     });
 

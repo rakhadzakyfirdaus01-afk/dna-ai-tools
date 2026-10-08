@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 function StudioRedirectInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tab = searchParams.get("tab") || "staging";
+  const tab = searchParams.get("tab") || "remove-bg";
 
   useEffect(() => {
     router.replace(`/ai-design?tab=${encodeURIComponent(tab)}`);

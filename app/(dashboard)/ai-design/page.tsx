@@ -59,109 +59,6 @@ export const DESIGN_CATEGORIES: {
   { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
 ];
 
-export type StagingPreset = {
-  id: string;
-  nameId: string;
-  nameEn: string;
-  icon: string;
-  descId: string;
-  descEn: string;
-};
-
-export const STAGING_PRESETS: StagingPreset[] = [
-  // Billboard & Mockup Presets
-  {
-    id: "billboard_highway",
-    nameId: "Billboard Jalan Raya",
-    nameEn: "Highway Billboard",
-    icon: "🛣️",
-    descId: "Reklame billboard outdoor jalan raya modern berlatar langit biru & kota",
-    descEn: "Modern outdoor highway billboard with clear sky and realistic roadway",
-  },
-  {
-    id: "billboard_city",
-    nameId: "Billboard Kota 3D",
-    nameEn: "Metropolitan 3D Billboard",
-    icon: "🏙️",
-    descId: "Layar reklame megah di antara gedung pencakar langit Times Square / Shibuya",
-    descEn: "Colossal 3D advertising billboard surrounded by iconic skyscrapers",
-  },
-  {
-    id: "billboard_night",
-    nameId: "Billboard Malam Sinematik",
-    nameEn: "Night Illuminated Billboard",
-    icon: "🌃",
-    descId: "Lampu sorot dramatis & suasana kota malam bercahaya sinematik",
-    descEn: "Dramatic spotlight illumination and glowing evening urban atmosphere",
-  },
-  {
-    id: "art_gallery",
-    nameId: "Pigura Galeri Seni",
-    nameEn: "Luxury Gallery Frame",
-    icon: "🖼️",
-    descId: "Pigura minimalis di dinding galeri seni arsitektural mewah",
-    descEn: "Minimalist exhibition frame mounted on concrete art museum wall",
-  },
-  {
-    id: "tech_mockup",
-    nameId: "Mockup Layar Gadget",
-    nameEn: "Device Screen Mockup",
-    icon: "📱",
-    descId: "Layar gadget modern di atas meja kerja arsitektural elegan",
-    descEn: "Modern bezel-less tech device screen on a minimalist designer desk",
-  },
-
-  // Physical Product Studio Presets
-  {
-    id: "marble",
-    nameId: "Podium Marmer Mewah",
-    nameEn: "Luxury Marble Podium",
-    icon: "🏛️",
-    descId: "Marmer putih Carrara & pencahayaan studio lembut",
-    descEn: "White Carrara marble & soft studio lighting",
-  },
-  {
-    id: "wooden",
-    nameId: "Meja Kayu & Tanaman",
-    nameEn: "Warm Oak & Greenery",
-    icon: "🪵",
-    descId: "Nuansa kayu alami & bayangan daun monstera estetik",
-    descEn: "Natural oak wood & aesthetic monstera leaf shadows",
-  },
-  {
-    id: "nature",
-    nameId: "Bebatuan Alam & Air",
-    nameEn: "River Stone & Fresh Water",
-    icon: "🌊",
-    descId: "Batu sungai gelap & tetesan air segar alami",
-    descEn: "Dark basalt stones & fresh morning water droplets",
-  },
-  {
-    id: "pastel",
-    nameId: "Studio Pastel Modern",
-    nameEn: "Minimalist Pastel Studio",
-    icon: "🌸",
-    descId: "Geometris minimalis & bayangan jendela elegan",
-    descEn: "Geometric pedestal & elegant window sunlight",
-  },
-  {
-    id: "cyberpunk",
-    nameId: "Neon Tech & Refleksi",
-    nameEn: "Cyberpunk Neon Tech",
-    icon: "⚡",
-    descId: "Platform gelap reflektif & cahaya neon futuristik",
-    descEn: "Dark reflective platform & futuristic neon glow",
-  },
-  {
-    id: "custom",
-    nameId: "Suasana Kustom",
-    nameEn: "Custom Scene",
-    icon: "✍️",
-    descId: "Ketik suasana latar yang kamu inginkan secara bebas",
-    descEn: "Write any custom scene or background you want",
-  },
-];
-
 const DESIGN_SESSIONS_STORAGE_KEY = "dna_ai_design_sessions_v1";
 
 function createNewDesignSession(
@@ -199,28 +96,21 @@ function AIDesignContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Mode Tabs: design, remove-bg, staging
-  const [activeMainTab, setActiveMainTab] = useState<"design" | "remove-bg" | "staging">("design");
+  // Mode Tabs: design, remove-bg
+  const [activeMainTab, setActiveMainTab] = useState<"design" | "remove-bg">("design");
 
   // Sync tab from URL query param
   useEffect(() => {
     const tabParam = searchParams.get("tab");
-    if (tabParam === "staging" || tabParam === "remove-bg" || tabParam === "design") {
+    if (tabParam === "remove-bg" || tabParam === "design") {
       setActiveMainTab(tabParam);
     }
   }, [searchParams]);
 
-  // Studio (Remove-BG & Staging) States
+  // Studio (Remove-BG) States
   const [studioFile, setStudioFile] = useState<File | null>(null);
   const [studioPreviewUrl, setStudioPreviewUrl] = useState<string>("");
   const [studioResultUrl, setStudioResultUrl] = useState<string>("");
-  const [studioCompositedUrl, setStudioCompositedUrl] = useState<string>("");
-  const [studioAiStagingUrl, setStudioAiStagingUrl] = useState<string>("");
-  const [studioActiveView, setStudioActiveView] = useState<"composited" | "staging">("composited");
-  const [studioIsMockup, setStudioIsMockup] = useState<boolean>(false);
-  const [studioSelectedPreset, setStudioSelectedPreset] = useState<string>("marble");
-  const [studioCustomPrompt, setStudioCustomPrompt] = useState<string>("");
-  const [studioAspectRatio, setStudioAspectRatio] = useState<"square" | "landscape" | "portrait">("square");
   const [studioLoading, setStudioLoading] = useState<boolean>(false);
   const [studioProgress, setStudioProgress] = useState<string>("");
   const [studioCutoutBlob, setStudioCutoutBlob] = useState<Blob | null>(null);
@@ -947,23 +837,8 @@ function AIDesignContent() {
     setStudioFile(file);
     setStudioCutoutBlob(null);
     setStudioResultUrl("");
-    setStudioCompositedUrl("");
-    setStudioAiStagingUrl("");
-    setStudioIsMockup(false);
     const url = URL.createObjectURL(file);
     setStudioPreviewUrl(url);
-
-    const img = new window.Image();
-    img.onload = () => {
-      if (img.naturalWidth > img.naturalHeight * 1.25) {
-        setStudioAspectRatio("landscape");
-      } else if (img.naturalHeight > img.naturalWidth * 1.25) {
-        setStudioAspectRatio("portrait");
-      } else {
-        setStudioAspectRatio("square");
-      }
-    };
-    img.src = url;
   }
 
   // Pre-scale image to 1440px max PNG to keep WASM neural segmentation fast and light on RAM
@@ -1140,104 +1015,6 @@ function AIDesignContent() {
     });
   }
 
-  // Precision Billboard & Display Mockup Compositing Engine
-  async function compositeAdOntoBillboard(
-    originalFile: File | Blob,
-    adImageUrl: string,
-    box: [number, number, number, number]
-  ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const origUrl = URL.createObjectURL(originalFile);
-      const originalImg = new window.Image();
-
-      originalImg.onload = () => {
-        const adImg = new window.Image();
-        adImg.crossOrigin = "anonymous";
-
-        adImg.onload = () => {
-          try {
-            const width = originalImg.naturalWidth || originalImg.width || 1280;
-            const height = originalImg.naturalHeight || originalImg.height || 720;
-
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) {
-              URL.revokeObjectURL(origUrl);
-              resolve(origUrl);
-              return;
-            }
-
-            // 1. Gambar foto asli pengguna (tiang billboard, pohon, gedung, langit)
-            ctx.drawImage(originalImg, 0, 0, width, height);
-
-            // 2. Hitung koordinat bounding box billboard
-            const [ymin, xmin, ymax, xmax] = box;
-            const bx = Math.round((xmin / 1000) * width);
-            const by = Math.round((ymin / 1000) * height);
-            const bw = Math.max(10, Math.round(((xmax - xmin) / 1000) * width));
-            const bh = Math.max(10, Math.round(((ymax - ymin) / 1000) * height));
-
-            // 3. Pasang iklan AI ke dalam kanvas billboard dengan clipping presisi
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(bx, by, bw, bh);
-            ctx.clip();
-
-            ctx.drawImage(adImg, bx, by, bw, bh);
-
-            // 4. Efek pencahayaan fotorealistik (ambient daylight sheen)
-            const sheen = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
-            sheen.addColorStop(0, "rgba(255, 255, 255, 0.08)");
-            sheen.addColorStop(0.4, "rgba(255, 255, 255, 0.0)");
-            sheen.addColorStop(1, "rgba(0, 0, 0, 0.08)");
-            ctx.fillStyle = sheen;
-            ctx.fillRect(bx, by, bw, bh);
-
-            // 5. Halus border/bingkai billboard agar menyatu sempurna
-            ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
-            ctx.lineWidth = Math.max(1, Math.round(width / 1200));
-            ctx.strokeRect(bx, by, bw, bh);
-
-            ctx.restore();
-
-            URL.revokeObjectURL(origUrl);
-
-            canvas.toBlob(
-              (blob) => {
-                if (blob) {
-                  resolve(URL.createObjectURL(blob));
-                } else {
-                  resolve(origUrl);
-                }
-              },
-              "image/jpeg",
-              0.95
-            );
-          } catch (err) {
-            URL.revokeObjectURL(origUrl);
-            reject(err);
-          }
-        };
-
-        adImg.onerror = (err) => {
-          URL.revokeObjectURL(origUrl);
-          reject(err);
-        };
-
-        adImg.src = adImageUrl;
-      };
-
-      originalImg.onerror = (err) => {
-        URL.revokeObjectURL(origUrl);
-        reject(err);
-      };
-
-      originalImg.src = origUrl;
-    });
-  }
-
   async function handleStudioProcess() {
     if (!studioFile) {
       setStudioError(isEnglish ? "Please upload a photo first." : "Unggah foto terlebih dahulu.");
@@ -1248,167 +1025,81 @@ function AIDesignContent() {
     setStudioError("");
     setStudioProgress("");
 
-    // ==========================================
-    // 1. HAPUS BACKGROUND (REAL NEURAL CUTOUT)
-    // ==========================================
-    if (activeMainTab === "remove-bg") {
-      try {
-        setStudioProgress(
-          isEnglish ? "Preparing image for AI analysis..." : "Menyiapkan gambar untuk analisis AI..."
-        );
-
-        const preparedBlob = await prepareImageForSegmentation(studioFile);
-
-        setStudioProgress(
-          isEnglish ? "Loading neural segmentation engine..." : "Memuat model AI neural segmentasi..."
-        );
-
-        // Dynamic import to keep bundle fast and prevent SSR evaluation
-        const imgly = await import("@imgly/background-removal");
-        const removeFn = (imgly.removeBackground || (imgly as any).default) as (
-          image: any,
-          config?: any
-        ) => Promise<Blob>;
-
-        const cutoutBlob = await removeFn(preparedBlob, {
-          model: "isnet_quint8",
-          publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/",
-          progress: (_key: string, current: number, total: number) => {
-            if (total > 0) {
-              const pct = Math.min(99, Math.round((current / total) * 100));
-              setStudioProgress(
-                isEnglish
-                  ? `AI isolating subject (${pct}%)...`
-                  : `AI sedang mengisolasi objek (${pct}%)...`
-              );
-            }
-          },
-        });
-
-        setStudioCutoutBlob(cutoutBlob);
-
-        if (studioBgColor && studioBgColor !== "transparent") {
-          const composited = await applyBackgroundToCutout(cutoutBlob, studioBgColor);
-          setStudioResultUrl(URL.createObjectURL(composited));
-        } else {
-          setStudioResultUrl(URL.createObjectURL(cutoutBlob));
-        }
-
-        // Simpan riwayat di background secara senyap
-        fetch("/api/ai-studio", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "remove-bg" }),
-        }).catch(() => {});
-
-        if (typeof document !== "undefined" && document.hidden) {
-          sendBackgroundNotification({
-            title: "DNA AI Design - Background Selesai! ✨",
-            body: isEnglish
-              ? "Your background removal is complete! Tap to view."
-              : "Background foto kamu berhasil dihapus! Ketuk untuk melihat hasilnya.",
-            url: "/ai-design?tab=remove-bg",
-            tag: "dna-ai-studio-done",
-          }).catch(() => {});
-        }
-      } catch (neuralErr: any) {
-        console.warn("Neural removal fallback engaged:", neuralErr);
-        try {
-          setStudioProgress(
-            isEnglish ? "Applying edge isolation..." : "Menerapkan segmentasi visual tepi..."
-          );
-          const fallbackBlob = await fallbackBackgroundRemoval(studioFile, studioBgColor);
-          setStudioCutoutBlob(fallbackBlob);
-          setStudioResultUrl(URL.createObjectURL(fallbackBlob));
-        } catch {
-          setStudioError(
-            isEnglish
-              ? "Failed to remove background. Please try another clear photo."
-              : "Gagal menghapus background. Silakan coba foto lain dengan kontras yang jelas."
-          );
-        }
-      } finally {
-        setStudioLoading(false);
-        setStudioProgress("");
-      }
-      return;
-    }
-
-    // ==========================================
-    // 2. STAGING FOTO PRODUK (AI STUDIO SCENE)
-    // ==========================================
     try {
-      const optimizedBlob = await compressImageForUpload(studioFile);
-      const formData = new FormData();
-      formData.append("image", optimizedBlob, "product.jpg");
-      formData.append("action", "stage-product");
-      formData.append("preset", studioSelectedPreset);
-      formData.append("customPrompt", studioCustomPrompt);
-      formData.append("size", studioAspectRatio);
-
-      const res = await fetch("/api/ai-studio", {
-        method: "POST",
-        body: formData,
-      });
-
-      let data: any = null;
-      const text = await res.text();
-      try {
-        data = JSON.parse(text);
-      } catch {}
-
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.error || text || (isEnglish ? "Failed to process photo." : "Gagal memproses gambar."));
-      }
-
       setStudioProgress(
-        isEnglish ? "Finishing watermark-free visual..." : "Menyempurnakan visual bebas watermark..."
+        isEnglish ? "Preparing image for AI analysis..." : "Menyiapkan gambar untuk analisis AI..."
       );
 
-      const cleanAiUrl = await removeWatermarkFromImageUrl(data.resultUrl);
+      const preparedBlob = await prepareImageForSegmentation(studioFile);
 
-      if (data.isMockup && data.adImageUrl && Array.isArray(data.billboardBox)) {
-        setStudioProgress(
-          isEnglish
-            ? "Compositing advertisement onto billboard..."
-            : "Memasang visual iklan ke dalam billboard foto asli..."
-        );
-        const cleanAdUrl = await removeWatermarkFromImageUrl(data.adImageUrl);
-        try {
-          const compositedBlobUrl = await compositeAdOntoBillboard(
-            studioFile,
-            cleanAdUrl,
-            data.billboardBox
-          );
-          setStudioCompositedUrl(compositedBlobUrl);
-          setStudioAiStagingUrl(cleanAiUrl);
-          setStudioIsMockup(true);
-          setStudioActiveView("composited");
-          setStudioResultUrl(compositedBlobUrl);
-        } catch (compErr) {
-          console.warn("Mockup compositing fallback to AI staging:", compErr);
-          setStudioIsMockup(false);
-          setStudioResultUrl(cleanAiUrl);
-        }
+      setStudioProgress(
+        isEnglish ? "Loading neural segmentation engine..." : "Memuat model AI neural segmentasi..."
+      );
+
+      // Dynamic import to keep bundle fast and prevent SSR evaluation
+      const imgly = await import("@imgly/background-removal");
+      const removeFn = (imgly.removeBackground || (imgly as any).default) as (
+        image: any,
+        config?: any
+      ) => Promise<Blob>;
+
+      const cutoutBlob = await removeFn(preparedBlob, {
+        model: "isnet_quint8",
+        publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/",
+        progress: (_key: string, current: number, total: number) => {
+          if (total > 0) {
+            const pct = Math.min(99, Math.round((current / total) * 100));
+            setStudioProgress(
+              isEnglish
+                ? `AI isolating subject (${pct}%)...`
+                : `AI sedang mengisolasi objek (${pct}%)...`
+            );
+          }
+        },
+      });
+
+      setStudioCutoutBlob(cutoutBlob);
+
+      if (studioBgColor && studioBgColor !== "transparent") {
+        const composited = await applyBackgroundToCutout(cutoutBlob, studioBgColor);
+        setStudioResultUrl(URL.createObjectURL(composited));
       } else {
-        setStudioIsMockup(false);
-        setStudioCompositedUrl("");
-        setStudioAiStagingUrl("");
-        setStudioResultUrl(cleanAiUrl);
+        setStudioResultUrl(URL.createObjectURL(cutoutBlob));
       }
+
+      // Simpan riwayat di background secara senyap
+      fetch("/api/ai-studio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove-bg" }),
+      }).catch(() => {});
 
       if (typeof document !== "undefined" && document.hidden) {
         sendBackgroundNotification({
-          title: "DNA AI Design - Staging Selesai! ✨",
+          title: "DNA AI Design - Background Selesai! ✨",
           body: isEnglish
-            ? "Your product photoshoot staging is complete! Tap to view."
-            : "Foto studio produk kamu sudah selesai! Ketuk untuk melihat.",
-          url: "/ai-design?tab=staging",
+            ? "Your background removal is complete! Tap to view."
+            : "Background foto kamu berhasil dihapus! Ketuk untuk melihat hasilnya.",
+          url: "/ai-design?tab=remove-bg",
           tag: "dna-ai-studio-done",
         }).catch(() => {});
       }
-    } catch (err: any) {
-      setStudioError(err.message || (isEnglish ? "Failed to process image." : "Terjadi kesalahan saat memproses gambar."));
+    } catch (neuralErr: any) {
+      console.warn("Neural removal fallback engaged:", neuralErr);
+      try {
+        setStudioProgress(
+          isEnglish ? "Applying edge isolation..." : "Menerapkan segmentasi visual tepi..."
+        );
+        const fallbackBlob = await fallbackBackgroundRemoval(studioFile, studioBgColor);
+        setStudioCutoutBlob(fallbackBlob);
+        setStudioResultUrl(URL.createObjectURL(fallbackBlob));
+      } catch {
+        setStudioError(
+          isEnglish
+            ? "Failed to remove background. Please try another clear photo."
+            : "Gagal menghapus background. Silakan coba foto lain dengan kontras yang jelas."
+        );
+      }
     } finally {
       setStudioLoading(false);
       setStudioProgress("");
@@ -1682,10 +1373,6 @@ function AIDesignContent() {
                     ? isEnglish
                       ? "1-Click instant transparent PNG background remover with crystal clarity."
                       : "Hapus background foto 1-klik menjadi PNG transparan dengan resolusi tajam."
-                    : activeMainTab === "staging"
-                    ? isEnglish
-                      ? "Turn product photos into world-class luxury commercial catalog scenes."
-                      : "Sulap foto produk jualanmu menjadi foto katalog studio mewah kelas dunia."
                     : ui.headerDescription}
                 </p>
               </div>
@@ -1741,7 +1428,7 @@ function AIDesignContent() {
           </div>
         </div>
 
-        {/* MODE TABS (DESIGN / REMOVE-BG / STAGING) */}
+        {/* MODE TABS (DESIGN / REMOVE-BG) */}
         <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/90 p-1.5 shadow-xl backdrop-blur">
           <button
             type="button"
@@ -1772,25 +1459,6 @@ function AIDesignContent() {
             <span>{isEnglish ? "Remove Background" : "Hapus Background"}</span>
             <span className="rounded-full bg-pink-500/20 px-2 py-0.5 text-[10px] font-bold text-pink-300 border border-pink-500/30">
               1-Click
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveMainTab("staging");
-              setStudioResultUrl("");
-            }}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition ${
-              activeMainTab === "staging"
-                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/25"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-            }`}
-          >
-            <Sparkles size={16} />
-            <span>{isEnglish ? "Product Staging Photoshoot" : "Staging Foto Produk"}</span>
-            <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] font-bold text-purple-300 border border-purple-500/30">
-              Studio AI
             </span>
           </button>
         </div>
@@ -2120,101 +1788,7 @@ function AIDesignContent() {
                 )}
               </div>
 
-              {/* Pilihan Rasio Tampilan */}
-              <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
-                <h2 className="text-base font-semibold text-white">
-                  {isEnglish ? "Aspect Ratio" : "Rasio Ukuran Hasil"}
-                </h2>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {[
-                    { id: "square", label: "Square (1:1)", sub: "1024x1024" },
-                    { id: "landscape", label: "Wide (16:9)", sub: "1344x768" },
-                    { id: "portrait", label: "Story (9:16)", sub: "768x1344" },
-                  ].map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setStudioAspectRatio(r.id as any)}
-                      className={`flex flex-col items-center justify-center rounded-xl border py-2.5 px-2 text-center transition ${
-                        studioAspectRatio === r.id
-                          ? "border-pink-500 bg-pink-500/15 text-white"
-                          : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-white"
-                      }`}
-                    >
-                      <span className="text-xs font-medium">{r.label}</span>
-                      <span className="text-[10px] text-slate-500">{r.sub}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
 
-              {/* Opsi Staging Produk & Mockup Reklame */}
-              {activeMainTab === "staging" && (
-                <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-base font-semibold text-white">
-                      {isEnglish ? "Select Staging & Mockup Theme" : "Pilih Suasana Staging & Reklame"}
-                    </h2>
-                    <span className="rounded-full bg-purple-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-purple-400 border border-purple-500/20">
-                      100X Adaptive AI
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {isEnglish
-                      ? "Pick the ideal setting for your product, billboard mockup, or commercial display"
-                      : "Pilih suasana yang pas untuk produk, mockup billboard, atau reklame komersial"}
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 max-h-[340px] overflow-y-auto pr-1">
-                    {STAGING_PRESETS.map((p) => {
-                      const isSelected = studioSelectedPreset === p.id;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => setStudioSelectedPreset(p.id)}
-                          className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition ${
-                            isSelected
-                              ? "border-purple-500 bg-purple-500/20 text-white shadow-sm ring-1 ring-purple-500/50"
-                              : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-white"
-                          }`}
-                        >
-                          <span className="text-xl">{p.icon}</span>
-                          <span className="mt-1.5 text-xs font-medium line-clamp-1">
-                            {isEnglish ? p.nameEn : p.nameId}
-                          </span>
-                          <span className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
-                            {isEnglish ? p.descEn : p.descId}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Instruksi Bebas / Isi Iklan (Selalu Tersedia) */}
-                  <div className="mt-4 pt-3 border-t border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-slate-300">
-                        {isEnglish ? "Ad Content / Custom Prompt (Optional)" : "Isi Iklan / Instruksi Khusus (Opsional)"}
-                      </label>
-                      <span className="text-[10px] text-purple-400">
-                        {isEnglish ? "Smart Context" : "Konteks Cerdas"}
-                      </span>
-                    </div>
-                    <textarea
-                      value={studioCustomPrompt}
-                      onChange={(e) => setStudioCustomPrompt(e.target.value)}
-                      placeholder={
-                        isEnglish
-                          ? "e.g., Feature an electric sports car advertisement on this billboard / Luxury perfume commercial with gold sparks..."
-                          : "Contoh: Tampilkan iklan mobil sport listrik futuristik di billboard ini / Iklan parfum mewah berlatar kota modern..."
-                      }
-                      className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-xs text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none"
-                      rows={2}
-                    />
-                  </div>
-                </div>
-              )}
 
               {/* Opsi Warna untuk Hapus Background */}
               {activeMainTab === "remove-bg" && (
@@ -2248,7 +1822,7 @@ function AIDesignContent() {
                 </div>
               )}
 
-              {/* Tombol Eksekusi Studio */}
+              {/* Tombol Eksekusi Hapus Background */}
               <button
                 type="button"
                 onClick={handleStudioProcess}
@@ -2260,24 +1834,16 @@ function AIDesignContent() {
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span>
                       {studioProgress ||
-                        (activeMainTab === "staging"
-                          ? isEnglish
-                            ? "Rendering Studio Photo..."
-                            : "Sedang Menyulap Foto..."
-                          : isEnglish
+                        (isEnglish
                           ? "Removing Background..."
                           : "Sedang Menghapus Background...")}
                     </span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-5 w-5" />
+                    <Layers className="h-5 w-5" />
                     <span>
-                      {activeMainTab === "staging"
-                        ? isEnglish
-                          ? "Generate Studio Photo"
-                          : "Generate Foto Studio"
-                        : isEnglish
+                      {isEnglish
                         ? "Remove Background Now"
                         : "Hapus Background Sekarang"}
                     </span>
@@ -2341,51 +1907,7 @@ function AIDesignContent() {
                   )}
                 </div>
 
-                {/* Mode Switcher untuk Mockup Billboard (Foto Asli 100% vs AI Staging) */}
-                {studioIsMockup && studioCompositedUrl && studioAiStagingUrl && (
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-pink-500/30 bg-pink-500/10 p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-xs font-semibold text-pink-200">
-                        {isEnglish
-                          ? "Precision Billboard Mockup Compositing Active"
-                          : "Compositing Billboard Foto Asli 100% Sesuai"}
-                      </span>
-                    </div>
 
-                    <div className="flex items-center gap-1.5 rounded-lg bg-slate-950/90 p-1 border border-slate-800">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStudioActiveView("composited");
-                          setStudioResultUrl(studioCompositedUrl);
-                        }}
-                        className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                          studioActiveView === "composited"
-                            ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-sm"
-                            : "text-slate-400 hover:text-white"
-                        }`}
-                      >
-                        🖼️ {isEnglish ? "Original Photo Mockup (100% Match)" : "Mockup Foto Asli (100% Sesuai)"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStudioActiveView("staging");
-                          setStudioResultUrl(studioAiStagingUrl);
-                        }}
-                        className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                          studioActiveView === "staging"
-                            ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm"
-                            : "text-slate-400 hover:text-white"
-                        }`}
-                      >
-                        ✨ {isEnglish ? "AI Full Staging" : "AI Full Scene Staging"}
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 {/* Canvas / Gambar Result */}
                 <div className="mt-6 flex min-h-[480px] items-center justify-center rounded-xl border border-slate-800 bg-slate-950/80 p-4">
@@ -2394,22 +1916,14 @@ function AIDesignContent() {
                       <Loader2 className="h-10 w-10 animate-spin text-pink-500" />
                       <p className="text-sm font-medium text-white">
                         {studioProgress ||
-                          (activeMainTab === "staging"
-                            ? isEnglish
-                              ? "Processing Product Photo..."
-                              : "Sedang Memproses Foto Studio..."
-                            : isEnglish
+                          (isEnglish
                             ? "Isolating Background..."
                             : "Sedang Mengisolasi Objek...")}
                       </p>
                       <p className="max-w-xs text-xs text-slate-400">
-                        {activeMainTab === "remove-bg"
-                          ? isEnglish
-                            ? "Neural network is separating foreground subject with pixel precision."
-                            : "Neural network sedang memisahkan objek latar depan dengan presisi piksel tinggi."
-                          : isEnglish
-                          ? "AI Vision & neural networks are refining lighting, edges, and studio staging."
-                          : "AI Vision sedang menganalisis tepi objek, pencahayaan, dan komposisi studio."}
+                        {isEnglish
+                          ? "Neural network is separating foreground subject with pixel precision."
+                          : "Neural network sedang memisahkan objek latar depan dengan presisi piksel tinggi."}
                       </p>
                     </div>
                   ) : studioResultUrl ? (

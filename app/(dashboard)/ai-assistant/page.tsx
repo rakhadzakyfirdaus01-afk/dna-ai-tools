@@ -2948,8 +2948,8 @@ export default function Page() {
                           </div>
                           <p className="truncate text-xs text-slate-400">
                             {isEnglish
-                              ? "Graphic design, remove bg & product staging"
-                              : "Desain grafis, hapus bg & studio foto"}
+                              ? "Graphic design & remove background"
+                              : "Desain grafis & hapus background"}
                           </p>
                         </div>
                       </button>

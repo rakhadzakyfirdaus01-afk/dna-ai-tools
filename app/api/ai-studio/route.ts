@@ -123,42 +123,28 @@ export async function POST(request: NextRequest) {
                   inlineData: { mimeType, data: base64Image },
                 },
                 {
-                  text: `You are an elite, world-class commercial creative director, visual advertising architect, and prompt master for state-of-the-art FLUX diffusion models.
+                  text: `You are the SUPREME COMMERCIAL ART DIRECTOR & PROMPT ARCHITECT for FLUX diffusion models.
 
-Analyze this uploaded reference photo with deep visual intelligence:
+Analyze this uploaded reference photo:
+- Target Scene / Setting: "${selectedScene}"
+- User Request / Ad Brief: "${customPrompt || "none"}"
 
-1. SUBJECT IDENTIFICATION:
-   - Carefully determine what is in the photo:
-     A) Is it an OUTDOOR/INDOOR DISPLAY MOCKUP (such as a roadside billboard, highway billboard, blank advertising hoarding, wall banner, poster frame, digital screen, or signage)?
-     B) Is it a COMMERCIAL PHYSICAL PRODUCT (such as a bottle, perfume, shoe, sneaker, cosmetics jar, beverage, watch, tech gadget, food item, or packaged good)?
-     C) Is it an architectural or general scene?
+TASK: Produce a concise, hyper-focused English visual prompt (60 to 85 words) for FLUX.
 
-2. INTENT & STAGING TRANSFORMATION:
-   - Target Environment / Preset: "${selectedScene}"
-   - User Custom Brief: "${customPrompt || "none"}"
+CRITICAL ARCHITECTURE RULES (FLUX MANDATE):
+1. IF THE PHOTO CONTAINS A BILLBOARD, HOARDING, SCREEN, OR DISPLAY MOCKUP:
+   - The VERY FIRST WORDS MUST BE: "A commercial mockup photograph of a giant outdoor billboard dominating the center and upper frame, mounted on a tall steel pillar."
+   - The SECOND SENTENCE describes the printed advertisement ON THE BILLBOARD: "The entire rectangular billboard canvas is filled edge-to-edge with an illuminated, ultra-vivid printed graphic advertisement: [describe the user's requested ad, e.g. a luxury sports car with modern advertising typography]."
+   - The THIRD SENTENCE describes the surroundings matching the photo: "The background retains the real city buildings, green trees, and daylight sky from the reference photo."
+   - STRICT NEGATIVE: "The advertised subject exists strictly as a 2D graphic poster printed on the billboard; absolutely no vehicles on the road, no car on the asphalt, no dark unlit screen. Sharp focus on the billboard."
 
-3. STRICT SCENARIO EXECUTION:
-   * IF IT IS A BILLBOARD OR DISPLAY MOCKUP:
-     - DO NOT put a billboard on a tabletop podium, and do not turn it into a building bunker!
-     - PRESERVE the exact perspective, viewing angle, and physical billboard structure (the large rectangular display board, steel pillar/frame, roadside/highway/urban setting) from the reference image.
-     - STAGE THE DISPLAY SURFACE: The billboard's front advertising face MUST BE BRILLIANTLY ILLUMINATED, HIGH-CONTRAST, AND VIBRANT. It must feature an ultra-sharp, vivid, colorful printed commercial poster.
-     - ADVERTISEMENT CONTENT ON THE BOARD:
-       * If user provided a brief ("${customPrompt}"): Feature that exact commercial advertisement boldly on the billboard display face.
-       * If no user brief was provided: Feature an ultra-luxurious, gleaming vibrant candy-apple red electric supercar with glowing crystalline LED headlights and bold crisp modern typography, rendered as an award-winning commercial graphic poster.
-     - CRITICAL COMPOSITION RULE: The advertised vehicle/product exists EXCLUSIVELY as the printed graphic artwork ON THE BILLBOARD DISPLAY FACE! The highway/roadway below must be clean, clear, and empty (DO NOT generate a real car driving on the road).
-     - LIGHTING & CLARITY: The billboard poster surface must be flooded with bright natural daylight sunlight, showing rich saturated colors, high dynamic range (HDR), clean white poster borders, and razor-sharp photographic print clarity.
-     - Surroundings: Realistic modern highway roadway, crisp blue sky with soft white clouds, natural green trees, and distant urban skyline faithfully matching the photo's camera angle.
+2. IF THE PHOTO IS A PHYSICAL PRODUCT (Bottle, jar, sneaker, cosmetic, watch, device):
+   - The VERY FIRST WORDS MUST BE: "Commercial product catalog photography of [exact product from photo: shape, color, label] placed in the center foreground on ${selectedScene}."
+   - Softbox studio lighting, 85mm macro lens, tack-sharp focus on the product, clean background, 8K UHD.
 
-   * IF IT IS A PHYSICAL PRODUCT:
-     - Keep the exact product shape, silhouette, packaging materials, and colors identical.
-     - Place it as the central hero subject in the foreground of the chosen setting ("${selectedScene}").
-     - 85mm macro lens, sharp razor-sharp focus on the hero product, soft diffused softbox studio lighting, clean background, 8K UHD.
-
-4. MANDATORY QUALITY & NEGATIVE CONSTRAINTS:
-   - Positive boosters: "masterpiece, commercial 8K UHD advertising key visual, ultra-sharp focus, photorealistic textures, vibrant saturated colors, bright sunlit poster print, crisp commercial clarity, clean frame".
-   - STRICT NEGATIVES: "no dark billboard screen, no blank billboard face, no murky glass, no gray smudges, no dirty reflections on the poster, no car on the road instead of the poster, no watermark, no text distortion, no blur, no logo artifacts".
-   - Output ONLY a single cohesive, highly descriptive English visual prompt paragraph (120 to 180 words).
-   - No markdown bolding (**), no bullet points, no preamble like "Here is the prompt:".`,
+3. STRICT OUTPUT:
+   - Output ONLY the single cohesive English visual prompt (60 to 85 words).
+   - No markdown bolding (**), no asterisks (*), no quotes ("), no filler words like "Here is the prompt:".`,
                 },
               ],
               config: {
@@ -194,11 +180,11 @@ Analyze this uploaded reference photo with deep visual intelligence:
             ? customPrompt
                 .replace(/tampilkan|pasang|buatkan|iklan|di bilboard ini|di billboard ini/gi, "")
                 .trim()
-            : "sleek radiant red electric hypercar with glowing crystalline LED lights and bold typography";
+            : "a sleek luxury electric sports car with bold advertising typography";
 
-          visualPrompt = `Colossal outdoor highway commercial billboard with an illuminated, ultra-vivid advertising poster showing a ${adTopic || "vibrant luxury electric sports car with bold modern typography"}, rich saturated colors, high contrast daylight sunlight, clean empty highway road, crystal blue sky, realistic steel support pillar, 8K UHD, razor-sharp focus, pristine commercial clarity, clean frame, no dark screen, no blank screen, no watermark`;
+          visualPrompt = `A commercial mockup photograph of a giant outdoor rectangular billboard dominating the center frame, mounted high on a sturdy steel support pillar. The billboard's entire display face is filled with an illuminated, vibrant commercial print advertisement featuring: ${adTopic}. In the background are green roadside trees and city buildings under a bright daylight sky. The advertised subject is strictly a printed graphic poster on the billboard canvas, no real vehicles on the street. 8K UHD commercial photography, razor-sharp focus on the billboard.`;
         } else {
-          visualPrompt = `High-end commercial luxury product photography, hero product centered in an exquisite setting: ${selectedScene}, soft diffused softbox studio lighting, 85mm macro lens, sharp focus on product, clean background, 8K UHD, photorealistic render, clean frame, no watermark`;
+          visualPrompt = `Commercial luxury product catalog photography, hero product centered in the foreground in an exquisite setting: ${selectedScene}, soft diffused softbox studio lighting, 85mm macro lens, sharp focus on product, clean background, 8K UHD, photorealistic render, clean frame, no watermark`;
         }
       }
 

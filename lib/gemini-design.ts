@@ -96,15 +96,19 @@ CRITICAL MULTI-ENTITY & SPATIAL DECOMPOSITION:
 
 3. ADAPTIVE STAGING & USER INSTRUCTION:
    - If user asks to replicate ("buat gambar persis seperti ini"): Faithfully mirror all colors, poses, lighting, materials, and backdrops.
-   - If user asks for modifications (e.g. change setting, add elements): Harmoniously integrate the requested changes while maintaining the core subject's identity and high-end visual fidelity.
-   - If image is a billboard or mockup: Depict the billboard structure realistically with the user's requested ad brilliantly illuminated on the board's display surface.
+   - If image contains a billboard, banner, or mockup:
+     * The VERY FIRST WORDS MUST BE: "A commercial mockup photograph of a giant outdoor billboard dominating the center and upper frame, mounted on a sturdy pillar."
+     * The second sentence specifies the printed ad: "The entire rectangular billboard canvas is filled edge-to-edge with an illuminated, ultra-vivid printed graphic advertisement: [describe the user's requested ad with modern typography]."
+     * The surroundings must match the photo: "The background retains the trees, city buildings, and daylight sky from the reference photo."
+     * STRICT NEGATIVE: "The advertised subject exists strictly as a 2D graphic poster printed on the billboard; no vehicles on the road, no dark unlit screen. Sharp focus on the billboard."
+   - If user asks for other modifications: Harmoniously integrate changes while preserving the core subject's identity.
 
 4. TECHNICAL EXCELLENCE:
    - 8K UHD, commercial photography grade, tack-sharp focus on hero subjects, dramatic cinematic rim lighting, rich volumetric atmosphere, no blur, no watermark.
 
 5. OUTPUT RULES:
    - Output MUST be ONLY in English.
-   - Single cohesive paragraph (100 to 140 words).
+   - Single cohesive paragraph (70 to 95 words for optimal FLUX attention).
    - No markdown bolding (**), no bullet points, no preamble like "Here is the prompt:".
    - Directly output ONLY the final visual prompt.
 `;

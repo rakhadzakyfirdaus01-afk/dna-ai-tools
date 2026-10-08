@@ -119,18 +119,24 @@ Analyze this uploaded reference photo with deep visual intelligence:
 
 3. STRICT SCENARIO EXECUTION:
    * IF IT IS A BILLBOARD OR DISPLAY MOCKUP:
-     - DO NOT put a billboard on a tabletop podium or turn it into a building bunker!
+     - DO NOT put a billboard on a tabletop podium, and do not turn it into a building bunker!
      - PRESERVE the exact perspective, viewing angle, and physical billboard structure (the large rectangular display board, steel pillar/frame, roadside/highway/urban setting) from the reference image.
-     - STAGE THE DISPLAY: Depict this EXACT billboard prominently featuring an awe-inspiring, world-class commercial advertisement visual on the board display. If a user brief is given ("${customPrompt}"), stage that specific advertisement on the billboard. If no user brief is given, stage a breathtaking luxury commercial advertising visual (e.g., sleek futuristic automotive campaign or iconic high-tech key art) with razor-sharp photorealistic detail, vibrant colors, and authentic outdoor sunlight illumination matching the scene.
-     - Surroundings: Realistic modern roadway, crisp blue sky, natural trees, and city backdrop faithfully aligned with the photo's camera angle and composition.
+     - STAGE THE DISPLAY SURFACE: The billboard's front advertising face MUST BE BRILLIANTLY ILLUMINATED, HIGH-CONTRAST, AND VIBRANT. It must feature an ultra-sharp, vivid, colorful printed commercial poster.
+     - ADVERTISEMENT CONTENT ON THE BOARD:
+       * If user provided a brief ("${customPrompt}"): Feature that exact commercial advertisement boldly on the billboard display face.
+       * If no user brief was provided: Feature an ultra-luxurious, gleaming vibrant candy-apple red electric supercar with glowing crystalline LED headlights and bold crisp modern typography, rendered as an award-winning commercial graphic poster.
+     - CRITICAL COMPOSITION RULE: The advertised vehicle/product exists EXCLUSIVELY as the printed graphic artwork ON THE BILLBOARD DISPLAY FACE! The highway/roadway below must be clean, clear, and empty (DO NOT generate a real car driving on the road).
+     - LIGHTING & CLARITY: The billboard poster surface must be flooded with bright natural daylight sunlight, showing rich saturated colors, high dynamic range (HDR), clean white poster borders, and razor-sharp photographic print clarity.
+     - Surroundings: Realistic modern highway roadway, crisp blue sky with soft white clouds, natural green trees, and distant urban skyline faithfully matching the photo's camera angle.
 
    * IF IT IS A PHYSICAL PRODUCT:
      - Keep the exact product shape, silhouette, packaging materials, and colors identical.
      - Place it as the central hero subject in the foreground of the chosen setting ("${selectedScene}").
      - 85mm macro lens, sharp razor-sharp focus on the hero product, soft diffused softbox studio lighting, clean background, 8K UHD.
 
-4. MANDATORY QUALITY CONTROLS:
-   - Emphasize: "masterpiece, commercial 8K UHD advertising key visual, ultra-sharp focus, photorealistic textures, pristine lighting, clean frame, no watermark, no text distortion, no blur, no logo artifacts".
+4. MANDATORY QUALITY & NEGATIVE CONSTRAINTS:
+   - Positive boosters: "masterpiece, commercial 8K UHD advertising key visual, ultra-sharp focus, photorealistic textures, vibrant saturated colors, bright sunlit poster print, crisp commercial clarity, clean frame".
+   - STRICT NEGATIVES: "no dark billboard screen, no blank billboard face, no murky glass, no gray smudges, no dirty reflections on the poster, no car on the road instead of the poster, no watermark, no text distortion, no blur, no logo artifacts".
    - Output ONLY a single cohesive, highly descriptive English visual prompt paragraph (120 to 180 words).
    - No markdown bolding (**), no bullet points, no preamble like "Here is the prompt:".`,
           },

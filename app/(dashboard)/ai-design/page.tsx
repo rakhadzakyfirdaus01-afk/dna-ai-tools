@@ -820,7 +820,8 @@ function AIDesignContent() {
             throw new Error(ui.missingUrl);
           }
 
-          setImageUrl(statusData.imageUrl);
+          const cleanUrl = await removeWatermarkFromImageUrl(statusData.imageUrl);
+          setImageUrl(cleanUrl);
           setImageRendering(true);
           setStatus(ui.rendering);
 
@@ -883,6 +884,50 @@ function AIDesignContent() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Remove watermark by cleanly cropping off the bottom 26px logo bar
+  async function removeWatermarkFromImageUrl(url: string): Promise<string> {
+    if (!url || !url.startsWith("http")) return url;
+
+    return new Promise((resolve) => {
+      try {
+        const img = new window.Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          try {
+            const w = img.naturalWidth || img.width;
+            const h = img.naturalHeight || img.height;
+            const cropH = Math.max(h - 26, 100);
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = cropH;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              resolve(url);
+              return;
+            }
+            ctx.drawImage(img, 0, 0, w, cropH, 0, 0, w, cropH);
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  resolve(URL.createObjectURL(blob));
+                } else {
+                  resolve(url);
+                }
+              },
+              "image/png"
+            );
+          } catch {
+            resolve(url);
+          }
+        };
+        img.onerror = () => resolve(url);
+        img.src = url;
+      } catch {
+        resolve(url);
+      }
+    });
   }
 
   function handleStudioFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -1211,7 +1256,11 @@ function AIDesignContent() {
         throw new Error(data?.error || text || (isEnglish ? "Failed to process photo." : "Gagal memproses gambar."));
       }
 
-      setStudioResultUrl(data.resultUrl);
+      setStudioProgress(
+        isEnglish ? "Finishing watermark-free visual..." : "Menyempurnakan visual bebas watermark..."
+      );
+      const cleanUrl = await removeWatermarkFromImageUrl(data.resultUrl);
+      setStudioResultUrl(cleanUrl);
 
       if (typeof document !== "undefined" && document.hidden) {
         sendBackgroundNotification({

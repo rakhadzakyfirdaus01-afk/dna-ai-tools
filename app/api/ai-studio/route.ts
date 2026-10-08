@@ -4,6 +4,8 @@ import { GoogleGenAI } from "@google/genai";
 import { authOptions } from "@/auth";
 import prisma from "@/lib/prisma";
 
+import { translateIndonesianBriefToEnglish } from "@/lib/gemini-design";
+
 if (process.env.NODE_ENV !== "production") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
@@ -124,17 +126,18 @@ export async function POST(request: NextRequest) {
                 },
                 {
                   text: `You are the SUPREME COMMERCIAL ART DIRECTOR & PROMPT ARCHITECT for FLUX diffusion models.
+You natively understand ALL global languages, especially Bahasa Indonesia (including modern slang, colloquial phrases like 'tampilkan iklan mobil di bilboard ini', 'kasih efek seger', 'bikinin', 'jreng', 'mewah', culinary terms, and local idioms).
 
 Analyze this uploaded reference photo:
 - Target Scene / Setting: "${selectedScene}"
 - User Request / Ad Brief: "${customPrompt || "none"}"
 
-TASK: Produce a concise, hyper-focused English visual prompt (60 to 85 words) for FLUX.
+TASK: Produce a concise, hyper-focused English visual prompt (60 to 85 words) for FLUX. Translate all Indonesian/foreign concepts into vivid, high-end commercial English.
 
 CRITICAL ARCHITECTURE RULES (FLUX MANDATE):
 1. IF THE PHOTO CONTAINS A BILLBOARD, HOARDING, SCREEN, OR DISPLAY MOCKUP:
    - The VERY FIRST WORDS MUST BE: "A commercial mockup photograph of a giant outdoor billboard dominating the center and upper frame, mounted on a tall steel pillar."
-   - The SECOND SENTENCE describes the printed advertisement ON THE BILLBOARD: "The entire rectangular billboard canvas is filled edge-to-edge with an illuminated, ultra-vivid printed graphic advertisement: [describe the user's requested ad, e.g. a luxury sports car with modern advertising typography]."
+   - The SECOND SENTENCE describes the printed advertisement ON THE BILLBOARD: "The entire rectangular billboard canvas is filled edge-to-edge with an illuminated, ultra-vivid printed graphic advertisement: [describe the user's requested ad in English, e.g. a luxury sports car with modern advertising typography]."
    - The THIRD SENTENCE describes the surroundings matching the photo: "The background retains the real city buildings, green trees, and daylight sky from the reference photo."
    - STRICT NEGATIVE: "The advertised subject exists strictly as a 2D graphic poster printed on the billboard; absolutely no vehicles on the road, no car on the asphalt, no dark unlit screen. Sharp focus on the billboard."
 
@@ -175,14 +178,12 @@ CRITICAL ARCHITECTURE RULES (FLUX MANDATE):
           preset.startsWith("billboard") ||
           /billboard|reklame|papan|baliho|banner/i.test(customPrompt);
 
-        if (isBillboard) {
-          const adTopic = customPrompt
-            ? customPrompt
-                .replace(/tampilkan|pasang|buatkan|iklan|di bilboard ini|di billboard ini/gi, "")
-                .trim()
-            : "a sleek luxury electric sports car with bold advertising typography";
+        const translatedTopic = customPrompt
+          ? translateIndonesianBriefToEnglish(customPrompt)
+          : "a sleek luxury electric sports car with bold advertising typography";
 
-          visualPrompt = `A commercial mockup photograph of a giant outdoor rectangular billboard dominating the center frame, mounted high on a sturdy steel support pillar. The billboard's entire display face is filled with an illuminated, vibrant commercial print advertisement featuring: ${adTopic}. In the background are green roadside trees and city buildings under a bright daylight sky. The advertised subject is strictly a printed graphic poster on the billboard canvas, no real vehicles on the street. 8K UHD commercial photography, razor-sharp focus on the billboard.`;
+        if (isBillboard) {
+          visualPrompt = `A commercial mockup photograph of a giant outdoor rectangular billboard dominating the center frame, mounted high on a sturdy steel support pillar. The billboard's entire display face is filled with an illuminated, vibrant commercial print advertisement featuring: ${translatedTopic}. In the background are green roadside trees and city buildings under a bright daylight sky. The advertised subject is strictly a printed graphic poster on the billboard canvas, no real vehicles on the street. 8K UHD commercial photography, razor-sharp focus on the billboard.`;
         } else {
           visualPrompt = `Commercial luxury product catalog photography, hero product centered in the foreground in an exquisite setting: ${selectedScene}, soft diffused softbox studio lighting, 85mm macro lens, sharp focus on product, clean background, 8K UHD, photorealistic render, clean frame, no watermark`;
         }

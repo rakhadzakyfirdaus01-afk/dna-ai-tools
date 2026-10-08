@@ -30,6 +30,14 @@ Your cognitive visual reasoning, advertising design mastery, composition archite
 Your mission is to transform any user design brief (in Indonesian or English) into an extraordinary, ultra-detailed English visual prompt (100 to 140 words, ~650 to 800 characters) that guides FLUX to generate award-winning visual masterpieces.
 
 ==================================================
+UNIVERSAL MULTILINGUAL & INDONESIAN MASTERY:
+==================================================
+You possess native, fluent comprehension of ALL global languages, with SUPREME EXPERTISE in Bahasa Indonesia, including:
+- Indonesian slang, colloquial idioms, regional dialects (Jawa, Sunda, Jakarta Gaul), culinary terms, and abbreviations (e.g. 'bikinin poster', 'jreng', 'mantap jiwa', 'seger banget', 'gokil', 'ayam krispi', 'ayam geprek', 'pecel lele', 'kopi susu gula aren', 'spanduk pecel', 'reklame baliho', 'kaos distro', 'baju lebaran gamis', 'diskon gede-gedean').
+- You must instantly deconstruct the cultural, commercial, and aesthetic intent, translating it seamlessly into world-class English visual prompt terminology that diffusion models (FLUX) interpret with 100% precision.
+- English, Japanese, Chinese, Arabic, French, German, Spanish, and all other languages are equally understood at a native bilingual maestro level.
+
+==================================================
 7 MASTER PILARS OF 100X COMMERCIAL DESIGN MASTERY:
 ==================================================
 
@@ -159,47 +167,140 @@ export type DesignPromptOptions = {
 };
 
 /**
+ * Penterjemah Semantik Cerdas Bahasa Indonesia & Bahasa Daerah ke Bahasa Visual Komersial Inggris
+ * Mengubah slang, dialek, dan istilah kuliner / produk lokal menjadi deskripsi visual akurat untuk FLUX.
+ */
+export function translateIndonesianBriefToEnglish(rawBrief: string): string {
+  let text = rawBrief.trim();
+  if (!text) return "commercial advertising visual";
+
+  // Kamus normalisasi dialek, kuliner, dan slang Indonesia
+  const dict: [RegExp, string][] = [
+    // billboard / reklame
+    [/tampilkan\s+iklan\s+mobil\s+di\s+bil+board\s+ini/gi, "a sleek luxury electric sports car advertisement printed on this billboard"],
+    [/pasang\s+iklan\s+mobil\s+di\s+bil+board/gi, "a luxury sports car advertisement displayed on the billboard"],
+    [/di\s+bil+board\s+ini/gi, "on the billboard"],
+    [/bil+board/gi, "billboard"],
+    [/reklame/gi, "advertising billboard"],
+    [/baliho/gi, "outdoor advertising hoarding"],
+    [/papan\s+iklan/gi, "commercial billboard"],
+    [/spanduk/gi, "promotional banner"],
+
+    // mobil & otomotif
+    [/mobil\s+sport\s+listrik/gi, "sleek electric sports car"],
+    [/mobil\s+sport/gi, "luxury sports car"],
+    [/mobil\s+balap/gi, "aerodynamic race car"],
+    [/mobil\s+mewah/gi, "ultra-luxurious executive sedan"],
+    [/mobil/gi, "modern luxury car"],
+    [/motor\s+gede|moge/gi, "high-performance heavy motorcycle"],
+    [/motor\s+listrik/gi, "futuristic electric scooter motorcycle"],
+    [/motor/gi, "modern motorbike"],
+
+    // makanan & kuliner
+    [/ayam\s+crispy|ayam\s+krispi|ayam\s+goreng\s+krispi/gi, "golden-brown crispy crunchy fried chicken"],
+    [/ayam\s+goreng/gi, "succulent fried chicken"],
+    [/ayam\s+bakar/gi, "glistening charred grilled chicken with sweet glaze"],
+    [/ayam\s+geprek/gi, "crushed crispy chicken with spicy red chili sambal"],
+    [/pecel\s+lele/gi, "crispy fried catfish with red chili sambal and fresh basil"],
+    [/nasi\s+goreng/gi, "aromatic wok-tossed Indonesian fried rice with sunny side egg"],
+    [/mie\s+ayam/gi, "savory chicken noodles with scallions and crispy wonton"],
+    [/bakso/gi, "piping hot beef meatball soup with glass noodles and broth"],
+    [/sate\s+ayam/gi, "grilled chicken skewers with glistening peanut sauce"],
+    [/kopi\s+susu\s+gula\s+aren/gi, "artisanal iced coffee with fresh milk and palm sugar"],
+    [/kopi\s+susu/gi, "iced coffee latte with creamy milk foam"],
+    [/es\s+kopi/gi, "iced cold brew coffee with frosty condensation"],
+    [/kopi/gi, "aromatic premium roasted coffee"],
+    [/burger/gi, "gourmet double patty cheeseburger with melted cheddar and fresh lettuce"],
+    [/minuman\s+boba/gi, "creamy brown sugar bubble milk tea with tapioca pearls"],
+    [/jus\s+buah/gi, "vibrant fresh cold-pressed fruit juice with ice cubes"],
+
+    // pakaian & fashion
+    [/baju\s+batik\s+modern|batik\s+modern/gi, "contemporary Indonesian batik fashion with intricate golden patterns"],
+    [/baju\s+batik|batik/gi, "traditional Indonesian batik attire"],
+    [/baju\s+lebaran|gamis/gi, "elegant modern Islamic festive apparel with delicate embroidery"],
+    [/kaos\s+distro|kaos\s+streetwear/gi, "urban streetwear graphic t-shirt mockup"],
+    [/sepatu\s+sneaker|sneaker/gi, "modern designer urban sneakers"],
+    [/sepatu/gi, "stylish footwear shoes"],
+
+    // kosmetik & kecantikan
+    [/parfum\s+mewah|parfum/gi, "luxury fragrance perfume bottle with glistening liquid"],
+    [/skincare\s+serum|serum\s+wajah|serum/gi, "radiant beauty skincare serum bottle with dropper"],
+    [/lipstik/gi, "luxury satin matte lipstick with rich pigment"],
+    [/sabun\s+cuci\s+muka|facial\s+wash/gi, "cleansing facial foam tube with splash of water"],
+
+    // kata sifat & slang
+    [/renyah|garing/gi, "crunchy golden crispy texture"],
+    [/menggugah\s+selera/gi, "mouthwatering appetizing"],
+    [/jreng|menyala/gi, "vibrant saturated high-contrast"],
+    [/seger|segar/gi, "fresh crisp with chilled condensation droplets"],
+    [/adem/gi, "calm serene ambient"],
+    [/mewah/gi, "luxurious opulent"],
+    [/keren/gi, "sleek impressive modern"],
+    [/elegan/gi, "elegant sophisticated"],
+    [/pedas/gi, "fiery spicy"],
+    [/diskon\s+gede|diskon\s+besar/gi, "massive mega discount sale"],
+    [/promo\s+murah/gi, "special promotional offer"],
+    [/murah\s+meriah/gi, "affordable best value deal"],
+    [/buatkan|bikin|bikinin|tolong\s+buat/gi, "create"],
+    [/dengan\s+judul|berjudul/gi, "with prominent headline typography reading"],
+    [/warna/gi, "color scheme"],
+    [/merah\s+dan\s+kuning/gi, "crimson red and golden amber yellow"],
+    [/merah/gi, "crimson red"],
+    [/kuning/gi, "golden yellow"],
+    [/biru\s+gelap/gi, "deep navy blue"],
+    [/emas/gi, "metallic gold"],
+    [/hitam/gi, "matte obsidian black"],
+    [/putih/gi, "pure minimalist white"],
+  ];
+
+  for (const [pattern, replacement] of dict) {
+    text = text.replace(pattern, replacement);
+  }
+
+  return text;
+}
+
+/**
  * 100X Heuristic emergency visual prompt generator if all Gemini API quotas are exhausted (429)
  */
 function generateHeuristicPrompt(brief: string, options?: DesignPromptOptions): string {
+  const normalizedBrief = translateIndonesianBriefToEnglish(brief);
   const lower = brief.toLowerCase();
   const styleHint = options?.style && options.style !== "Auto" ? options.style : "award-winning commercial advertising";
   const typeHint = options?.designType && options.designType !== "Auto" ? options.designType : "";
 
   // 1. Food & Culinary (Ayam, Kopi, Burger, Pizza, Makanan, Minuman)
   if (lower.includes("ayam") || lower.includes("chicken") || lower.includes("makanan") || lower.includes("kuliner") || lower.includes("kopi") || lower.includes("burger") || lower.includes("resto") || lower.includes("food")) {
-    const dish = brief.replace(/buat|poster|iklan|gambar|desain|dengan|judul/gi, "").trim() || "appetizing crispy fried chicken";
-    return `An award-winning commercial food advertising poster showcasing ${dish}. Glistening golden-brown crispy textures, mouthwatering crunchy coating, delicate aromatic steam, fresh red chili and herb garnish, bold modern typography and promotional pricing badge, dynamic warm crimson red and golden amber lighting, 85mm macro lens, tack-sharp focus, delicious culinary photography, 8K UHD, no blur, no watermark.`;
+    return `An award-winning commercial food advertising poster showcasing ${normalizedBrief}. Glistening golden-brown crispy textures, mouthwatering crunchy coating, delicate aromatic steam, fresh red chili and herb garnish, bold modern typography and promotional pricing badge, dynamic warm crimson red and golden amber lighting, 85mm macro lens, tack-sharp focus, delicious culinary photography, 8K UHD, no blur, no watermark.`;
   }
 
   // 2. Billboard & Outdoor Advertising
   if (lower.includes("billboard") || lower.includes("reklame") || lower.includes("baliho") || lower.includes("papan iklan") || lower.includes("hoarding")) {
-    const topic = brief.replace(/buat|tampilkan|di billboard ini|di bilboard ini|reklame|baliho|iklan|poster/gi, "").trim() || "vibrant luxury commercial campaign";
-    return `A magnificent colossal outdoor highway advertising billboard structure standing beside a scenic modern metropolitan avenue under clear daylight skies. The billboard face is brilliantly illuminated, featuring an ultra-sharp, high-contrast commercial advertising print of ${topic}. Architectural steel frame, realistic spotlights, crystal clear reflections, clean empty highway below, 8K UHD commercial photography, razor-sharp focus, masterpiece, no watermark.`;
+    return `A commercial mockup photograph of a giant outdoor rectangular billboard dominating the center frame, mounted high on a sturdy steel support pillar. The billboard face is brilliantly illuminated, featuring an ultra-sharp, high-contrast commercial advertising print of ${normalizedBrief}. Architectural steel frame, realistic spotlights, crystal clear reflections, clean empty highway below, 8K UHD commercial photography, razor-sharp focus, masterpiece, no vehicles on the road, no watermark.`;
   }
 
   // 3. Automotive / Vehicles
   if (lower.includes("mobil") || lower.includes("car") || lower.includes("motor") || lower.includes("supercar") || lower.includes("otomotif")) {
-    return `An ultra-photorealistic commercial showcase of a sleek modern luxury vehicle, ${brief}, positioned in a minimalist architectural showroom pavilion with gleaming mirror reflections, dramatic volumetric rim lighting, glowing LED headlights, pristine metallic paint finish, 85mm automotive photography, 8K UHD, razor-sharp focus, masterpiece, no watermark.`;
+    return `An ultra-photorealistic commercial showcase of a sleek modern luxury vehicle, ${normalizedBrief}, positioned in a minimalist architectural showroom pavilion with gleaming mirror reflections, dramatic volumetric rim lighting, glowing LED headlights, pristine metallic paint finish, 85mm automotive photography, 8K UHD, razor-sharp focus, masterpiece, no watermark.`;
   }
 
   // 4. Cosmetics, Skincare & Luxury Goods
   if (lower.includes("kosmetik") || lower.includes("skincare") || lower.includes("parfum") || lower.includes("botol") || lower.includes("serum") || lower.includes("lipstik")) {
-    return `A high-end luxury commercial beauty advertisement for ${brief}, elegantly positioned on a polished white Carrara marble pedestal with delicate botanical monstera shadows, soft diffused studio softbox lighting, crystalline glass reflections, 8K UHD editorial beauty magazine quality, tack-sharp focus, pristine commercial clarity, masterpiece, no watermark.`;
+    return `A high-end luxury commercial beauty advertisement for ${normalizedBrief}, elegantly positioned on a polished white Carrara marble pedestal with delicate botanical monstera shadows, soft diffused studio softbox lighting, crystalline glass reflections, 8K UHD editorial beauty magazine quality, tack-sharp focus, pristine commercial clarity, masterpiece, no watermark.`;
   }
 
   // 5. Logo, Mascot & Branding
   if (lower.includes("logo") || lower.includes("maskot") || lower.includes("esport") || lower.includes("emblem") || lower.includes("lambang")) {
-    return `A bold, iconic modern logo and brand identity design featuring ${brief}. Clean graphic silhouette, dynamic geometric vector aesthetics with subtle 3D metallic edge accents, vibrant harmonious color palette, perfectly centered on a minimalist dark slate studio background, award-winning branding design, sharp focus, 8K UHD, no watermark.`;
+    return `A bold, iconic modern logo and brand identity design featuring ${normalizedBrief}. Clean graphic silhouette, dynamic geometric vector aesthetics with subtle 3D metallic edge accents, vibrant harmonious color palette, perfectly centered on a minimalist dark slate studio background, award-winning branding design, sharp focus, 8K UHD, no watermark.`;
   }
 
   // 6. Corporate, Job Vacancy, Events
   if (lower.includes("lowongan") || lower.includes("recruitment") || lower.includes("loker") || lower.includes("seminar") || lower.includes("konser") || lower.includes("event") || lower.includes("diskon") || lower.includes("promo")) {
-    return `A prestigious modern commercial promotional poster design for ${brief}. Sophisticated layout with balanced graphic composition, elegant typography framing, deep rich background with subtle ambient illumination, designated clean negative space, 8K resolution, award-winning graphic design, sharp clarity, no watermark.`;
+    return `A prestigious modern commercial promotional poster design for ${normalizedBrief}. Sophisticated layout with balanced graphic composition, elegant typography framing, deep rich background with subtle ambient illumination, designated clean negative space, 8K resolution, award-winning graphic design, sharp clarity, no watermark.`;
   }
 
   // General Masterpiece
-  return `An extraordinary, award-winning commercial visual masterpiece representing: ${brief}. ${typeHint ? `Format: ${typeHint}. ` : ""}${styleHint} aesthetic with harmonious balanced composition, dramatic three-point cinematic lighting, ultra-detailed textures, 8K UHD, commercial advertising clarity, tack-sharp focus, vibrant colors, no watermark, no blur.`;
+  return `An extraordinary, award-winning commercial visual masterpiece representing: ${normalizedBrief}. ${typeHint ? `Format: ${typeHint}. ` : ""}${styleHint} aesthetic with harmonious balanced composition, dramatic three-point cinematic lighting, ultra-detailed textures, 8K UHD, commercial advertising clarity, tack-sharp focus, vibrant colors, no watermark, no blur.`;
 }
 
 /**

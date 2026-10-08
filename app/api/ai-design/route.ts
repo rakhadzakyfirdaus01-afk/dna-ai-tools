@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   optimizeDesignVisualPrompt,
   analyzeAndReplicateImageDesign,
+  translateIndonesianBriefToEnglish,
 } from "@/lib/gemini-design";
 
 if (process.env.NODE_ENV !== "production") {
@@ -268,19 +269,10 @@ export async function POST(request: NextRequest) {
         geminiError
       );
 
-      // Smart translation fallback for common Indonesian design keywords
-      const fallbackText = (prompt || "high quality commercial design")
-        .replace(/buat poster lowongan kerja/gi, "modern corporate job vacancy recruitment poster design")
-        .replace(/lowongan kerja/gi, "corporate job recruitment")
-        .replace(/latar belakang biru gelap/gi, "deep navy blue background")
-        .replace(/aksen emas/gi, "elegant metallic gold accents")
-        .replace(/suasana korporat elegan/gi, "elegant corporate atmosphere")
-        .replace(/ada area kosong besar di tengah untuk teks/gi, "large clean empty negative space in the center framed for text")
-        .replace(/pencahayaan studio/gi, "soft studio lighting, no people")
-        .replace(/toko game/gi, "gaming store")
-        .replace(/iklan/gi, "commercial advertisement")
-        .replace(/poster/gi, "graphic design poster")
-        .replace(/bilboard|billboard/gi, "giant 3D high-resolution commercial outdoor advertising billboard mockup in modern city");
+      // Smart translation fallback for common Indonesian & multilingual design keywords
+      const fallbackText = translateIndonesianBriefToEnglish(
+        prompt || "high quality commercial design"
+      );
 
       visualPrompt = buildFullVisualPrompt(
         fallbackText,

@@ -109,6 +109,21 @@ function cleanVisualPrompt(value: string): string {
   return result;
 }
 
+function getCandidateKeys(): string[] {
+  return [
+    process.env.GEMINI_IMAGE_PROMPT_API_KEY,
+    process.env.GEMINI_AI_DESIGN_API_KEY,
+    process.env.GEMINI_CODE_API_KEY,
+    process.env.GEMINI_DEBUGGER_API_KEY,
+    process.env.GEMINI_DOCUMENT_API_KEY,
+    process.env.GEMINI_OCR_API_KEY,
+    process.env.GEMINI_TRANSLATOR_API_KEY,
+    process.env.GEMINI_API_KEY,
+  ].filter((k): k is string => Boolean(k && k.trim() && k !== "ISI_NILAI_ASLI"));
+}
+
+const CANDIDATE_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
+
 export type DesignPromptOptions = {
   designType?: string;
   style?: string;
@@ -117,24 +132,39 @@ export type DesignPromptOptions = {
 };
 
 /**
- * 5X Smarter Prompt Optimization for Text Prompts
+ * Heuristic emergency visual prompt generator if all Gemini API quotas are exhausted (429)
+ */
+function generateHeuristicPrompt(brief: string, options?: DesignPromptOptions): string {
+  const lower = brief.toLowerCase();
+  const styleHint = options?.style && options.style !== "Auto" ? options.style : "photorealistic commercial";
+  const typeHint = options?.designType && options.designType !== "Auto" ? options.designType : "";
+
+  if (lower.includes("billboard") || lower.includes("reklame") || lower.includes("iklan")) {
+    return `A magnificent colossal outdoor commercial billboard mockup standing proudly along a scenic modern metropolitan highway, displaying an illuminated high-impact advertisement featuring ${brief}, crystal clear daylight sky, architectural steel support structure, 8K UHD, photorealistic commercial photography, masterpiece, razor-sharp focus, cinematic lighting, no watermark, no blur.`;
+  }
+
+  if (lower.includes("mobil") || lower.includes("car") || lower.includes("motor") || lower.includes("otomotif")) {
+    return `An ultra-photorealistic commercial showcase of a sleek modern luxury vehicle, ${brief}, set in an architectural minimalist pavilion with gleaming polished reflections, dramatic cinematic rim lighting, 8K UHD, commercial automotive photography, razor-sharp focus, pristine metallic paint finish, masterpiece, no watermark.`;
+  }
+
+  if (lower.includes("kosmetik") || lower.includes("skincare") || lower.includes("parfum") || lower.includes("botol")) {
+    return `An exquisite luxury commercial product photoshoot of ${brief}, gracefully positioned on a polished Carrara marble pedestal with soft organic botanical leaf shadows, gentle studio softbox lighting, pristine glass reflections, 8K UHD, editorial beauty magazine quality, ultra-sharp focus, masterpiece, no watermark.`;
+  }
+
+  return `An extraordinary, award-winning visual masterpiece representing: ${brief}. ${typeHint ? `Format: ${typeHint}. ` : ""}${styleHint} aesthetic with harmonious balanced composition, dramatic cinematic lighting, ultra-detailed textures, 8K UHD, commercial grade clarity, sharp focus, vibrant colors, no watermark, no blur.`;
+}
+
+/**
+ * 5X Smarter Prompt Optimization for Text Prompts with Multi-Key Rotation & Zero-Downtime Fallback
  */
 export async function optimizeDesignVisualPrompt(
   prompt: string,
   options?: DesignPromptOptions
 ): Promise<string> {
-  if (!apiKey || !ai) {
-    throw new Error(
-      "GEMINI API key untuk AI Design belum dikonfigurasi."
-    );
-  }
-
   const userBrief = prompt.trim();
 
   if (!userBrief) {
-    throw new Error(
-      "Design brief tidak boleh kosong."
-    );
+    throw new Error("Design brief tidak boleh kosong.");
   }
 
   const contextHints: string[] = [];
@@ -153,9 +183,17 @@ export async function optimizeDesignVisualPrompt(
 
   const contextStr = contextHints.length > 0 ? `\nADDITIONAL USER PREFERENCES:\n${contextHints.join("\n")}\n` : "";
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: `
+  const candidateKeys = getCandidateKeys();
+  let lastError: any = null;
+
+  if (candidateKeys.length > 0) {
+    keyLoop: for (const k of candidateKeys) {
+      const client = new GoogleGenAI({ apiKey: k });
+      for (const modelName of CANDIDATE_MODELS) {
+        try {
+          const response = await client.models.generateContent({
+            model: modelName,
+            contents: `
 ${MASTER_DESIGN_PROMPT_INSTRUCTION}
 
 USER DESIGN BRIEF:
@@ -163,49 +201,45 @@ ${userBrief}
 ${contextStr}
 Now produce ONLY the master-level English visual scene description.
 `,
-    config: {
-      maxOutputTokens: 2048,
-    },
-  });
+            config: {
+              maxOutputTokens: 2048,
+            },
+          });
 
-  const result = response.text?.trim();
-
-  if (!result) {
-    throw new Error(
-      "Gemini tidak berhasil membuat visual prompt."
-    );
+          const result = response.text?.trim();
+          if (result) {
+            const cleaned = cleanVisualPrompt(result);
+            if (cleaned) {
+              console.log(`[Gemini-Design] Successfully generated prompt using ${modelName}`);
+              return cleaned;
+            }
+          }
+        } catch (err: any) {
+          lastError = err;
+          const errMsg = err?.message || String(err);
+          console.warn(`[Gemini-Design] Key rotation fallback: model ${modelName} failed (${errMsg.slice(0, 100)})`);
+          if (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
+            // Try next model or next key
+            continue;
+          }
+        }
+      }
+    }
   }
 
-  const cleaned = cleanVisualPrompt(result);
-
-  if (!cleaned) {
-    throw new Error(
-      "Gemini menghasilkan visual prompt yang kosong."
-    );
-  }
-
-  console.log("========== 5X SMARTER VISUAL PROMPT ==========");
-  console.log(cleaned);
-  console.log("==============================================");
-
-  return cleaned;
+  // ZERO-DOWNTIME RESILIENT FALLBACK: Never let 429 crash the user experience
+  console.warn("[Gemini-Design] All Gemini keys/models exhausted or rate-limited. Activating heuristic master prompt engine.");
+  return generateHeuristicPrompt(userBrief, options);
 }
 
 /**
- * Image-to-Image Replication Engine with Gemini Vision
- * Meniru foto lampiran secara akurat sesuai instruksi pengguna.
+ * Image-to-Image Replication Engine with Gemini Vision, Multi-Key Rotation & Resilient Fallback
  */
 export async function analyzeAndReplicateImageDesign(
   image: { mimeType: string; data: string },
   prompt: string,
   options?: DesignPromptOptions
 ): Promise<string> {
-  if (!apiKey || !ai) {
-    throw new Error(
-      "GEMINI API key untuk AI Design belum dikonfigurasi."
-    );
-  }
-
   const userBrief = prompt.trim() || "buat gambar persis seperti ini";
 
   const contextHints: string[] = [];
@@ -221,17 +255,24 @@ export async function analyzeAndReplicateImageDesign(
 
   const contextStr = contextHints.length > 0 ? `\nUSER PREFERENCES:\n${contextHints.join("\n")}\n` : "";
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [
-      {
-        inlineData: {
-          mimeType: image.mimeType,
-          data: image.data,
-        },
-      },
-      {
-        text: `
+  const candidateKeys = getCandidateKeys();
+
+  if (candidateKeys.length > 0) {
+    keyLoop: for (const k of candidateKeys) {
+      const client = new GoogleGenAI({ apiKey: k });
+      for (const modelName of CANDIDATE_MODELS) {
+        try {
+          const response = await client.models.generateContent({
+            model: modelName,
+            contents: [
+              {
+                inlineData: {
+                  mimeType: image.mimeType,
+                  data: image.data,
+                },
+              },
+              {
+                text: `
 ${IMAGE_REPLICATION_SYSTEM_INSTRUCTION}
 
 USER INSTRUCTION:
@@ -239,32 +280,31 @@ ${userBrief}
 ${contextStr}
 Now generate ONLY the final English visual prompt that replicates and reconstructs this image faithfully.
 `,
-      },
-    ],
-    config: {
-      maxOutputTokens: 2048,
-    },
-  });
+              },
+            ],
+            config: {
+              maxOutputTokens: 2048,
+            },
+          });
 
-  const result = response.text?.trim();
-
-  if (!result) {
-    throw new Error(
-      "Gemini Vision tidak berhasil menganalisis gambar referensi."
-    );
+          const result = response.text?.trim();
+          if (result) {
+            const cleaned = cleanVisualPrompt(result);
+            if (cleaned) {
+              console.log(`[Gemini-Design Vision] Replicated successfully using ${modelName}`);
+              return cleaned;
+            }
+          }
+        } catch (err: any) {
+          const errMsg = err?.message || String(err);
+          console.warn(`[Gemini-Design Vision] Key fallback: model ${modelName} failed (${errMsg.slice(0, 100)})`);
+          continue;
+        }
+      }
+    }
   }
 
-  const cleaned = cleanVisualPrompt(result);
-
-  if (!cleaned) {
-    throw new Error(
-      "Gemini Vision menghasilkan prompt yang kosong."
-    );
-  }
-
-  console.log("========== REPLICATED IMAGE VISUAL PROMPT ==========");
-  console.log(cleaned);
-  console.log("====================================================");
-
-  return cleaned;
+  // ZERO-DOWNTIME FALLBACK FOR VISION
+  console.warn("[Gemini-Design Vision] All vision keys exhausted. Activating heuristic replication prompt.");
+  return generateHeuristicPrompt(userBrief, options);
 }

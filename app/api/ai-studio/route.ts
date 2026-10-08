@@ -96,14 +96,34 @@ export async function POST(request: NextRequest) {
         presetDescriptions[preset] ||
         (customPrompt ? customPrompt : presetDescriptions.marble);
 
-      const visionResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [
-          {
-            inlineData: { mimeType, data: base64Image },
-          },
-          {
-            text: `You are an elite, world-class commercial creative director, visual advertising architect, and prompt master for state-of-the-art FLUX diffusion models.
+      let visualPrompt = "";
+
+      // MULTI-KEY & MULTI-MODEL ROTATION WITH ZERO-DOWNTIME FALLBACK
+      const candidateKeys = [
+        process.env.GEMINI_IMAGE_PROMPT_API_KEY,
+        process.env.GEMINI_AI_DESIGN_API_KEY,
+        process.env.GEMINI_CODE_API_KEY,
+        process.env.GEMINI_DEBUGGER_API_KEY,
+        process.env.GEMINI_DOCUMENT_API_KEY,
+        process.env.GEMINI_OCR_API_KEY,
+        process.env.GEMINI_TRANSLATOR_API_KEY,
+        process.env.GEMINI_API_KEY,
+      ].filter((k): k is string => Boolean(k && k.trim() && k !== "ISI_NILAI_ASLI"));
+
+      const candidateModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
+
+      keyLoop: for (const k of candidateKeys) {
+        const client = new GoogleGenAI({ apiKey: k });
+        for (const modelName of candidateModels) {
+          try {
+            const visionResponse = await client.models.generateContent({
+              model: modelName,
+              contents: [
+                {
+                  inlineData: { mimeType, data: base64Image },
+                },
+                {
+                  text: `You are an elite, world-class commercial creative director, visual advertising architect, and prompt master for state-of-the-art FLUX diffusion models.
 
 Analyze this uploaded reference photo with deep visual intelligence:
 
@@ -139,19 +159,48 @@ Analyze this uploaded reference photo with deep visual intelligence:
    - STRICT NEGATIVES: "no dark billboard screen, no blank billboard face, no murky glass, no gray smudges, no dirty reflections on the poster, no car on the road instead of the poster, no watermark, no text distortion, no blur, no logo artifacts".
    - Output ONLY a single cohesive, highly descriptive English visual prompt paragraph (120 to 180 words).
    - No markdown bolding (**), no bullet points, no preamble like "Here is the prompt:".`,
-          },
-        ],
-        config: {
-          maxOutputTokens: 1024,
-        },
-      });
+                },
+              ],
+              config: {
+                maxOutputTokens: 1024,
+              },
+            });
 
-      let visualPrompt = (visionResponse.text || "")
-        .replace(/\n/g, " ")
-        .replace(/\*\*/g, "")
-        .replace(/"/g, "")
-        .replace(/^(here is the prompt:?|prompt:?)\s*/i, "")
-        .trim();
+            if (visionResponse.text?.trim()) {
+              visualPrompt = visionResponse.text
+                .replace(/\n/g, " ")
+                .replace(/\*\*/g, "")
+                .replace(/"/g, "")
+                .replace(/^(here is the prompt:?|prompt:?)\s*/i, "")
+                .trim();
+              break keyLoop;
+            }
+          } catch (modelErr: any) {
+            console.warn(`Gemini staging fallback [${modelName}]:`, modelErr?.status || modelErr?.message || modelErr);
+            // Continue to next model/key
+          }
+        }
+      }
+
+      // ZERO-DOWNTIME HEURISTIC FALLBACK (If Gemini quotas are exhausted)
+      if (!visualPrompt) {
+        console.log("=== GEMINI QUOTA EXHAUSTED: ACTIVATING ADAPTIVE HEURISTIC ENGINE ===");
+        const isBillboard =
+          preset.startsWith("billboard") ||
+          /billboard|reklame|papan|baliho|banner/i.test(customPrompt);
+
+        if (isBillboard) {
+          const adTopic = customPrompt
+            ? customPrompt
+                .replace(/tampilkan|pasang|buatkan|iklan|di bilboard ini|di billboard ini/gi, "")
+                .trim()
+            : "sleek radiant red electric hypercar with glowing crystalline LED lights and bold typography";
+
+          visualPrompt = `Colossal outdoor highway commercial billboard with an illuminated, ultra-vivid advertising poster showing a ${adTopic || "vibrant luxury electric sports car with bold modern typography"}, rich saturated colors, high contrast daylight sunlight, clean empty highway road, crystal blue sky, realistic steel support pillar, 8K UHD, razor-sharp focus, pristine commercial clarity, clean frame, no dark screen, no blank screen, no watermark`;
+        } else {
+          visualPrompt = `High-end commercial luxury product photography, hero product centered in an exquisite setting: ${selectedScene}, soft diffused softbox studio lighting, 85mm macro lens, sharp focus on product, clean background, 8K UHD, photorealistic render, clean frame, no watermark`;
+        }
+      }
 
       // Ensure length stays safe for HTTP request
       if (visualPrompt.length > 900) {

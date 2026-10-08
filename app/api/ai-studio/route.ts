@@ -112,7 +112,12 @@ export async function POST(request: NextRequest) {
         process.env.GEMINI_API_KEY,
       ].filter((k): k is string => Boolean(k && k.trim() && k !== "ISI_NILAI_ASLI"));
 
-      const candidateModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
+      const candidateModels = [
+        "gemini-3.5-flash",
+        "gemini-flash-lite-latest",
+        "gemini-3-flash-preview",
+        "gemini-2.5-flash",
+      ];
 
       keyLoop: for (const k of candidateKeys) {
         const client = new GoogleGenAI({ apiKey: k });
@@ -132,22 +137,19 @@ Analyze this uploaded reference photo:
 - Target Scene / Setting: "${selectedScene}"
 - User Request / Ad Brief: "${customPrompt || "none"}"
 
-TASK: Produce a concise, hyper-focused English visual prompt (60 to 85 words) for FLUX. Translate all Indonesian/foreign concepts into vivid, high-end commercial English.
-
-CRITICAL ARCHITECTURE RULES (FLUX MANDATE):
+CRITICAL RULES FOR FLUX:
 1. IF THE PHOTO CONTAINS A BILLBOARD, HOARDING, SCREEN, OR DISPLAY MOCKUP:
-   - The VERY FIRST WORDS MUST BE: "A commercial mockup photograph of a giant outdoor billboard dominating the center and upper frame, mounted on a tall steel pillar."
-   - The SECOND SENTENCE describes the printed advertisement ON THE BILLBOARD: "The entire rectangular billboard canvas is filled edge-to-edge with an illuminated, ultra-vivid printed graphic advertisement: [describe the user's requested ad in English, e.g. a luxury sports car with modern advertising typography]."
-   - The THIRD SENTENCE describes the surroundings matching the photo: "The background retains the real city buildings, green trees, and daylight sky from the reference photo."
-   - STRICT NEGATIVE: "The advertised subject exists strictly as a 2D graphic poster printed on the billboard; absolutely no vehicles on the road, no car on the asphalt, no dark unlit screen. Sharp focus on the billboard."
+   - The billboard in the photo may currently be blank white or empty. YOU MUST NEVER describe the billboard as blank, white, or unlit!
+   - The billboard display face MUST be described as BRILLIANTLY ILLUMINATED, edge-to-edge displaying an ultra-vivid, high-contrast commercial advertisement featuring the user's requested ad subject (e.g. an ultra-luxurious electric sports car in radiant red with bold modern typography reading SPEED & ELEGANCE).
+   - Structure & Environment: The giant outdoor roadside billboard on its sturdy steel pillar dominates the center frame, under clear daylight sky, with the green trees and buildings from the photo in the background.
+   - Strict Negative: The car is strictly a printed 2D graphic poster on the billboard. No real vehicles on the road below.
 
 2. IF THE PHOTO IS A PHYSICAL PRODUCT (Bottle, jar, sneaker, cosmetic, watch, device):
-   - The VERY FIRST WORDS MUST BE: "Commercial product catalog photography of [exact product from photo: shape, color, label] placed in the center foreground on ${selectedScene}."
+   - The very first words must be: "Commercial product catalog photography of [exact product from photo: shape, color, label] placed in the center foreground on ${selectedScene}."
    - Softbox studio lighting, 85mm macro lens, tack-sharp focus on the product, clean background, 8K UHD.
 
-3. STRICT OUTPUT:
-   - Output ONLY the single cohesive English visual prompt (60 to 85 words).
-   - No markdown bolding (**), no asterisks (*), no quotes ("), no filler words like "Here is the prompt:".`,
+TASK: Produce a concise, hyper-focused English visual prompt (60 to 80 words) for FLUX.
+Output ONLY the final visual prompt paragraph. No markdown formatting, no preambles.`,
                 },
               ],
               config: {

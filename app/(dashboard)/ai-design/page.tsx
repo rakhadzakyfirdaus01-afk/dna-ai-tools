@@ -214,6 +214,10 @@ function AIDesignContent() {
   const [studioFile, setStudioFile] = useState<File | null>(null);
   const [studioPreviewUrl, setStudioPreviewUrl] = useState<string>("");
   const [studioResultUrl, setStudioResultUrl] = useState<string>("");
+  const [studioCompositedUrl, setStudioCompositedUrl] = useState<string>("");
+  const [studioAiStagingUrl, setStudioAiStagingUrl] = useState<string>("");
+  const [studioActiveView, setStudioActiveView] = useState<"composited" | "staging">("composited");
+  const [studioIsMockup, setStudioIsMockup] = useState<boolean>(false);
   const [studioSelectedPreset, setStudioSelectedPreset] = useState<string>("marble");
   const [studioCustomPrompt, setStudioCustomPrompt] = useState<string>("");
   const [studioAspectRatio, setStudioAspectRatio] = useState<"square" | "landscape" | "portrait">("square");
@@ -943,6 +947,9 @@ function AIDesignContent() {
     setStudioFile(file);
     setStudioCutoutBlob(null);
     setStudioResultUrl("");
+    setStudioCompositedUrl("");
+    setStudioAiStagingUrl("");
+    setStudioIsMockup(false);
     const url = URL.createObjectURL(file);
     setStudioPreviewUrl(url);
 
@@ -1133,6 +1140,104 @@ function AIDesignContent() {
     });
   }
 
+  // Precision Billboard & Display Mockup Compositing Engine
+  async function compositeAdOntoBillboard(
+    originalFile: File | Blob,
+    adImageUrl: string,
+    box: [number, number, number, number]
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const origUrl = URL.createObjectURL(originalFile);
+      const originalImg = new window.Image();
+
+      originalImg.onload = () => {
+        const adImg = new window.Image();
+        adImg.crossOrigin = "anonymous";
+
+        adImg.onload = () => {
+          try {
+            const width = originalImg.naturalWidth || originalImg.width || 1280;
+            const height = originalImg.naturalHeight || originalImg.height || 720;
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              URL.revokeObjectURL(origUrl);
+              resolve(origUrl);
+              return;
+            }
+
+            // 1. Gambar foto asli pengguna (tiang billboard, pohon, gedung, langit)
+            ctx.drawImage(originalImg, 0, 0, width, height);
+
+            // 2. Hitung koordinat bounding box billboard
+            const [ymin, xmin, ymax, xmax] = box;
+            const bx = Math.round((xmin / 1000) * width);
+            const by = Math.round((ymin / 1000) * height);
+            const bw = Math.max(10, Math.round(((xmax - xmin) / 1000) * width));
+            const bh = Math.max(10, Math.round(((ymax - ymin) / 1000) * height));
+
+            // 3. Pasang iklan AI ke dalam kanvas billboard dengan clipping presisi
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(bx, by, bw, bh);
+            ctx.clip();
+
+            ctx.drawImage(adImg, bx, by, bw, bh);
+
+            // 4. Efek pencahayaan fotorealistik (ambient daylight sheen)
+            const sheen = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
+            sheen.addColorStop(0, "rgba(255, 255, 255, 0.08)");
+            sheen.addColorStop(0.4, "rgba(255, 255, 255, 0.0)");
+            sheen.addColorStop(1, "rgba(0, 0, 0, 0.08)");
+            ctx.fillStyle = sheen;
+            ctx.fillRect(bx, by, bw, bh);
+
+            // 5. Halus border/bingkai billboard agar menyatu sempurna
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+            ctx.lineWidth = Math.max(1, Math.round(width / 1200));
+            ctx.strokeRect(bx, by, bw, bh);
+
+            ctx.restore();
+
+            URL.revokeObjectURL(origUrl);
+
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  resolve(URL.createObjectURL(blob));
+                } else {
+                  resolve(origUrl);
+                }
+              },
+              "image/jpeg",
+              0.95
+            );
+          } catch (err) {
+            URL.revokeObjectURL(origUrl);
+            reject(err);
+          }
+        };
+
+        adImg.onerror = (err) => {
+          URL.revokeObjectURL(origUrl);
+          reject(err);
+        };
+
+        adImg.src = adImageUrl;
+      };
+
+      originalImg.onerror = (err) => {
+        URL.revokeObjectURL(origUrl);
+        reject(err);
+      };
+
+      originalImg.src = origUrl;
+    });
+  }
+
   async function handleStudioProcess() {
     if (!studioFile) {
       setStudioError(isEnglish ? "Please upload a photo first." : "Unggah foto terlebih dahulu.");
@@ -1259,8 +1364,38 @@ function AIDesignContent() {
       setStudioProgress(
         isEnglish ? "Finishing watermark-free visual..." : "Menyempurnakan visual bebas watermark..."
       );
-      const cleanUrl = await removeWatermarkFromImageUrl(data.resultUrl);
-      setStudioResultUrl(cleanUrl);
+
+      const cleanAiUrl = await removeWatermarkFromImageUrl(data.resultUrl);
+
+      if (data.isMockup && data.adImageUrl && Array.isArray(data.billboardBox)) {
+        setStudioProgress(
+          isEnglish
+            ? "Compositing advertisement onto billboard..."
+            : "Memasang visual iklan ke dalam billboard foto asli..."
+        );
+        const cleanAdUrl = await removeWatermarkFromImageUrl(data.adImageUrl);
+        try {
+          const compositedBlobUrl = await compositeAdOntoBillboard(
+            studioFile,
+            cleanAdUrl,
+            data.billboardBox
+          );
+          setStudioCompositedUrl(compositedBlobUrl);
+          setStudioAiStagingUrl(cleanAiUrl);
+          setStudioIsMockup(true);
+          setStudioActiveView("composited");
+          setStudioResultUrl(compositedBlobUrl);
+        } catch (compErr) {
+          console.warn("Mockup compositing fallback to AI staging:", compErr);
+          setStudioIsMockup(false);
+          setStudioResultUrl(cleanAiUrl);
+        }
+      } else {
+        setStudioIsMockup(false);
+        setStudioCompositedUrl("");
+        setStudioAiStagingUrl("");
+        setStudioResultUrl(cleanAiUrl);
+      }
 
       if (typeof document !== "undefined" && document.hidden) {
         sendBackgroundNotification({
@@ -2205,6 +2340,52 @@ function AIDesignContent() {
                     </div>
                   )}
                 </div>
+
+                {/* Mode Switcher untuk Mockup Billboard (Foto Asli 100% vs AI Staging) */}
+                {studioIsMockup && studioCompositedUrl && studioAiStagingUrl && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-pink-500/30 bg-pink-500/10 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-xs font-semibold text-pink-200">
+                        {isEnglish
+                          ? "Precision Billboard Mockup Compositing Active"
+                          : "Compositing Billboard Foto Asli 100% Sesuai"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 rounded-lg bg-slate-950/90 p-1 border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudioActiveView("composited");
+                          setStudioResultUrl(studioCompositedUrl);
+                        }}
+                        className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                          studioActiveView === "composited"
+                            ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-sm"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        🖼️ {isEnglish ? "Original Photo Mockup (100% Match)" : "Mockup Foto Asli (100% Sesuai)"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudioActiveView("staging");
+                          setStudioResultUrl(studioAiStagingUrl);
+                        }}
+                        className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                          studioActiveView === "staging"
+                            ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        ✨ {isEnglish ? "AI Full Staging" : "AI Full Scene Staging"}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Canvas / Gambar Result */}
                 <div className="mt-6 flex min-h-[480px] items-center justify-center rounded-xl border border-slate-800 bg-slate-950/80 p-4">

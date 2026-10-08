@@ -98,7 +98,10 @@ export async function POST(request: NextRequest) {
         presetDescriptions[preset] ||
         (customPrompt ? customPrompt : presetDescriptions.marble);
 
-      let visualPrompt = "";
+      let isMockupDetected = false;
+      let billboardBoundingBox: [number, number, number, number] = [0, 0, 1000, 1000];
+      let adGraphicPrompt = "";
+      let fullVisualPrompt = "";
 
       // MULTI-KEY & MULTI-MODEL ROTATION WITH ZERO-DOWNTIME FALLBACK
       const candidateKeys = [
@@ -130,41 +133,73 @@ export async function POST(request: NextRequest) {
                   inlineData: { mimeType, data: base64Image },
                 },
                 {
-                  text: `You are the SUPREME COMMERCIAL ART DIRECTOR & PROMPT ARCHITECT for FLUX diffusion models.
-You natively understand ALL global languages, especially Bahasa Indonesia (including modern slang, colloquial phrases like 'tampilkan iklan mobil di bilboard ini', 'kasih efek seger', 'bikinin', 'jreng', 'mewah', culinary terms, and local idioms).
+                  text: `You are the SUPREME ART DIRECTOR & VISION INTELLIGENCE SYSTEM for commercial advertising and photography.
+You natively understand ALL global languages, especially Bahasa Indonesia (including modern slang, colloquial phrases like 'tampilkan iklan mobil di bilboard ini', 'pasang iklan sepatu', 'ganti poster', 'baliho', 'reklame', 'papan iklan', 'kasih efek seger', 'bikinin', 'jreng', 'mewah').
 
 Analyze this uploaded reference photo:
 - Target Scene / Setting: "${selectedScene}"
 - User Request / Ad Brief: "${customPrompt || "none"}"
 
-CRITICAL RULES FOR FLUX:
-1. IF THE PHOTO CONTAINS A BILLBOARD, HOARDING, SCREEN, OR DISPLAY MOCKUP:
-   - The billboard in the photo may currently be blank white or empty. YOU MUST NEVER describe the billboard as blank, white, or unlit!
-   - The billboard display face MUST be described as BRILLIANTLY ILLUMINATED, edge-to-edge displaying an ultra-vivid, high-contrast commercial advertisement featuring the user's requested ad subject (e.g. an ultra-luxurious electric sports car in radiant red with bold modern typography reading SPEED & ELEGANCE).
-   - Structure & Environment: The giant outdoor roadside billboard on its sturdy steel pillar dominates the center frame, under clear daylight sky, with the green trees and buildings from the photo in the background.
-   - Strict Negative: The car is strictly a printed 2D graphic poster on the billboard. No real vehicles on the road below.
+DETERMINE:
+1. isBillboardOrMockup: (boolean)
+   Is this photo an outdoor billboard, digital billboard, street hoarding, banner frame, display screen, poster mockup, canvas frame, or empty display board where an advertisement or graphic should be mounted?
+   (Also check if user request explicitly says 'billboard', 'baliho', 'reklame', 'papan', 'banner', 'iklan').
 
-2. IF THE PHOTO IS A PHYSICAL PRODUCT (Bottle, jar, sneaker, cosmetic, watch, device):
-   - The very first words must be: "Commercial product catalog photography of [exact product from photo: shape, color, label] placed in the center foreground on ${selectedScene}."
-   - Softbox studio lighting, 85mm macro lens, tack-sharp focus on the product, clean background, 8K UHD.
+2. billboardBox: [ymin, xmin, ymax, xmax] (array of 4 numbers, normalized 0 to 1000)
+   If isBillboardOrMockup is true, pinpoint the precise bounding box of the display/canvas area where the advertisement should be mounted:
+   - ymin: top boundary of the display board (0-1000)
+   - xmin: left boundary of the display board (0-1000)
+   - ymax: bottom boundary of the display board (0-1000)
+   - xmax: right boundary of the display board (0-1000)
+   If not a mockup, return [0, 0, 1000, 1000].
 
-TASK: Produce a concise, hyper-focused English visual prompt (60 to 80 words) for FLUX.
-Output ONLY the final visual prompt paragraph. No markdown formatting, no preambles.`,
+3. adPrompt: (string)
+   A standalone, breathtaking, high-impact commercial print advertising poster prompt for FLUX diffusion model to generate the exact graphic for this billboard canvas. Specify the requested subject (e.g., sleek red sports car, beverage bottle, tech gadget), dynamic studio or outdoor automotive lighting, bold modern typography keywords, crisp commercial graphic design aesthetic.
+   (IMPORTANT: Do NOT describe the outer billboard pole or environment here - this prompt is strictly for the 2D key visual graphic itself!).
+
+4. fullVisualPrompt: (string)
+   A hyper-realistic FLUX visual prompt describing the complete scene:
+   - If mockup: describe the whole environment with the billboard prominently displaying the advertisement, architectural details, trees, sky, lighting.
+   - If physical product: "Commercial product catalog photography of [exact product from photo] placed on ${selectedScene}, softbox studio lighting, 85mm macro lens, sharp focus, 8K UHD."
+
+CRITICAL: Return strictly valid JSON with no markdown wrapping:
+{
+  "isBillboardOrMockup": boolean,
+  "billboardBox": [ymin, xmin, ymax, xmax],
+  "adPrompt": "string",
+  "fullVisualPrompt": "string"
+}`,
                 },
               ],
               config: {
+                responseMimeType: "application/json",
                 maxOutputTokens: 1024,
               },
             });
 
             if (visionResponse.text?.trim()) {
-              visualPrompt = visionResponse.text
-                .replace(/\n/g, " ")
-                .replace(/\*\*/g, "")
-                .replace(/"/g, "")
-                .replace(/^(here is the prompt:?|prompt:?)\s*/i, "")
-                .trim();
-              break keyLoop;
+              try {
+                const cleanedJson = visionResponse.text
+                  .replace(/```json/gi, "")
+                  .replace(/```/g, "")
+                  .trim();
+                const parsed = JSON.parse(cleanedJson);
+
+                isMockupDetected = Boolean(parsed.isBillboardOrMockup);
+                if (Array.isArray(parsed.billboardBox) && parsed.billboardBox.length === 4) {
+                  billboardBoundingBox = parsed.billboardBox.map((n: any) =>
+                    Math.max(0, Math.min(1000, Math.round(Number(n) || 0)))
+                  ) as [number, number, number, number];
+                }
+                adGraphicPrompt = (parsed.adPrompt || "").replace(/\n/g, " ").trim();
+                fullVisualPrompt = (parsed.fullVisualPrompt || "").replace(/\n/g, " ").trim();
+
+                if (adGraphicPrompt || fullVisualPrompt) {
+                  break keyLoop;
+                }
+              } catch (parseErr) {
+                console.warn("JSON parsing error from Gemini vision:", parseErr);
+              }
             }
           } catch (modelErr: any) {
             console.warn(`Gemini staging fallback [${modelName}]:`, modelErr?.status || modelErr?.message || modelErr);
@@ -173,33 +208,62 @@ Output ONLY the final visual prompt paragraph. No markdown formatting, no preamb
         }
       }
 
-      // ZERO-DOWNTIME HEURISTIC FALLBACK (If Gemini quotas are exhausted)
-      if (!visualPrompt) {
-        console.log("=== GEMINI QUOTA EXHAUSTED: ACTIVATING ADAPTIVE HEURISTIC ENGINE ===");
-        const isBillboard =
-          preset.startsWith("billboard") ||
-          /billboard|reklame|papan|baliho|banner/i.test(customPrompt);
+      // ZERO-DOWNTIME HEURISTIC FALLBACK (If Gemini quotas or JSON fails)
+      const isBillboardText =
+        preset.startsWith("billboard") ||
+        /billboard|reklame|papan|baliho|banner|iklan/i.test(customPrompt);
 
-        const translatedTopic = customPrompt
-          ? translateIndonesianBriefToEnglish(customPrompt)
-          : "a sleek luxury electric sports car with bold advertising typography";
+      if (!isMockupDetected && isBillboardText) {
+        isMockupDetected = true;
+        billboardBoundingBox = [220, 260, 480, 740];
+      }
 
-        if (isBillboard) {
-          visualPrompt = `A commercial mockup photograph of a giant outdoor rectangular billboard dominating the center frame, mounted high on a sturdy steel support pillar. The billboard's entire display face is filled with an illuminated, vibrant commercial print advertisement featuring: ${translatedTopic}. In the background are green roadside trees and city buildings under a bright daylight sky. The advertised subject is strictly a printed graphic poster on the billboard canvas, no real vehicles on the street. 8K UHD commercial photography, razor-sharp focus on the billboard.`;
+      const translatedTopic = customPrompt
+        ? translateIndonesianBriefToEnglish(customPrompt)
+        : "a sleek luxury electric sports car with bold advertising typography";
+
+      if (!adGraphicPrompt) {
+        adGraphicPrompt = `A stunning, high-impact commercial print advertising poster featuring ${translatedTopic}, vibrant saturated colors, dramatic cinematic lighting, bold modern typography, razor-sharp vector-grade detail, 8K UHD graphic design`;
+      }
+
+      if (!fullVisualPrompt) {
+        if (isMockupDetected) {
+          fullVisualPrompt = `A commercial mockup photograph of a giant outdoor rectangular billboard dominating the center frame, mounted high on a sturdy steel support pillar. The billboard's entire display face is filled with an illuminated, vibrant commercial print advertisement featuring: ${translatedTopic}. In the background are green roadside trees and city buildings under a bright daylight sky. 8K UHD commercial photography, razor-sharp focus on the billboard.`;
         } else {
-          visualPrompt = `Commercial luxury product catalog photography, hero product centered in the foreground in an exquisite setting: ${selectedScene}, soft diffused softbox studio lighting, 85mm macro lens, sharp focus on product, clean background, 8K UHD, photorealistic render, clean frame, no watermark`;
+          fullVisualPrompt = `Commercial luxury product catalog photography, hero product centered in the foreground in an exquisite setting: ${selectedScene}, soft diffused softbox studio lighting, 85mm macro lens, sharp focus on product, clean background, 8K UHD, photorealistic render, clean frame, no watermark`;
         }
       }
 
       // Ensure length stays safe for HTTP request
-      if (visualPrompt.length > 900) {
-        visualPrompt = visualPrompt.slice(0, 900).replace(/\s+\S*$/, "");
+      if (adGraphicPrompt.length > 900) {
+        adGraphicPrompt = adGraphicPrompt.slice(0, 900).replace(/\s+\S*$/, "");
+      }
+      if (fullVisualPrompt.length > 900) {
+        fullVisualPrompt = fullVisualPrompt.slice(0, 900).replace(/\s+\S*$/, "");
       }
 
       const seed = Math.floor(Math.random() * 2_000_000_000);
-      const encoded = encodeURIComponent(visualPrompt);
+      const stagedImageUrl = `${POLLINATIONS_BASE}/${encodeURIComponent(fullVisualPrompt)}?model=flux&width=${width}&height=${height}&nologo=true&private=true&enhance=false&seed=${seed}`;
 
-      const stagedImageUrl = `${POLLINATIONS_BASE}/${encoded}?model=flux&width=${width}&height=${height}&nologo=true&private=true&enhance=false&seed=${seed}`;
+      let adImageUrl = "";
+      if (isMockupDetected) {
+        const boxW = Math.max(1, billboardBoundingBox[3] - billboardBoundingBox[1]);
+        const boxH = Math.max(1, billboardBoundingBox[2] - billboardBoundingBox[0]);
+        let adW = 1024;
+        let adH = 512;
+        if (boxW / boxH > 1.8) {
+          adW = 1280;
+          adH = 512;
+        } else if (boxH / boxW > 1.2) {
+          adW = 768;
+          adH = 1024;
+        } else {
+          adW = 1024;
+          adH = 768;
+        }
+
+        adImageUrl = `${POLLINATIONS_BASE}/${encodeURIComponent(adGraphicPrompt)}?model=flux&width=${adW}&height=${adH}&nologo=true&private=true&enhance=false&seed=${seed + 7}`;
+      }
 
       // Save to history if logged in
       if (session?.user?.email) {
@@ -212,10 +276,12 @@ Output ONLY the final visual prompt paragraph. No markdown formatting, no preamb
             await prisma.history.create({
               data: {
                 userId: user.id,
-                title: "AI Design: Staging Foto Produk",
+                title: isMockupDetected
+                  ? "AI Design: Mockup Billboard Reklame"
+                  : "AI Design: Staging Foto Produk",
                 feature: "AI Design",
-                prompt: visualPrompt,
-                result: stagedImageUrl,
+                prompt: isMockupDetected ? adGraphicPrompt : fullVisualPrompt,
+                result: adImageUrl || stagedImageUrl,
               },
             });
           }
@@ -227,8 +293,11 @@ Output ONLY the final visual prompt paragraph. No markdown formatting, no preamb
       return NextResponse.json({
         success: true,
         action: "stage-product",
+        isMockup: isMockupDetected,
+        billboardBox: billboardBoundingBox,
+        adImageUrl: adImageUrl,
         resultUrl: stagedImageUrl,
-        prompt: visualPrompt,
+        prompt: isMockupDetected ? adGraphicPrompt : fullVisualPrompt,
       });
     }
 

@@ -190,6 +190,9 @@ export default function AICodePage() {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [categoryMenuSessionId, setCategoryMenuSessionId] = useState<string | null>(null);
+  // Universal Multi-Platform App Exporter State
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
   const isInitialLoadRef = useRef(true);
 
   // 1. Inisialisasi daftar sesi project dari LocalStorage
@@ -1069,9 +1072,9 @@ export default function AICodePage() {
 
 
   /**
-   * Download seluruh project sebagai ZIP.
+   * Universal Multi-Platform App Exporter (APK, Windows, Linux, HTML, ZIP).
    */
-  async function downloadProject() {
+  async function downloadProject(format: "zip" | "apk" | "windows" | "linux" | "single-html" = "zip") {
     if (editorDirty) {
       setError(
         isEnglish
@@ -1091,23 +1094,22 @@ export default function AICodePage() {
 
     try {
       setError("");
+      setExportingFormat(format);
 
       const response = await fetch(
         "/api/ai-code/export",
         {
           method: "POST",
-
           headers: {
             "Content-Type":
               "application/json",
           },
-
           body: JSON.stringify({
             projectName:
               project.projectName,
-
             files:
               project.files,
+            format,
           }),
         }
       );
@@ -1153,8 +1155,18 @@ export default function AICodePage() {
 
       anchor.href = url;
 
-      anchor.download =
-        `${project.projectName || "ai-project"}.zip`;
+      const safeName = project.projectName || "ai-project";
+      if (format === "apk") {
+        anchor.download = `${safeName}.apk`;
+      } else if (format === "windows") {
+        anchor.download = `${safeName}-windows-app.zip`;
+      } else if (format === "linux") {
+        anchor.download = `${safeName}-linux-app.zip`;
+      } else if (format === "single-html") {
+        anchor.download = `${safeName}.html`;
+      } else {
+        anchor.download = `${safeName}.zip`;
+      }
 
       document.body.appendChild(
         anchor
@@ -1167,14 +1179,31 @@ export default function AICodePage() {
       window.URL.revokeObjectURL(
         url
       );
+
+      const formatLabels: Record<string, string> = {
+        apk: "Android APK (.apk)",
+        windows: "Windows Desktop App",
+        linux: "Linux Desktop App",
+        "single-html": "Single HTML File",
+        zip: "ZIP Source Code",
+      };
+
+      toast.success(
+        isEnglish
+          ? `Successfully downloaded ${formatLabels[format] || format}!`
+          : `Berhasil mengunduh ${formatLabels[format] || format}!`
+      );
     } catch (err) {
-      setError(
+      const msg =
         err instanceof Error
           ? err.message
           : isEnglish
           ? "Failed to download the project."
-          : "Gagal mengunduh project."
-      );
+          : "Gagal mengunduh project.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setExportingFormat(null);
     }
   }
 
@@ -2113,13 +2142,16 @@ export default function AICodePage() {
 
                     <button
                       type="button"
-                      onClick={downloadProject}
+                      onClick={() => setExportModalOpen(true)}
                       disabled={project.files.length === 0}
-                      className="hidden sm:flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-                      title="Download ZIP"
+                      className="flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-200 shadow-md shadow-cyan-950/40 transition hover:border-cyan-400 hover:from-cyan-500/30 hover:to-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+                      title="Universal Multi-Platform App Exporter (Android APK, Windows, Linux, Web)"
                     >
-                      <Download size={13} />
-                      <span>ZIP</span>
+                      <Zap size={13} className="text-cyan-400 animate-pulse" />
+                      <span>Export App</span>
+                      <span className="rounded bg-cyan-500/30 px-1 py-0.5 text-[9px] font-bold text-cyan-100 uppercase tracking-wider">
+                        APK / PC
+                      </span>
                     </button>
                   </>
                 )}
@@ -2479,6 +2511,235 @@ export default function AICodePage() {
       </div>
       </div>
 
+
+      {/* ==========================================
+          UNIVERSAL MULTI-PLATFORM APP EXPORTER MODAL
+      ========================================== */}
+      {exportModalOpen && project && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-700 bg-slate-900/95 shadow-2xl overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4 bg-slate-950/60">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500/20 via-blue-500/20 to-emerald-500/20 border border-cyan-500/30 text-cyan-400">
+                  <Zap size={20} className="animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    Universal App Exporter
+                    <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-semibold text-cyan-300 border border-cyan-500/30">
+                      Multi-Platform
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Ekspor "{project.projectName}" langsung jadi aplikasi siap pakai tanpa koding ulang.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExportModalOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body: 4 Platform Cards */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-3">
+
+              {/* CARD 1: ANDROID APK (.apk) */}
+              <div className="group rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/20 to-slate-900/60 p-4 transition hover:border-cyan-400 hover:shadow-lg hover:shadow-cyan-950/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                      <Smartphone size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-white">Android Mobile App (.apk)</h4>
+                        <span className="rounded bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+                          Bisa Kirim via WA
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                        File installer .apk asli. Bisa langsung dikirim lewat WhatsApp, di-install di HP Android siapa saja, dan berjalan 100% offline dengan ikon di home screen.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => downloadProject("apk")}
+                    disabled={Boolean(exportingFormat)}
+                    className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold px-4 py-2.5 text-xs shadow-md shadow-cyan-950/50 transition disabled:opacity-50"
+                  >
+                    {exportingFormat === "apk" ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Mengemas APK...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={14} />
+                        <span>Download .APK</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* CARD 2: WINDOWS DESKTOP APP (.zip) */}
+              <div className="group rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-950/20 to-slate-900/60 p-4 transition hover:border-blue-400 hover:shadow-lg hover:shadow-blue-950/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                      <Monitor size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-white">Windows Desktop App (.exe / .bat)</h4>
+                        <span className="rounded bg-blue-500/20 border border-blue-500/30 px-1.5 py-0.5 text-[10px] font-medium text-blue-300">
+                          Windows 10 / 11
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                        Paket aplikasi desktop mandiri. Klik ganda 'run.bat' atau 'run-silent.vbs' untuk membuka aplikasi di jendela native desktop tanpa address bar browser.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => downloadProject("windows")}
+                    disabled={Boolean(exportingFormat)}
+                    className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2.5 text-xs shadow-md shadow-blue-950/50 transition disabled:opacity-50"
+                  >
+                    {exportingFormat === "windows" ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Mengemas Windows...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={14} />
+                        <span>Download Windows</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* CARD 3: LINUX DESKTOP APP (.zip) */}
+              <div className="group rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-950/20 to-slate-900/60 p-4 transition hover:border-amber-400 hover:shadow-lg hover:shadow-amber-950/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                      <Terminal size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-white">Linux Desktop App (.sh / .desktop)</h4>
+                        <span className="rounded bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+                          Ubuntu / Debian / Arch
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                        Paket aplikasi mandiri untuk Linux dengan skrip peluncur 'run.sh' otomatis dan shortcut menu '.desktop' terintegrasi.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => downloadProject("linux")}
+                    disabled={Boolean(exportingFormat)}
+                    className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2.5 text-xs shadow-md shadow-amber-950/50 transition disabled:opacity-50"
+                  >
+                    {exportingFormat === "linux" ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Mengemas Linux...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={14} />
+                        <span>Download Linux</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* CARD 4: WEB STANDALONE & FULL SOURCE CODE */}
+              <div className="group rounded-xl border border-slate-700 bg-slate-950/40 p-4 transition hover:border-slate-600">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 border border-slate-700 text-slate-300">
+                      <Globe size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-white">Web Standalone & Source Code</h4>
+                        <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">
+                          HTML & ZIP
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                        Unduh 1 file HTML mandiri tanpa server, atau unduh seluruh kode sumber proyek dalam file ZIP.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => downloadProject("single-html")}
+                      disabled={Boolean(exportingFormat)}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-3 py-2 text-xs transition disabled:opacity-50"
+                      title="Unduh 1 File HTML Mandiri"
+                    >
+                      {exportingFormat === "single-html" ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <Download size={13} />
+                      )}
+                      <span>Single HTML</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadProject("zip")}
+                      disabled={Boolean(exportingFormat)}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-medium px-3 py-2 text-xs transition disabled:opacity-50"
+                      title="Unduh Source Code ZIP"
+                    >
+                      {exportingFormat === "zip" ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <Download size={13} />
+                      )}
+                      <span>Source ZIP</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-slate-800 px-5 py-3 bg-slate-950/80 flex items-center justify-between text-[11px] text-slate-400">
+              <span className="flex items-center gap-1 text-emerald-400">
+                <CheckCircle2 size={13} /> Siap di-install & 100% offline
+              </span>
+              <button
+                type="button"
+                onClick={() => setExportModalOpen(false)}
+                className="text-slate-400 hover:text-white transition"
+              >
+                Tutup
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* ==========================================
           FULLSCREEN BACKDROP

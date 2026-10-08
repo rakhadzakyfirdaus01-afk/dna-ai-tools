@@ -31,6 +31,11 @@ import {
   requestNotificationPermission,
   sendBackgroundNotification,
 } from "@/lib/push-notification";
+import {
+  BACKGROUND_CATALOG,
+  BACKGROUND_CATEGORIES,
+  type BackgroundItem,
+} from "@/lib/background-catalog";
 
 export type DesignCategory = "all" | "poster" | "social" | "logo" | "general";
 
@@ -116,8 +121,25 @@ function AIDesignContent() {
   const [studioCutoutBlob, setStudioCutoutBlob] = useState<Blob | null>(null);
   const [studioError, setStudioError] = useState<string>("");
   const [studioShowCompare, setStudioShowCompare] = useState<boolean>(false);
-  const [studioBgColor, setStudioBgColor] = useState<string>("transparent");
+  const [selectedBgItem, setSelectedBgItem] = useState<BackgroundItem>(BACKGROUND_CATALOG[0]);
+  const [bgCategory, setBgCategory] = useState<string>("all");
+  const [bgSearch, setBgSearch] = useState<string>("");
+  const [customHexColor, setCustomHexColor] = useState<string>("#ffffff");
   const studioFileInputRef = useRef<HTMLInputElement>(null);
+
+  const filteredBackgrounds = useMemo(() => {
+    return BACKGROUND_CATALOG.filter((item) => {
+      const matchesCategory = bgCategory === "all" || item.category === bgCategory;
+      if (!matchesCategory) return false;
+      if (!bgSearch.trim()) return true;
+      const query = bgSearch.toLowerCase().trim();
+      return (
+        item.nameId.toLowerCase().includes(query) ||
+        item.nameEn.toLowerCase().includes(query) ||
+        item.category.toLowerCase().includes(query)
+      );
+    });
+  }, [bgCategory, bgSearch]);
 
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -889,51 +911,134 @@ function AIDesignContent() {
     });
   }
 
-  // Composite transparent cutout onto selected background color
-  async function applyBackgroundToCutout(cutoutBlob: Blob, bgColor: string): Promise<Blob> {
+  // Composite transparent cutout onto selected background (color, gradient, or image)
+  async function applyBackgroundToCutout(cutoutBlob: Blob, bgItem: BackgroundItem): Promise<Blob> {
+    if (bgItem.type === "transparent") {
+      return cutoutBlob;
+    }
+
     return new Promise((resolve) => {
-      const img = new window.Image();
-      const url = URL.createObjectURL(cutoutBlob);
-      img.onload = () => {
+      const cutoutImg = new window.Image();
+      const cutoutUrl = URL.createObjectURL(cutoutBlob);
+
+      const cleanup = () => {
+        try {
+          URL.revokeObjectURL(cutoutUrl);
+        } catch {}
+      };
+
+      cutoutImg.onload = () => {
         const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
+        const w = cutoutImg.naturalWidth || cutoutImg.width || 1024;
+        const h = cutoutImg.naturalHeight || cutoutImg.height || 1024;
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          URL.revokeObjectURL(url);
+          cleanup();
           resolve(cutoutBlob);
           return;
         }
 
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
-        canvas.toBlob((blob) => resolve(blob || cutoutBlob), "image/png");
+        if (bgItem.type === "color") {
+          ctx.fillStyle = bgItem.value || "#ffffff";
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(cutoutImg, 0, 0, w, h);
+          cleanup();
+          canvas.toBlob((blob) => resolve(blob || cutoutBlob), "image/png");
+        } else if (bgItem.type === "gradient") {
+          const grad = ctx.createLinearGradient(0, 0, w, h);
+          if (bgItem.stops && bgItem.stops.length > 0) {
+            bgItem.stops.forEach((s) => grad.addColorStop(s.offset, s.color));
+          } else {
+            grad.addColorStop(0, "#4f46e5");
+            grad.addColorStop(1, "#ec4899");
+          }
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(cutoutImg, 0, 0, w, h);
+          cleanup();
+          canvas.toBlob((blob) => resolve(blob || cutoutBlob), "image/png");
+        } else if (bgItem.type === "image" && bgItem.url) {
+          const bgImg = new window.Image();
+          bgImg.crossOrigin = "anonymous";
+          bgImg.onload = () => {
+            try {
+              const bgW = bgImg.naturalWidth || bgImg.width || w;
+              const bgH = bgImg.naturalHeight || bgImg.height || h;
+              const scale = Math.max(w / bgW, h / bgH);
+              const drawW = bgW * scale;
+              const drawH = bgH * scale;
+              const drawX = (w - drawW) / 2;
+              const drawY = (h - drawH) / 2;
+
+              ctx.drawImage(bgImg, drawX, drawY, drawW, drawH);
+              ctx.drawImage(cutoutImg, 0, 0, w, h);
+              cleanup();
+              canvas.toBlob((blob) => resolve(blob || cutoutBlob), "image/png");
+            } catch (err) {
+              console.warn("Canvas export fallback:", err);
+              ctx.fillStyle = bgItem.fallbackColor || "#334155";
+              ctx.fillRect(0, 0, w, h);
+              ctx.drawImage(cutoutImg, 0, 0, w, h);
+              cleanup();
+              canvas.toBlob((blob) => resolve(blob || cutoutBlob), "image/png");
+            }
+          };
+          bgImg.onerror = () => {
+            ctx.fillStyle = bgItem.fallbackColor || "#334155";
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(cutoutImg, 0, 0, w, h);
+            cleanup();
+            canvas.toBlob((blob) => resolve(blob || cutoutBlob), "image/png");
+          };
+          bgImg.src = bgItem.url;
+        } else {
+          ctx.drawImage(cutoutImg, 0, 0, w, h);
+          cleanup();
+          canvas.toBlob((blob) => resolve(blob || cutoutBlob), "image/png");
+        }
       };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
+
+      cutoutImg.onerror = () => {
+        cleanup();
         resolve(cutoutBlob);
       };
-      img.src = url;
+
+      cutoutImg.src = cutoutUrl;
     });
   }
 
-  // Instant 0ms background tint switching when cutout is already available
-  async function handleStudioBgColorChange(newColor: string) {
-    setStudioBgColor(newColor);
+  // Instant 0ms background switching when cutout is already available
+  async function handleSelectBackground(bgItem: BackgroundItem) {
+    setSelectedBgItem(bgItem);
     if (studioCutoutBlob) {
       try {
-        if (newColor === "transparent") {
+        if (bgItem.type === "transparent") {
           setStudioResultUrl(URL.createObjectURL(studioCutoutBlob));
         } else {
-          const composited = await applyBackgroundToCutout(studioCutoutBlob, newColor);
+          const composited = await applyBackgroundToCutout(studioCutoutBlob, bgItem);
           setStudioResultUrl(URL.createObjectURL(composited));
         }
       } catch (err) {
-        console.warn("Gagal mengubah warna background:", err);
+        console.warn("Gagal mengubah background:", err);
       }
     }
+  }
+
+  // Custom color picker handler
+  async function handleCustomColorChange(hex: string) {
+    setCustomHexColor(hex);
+    const customItem: BackgroundItem = {
+      id: `custom_${hex}`,
+      nameId: `Kustom (${hex.toUpperCase()})`,
+      nameEn: `Custom (${hex.toUpperCase()})`,
+      category: "colors",
+      type: "color",
+      value: hex,
+      cssBackground: hex,
+    };
+    await handleSelectBackground(customItem);
   }
 
   // Fallback edge & color isolation for devices that cannot execute WASM models
@@ -1060,8 +1165,8 @@ function AIDesignContent() {
 
       setStudioCutoutBlob(cutoutBlob);
 
-      if (studioBgColor && studioBgColor !== "transparent") {
-        const composited = await applyBackgroundToCutout(cutoutBlob, studioBgColor);
+      if (selectedBgItem && selectedBgItem.type !== "transparent") {
+        const composited = await applyBackgroundToCutout(cutoutBlob, selectedBgItem);
         setStudioResultUrl(URL.createObjectURL(composited));
       } else {
         setStudioResultUrl(URL.createObjectURL(cutoutBlob));
@@ -1090,7 +1195,8 @@ function AIDesignContent() {
         setStudioProgress(
           isEnglish ? "Applying edge isolation..." : "Menerapkan segmentasi visual tepi..."
         );
-        const fallbackBlob = await fallbackBackgroundRemoval(studioFile, studioBgColor);
+        const fallbackColor = selectedBgItem.value || selectedBgItem.fallbackColor || "#ffffff";
+        const fallbackBlob = await fallbackBackgroundRemoval(studioFile, fallbackColor);
         setStudioCutoutBlob(fallbackBlob);
         setStudioResultUrl(URL.createObjectURL(fallbackBlob));
       } catch {
@@ -1790,34 +1896,160 @@ function AIDesignContent() {
 
 
 
-              {/* Opsi Warna untuk Hapus Background */}
+              {/* Opsi Background 200+ Pilihan (Bunga, Alam, Studio, Gradien, Warna Solid, Abstrak, Interior) */}
               {activeMainTab === "remove-bg" && (
-                <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl backdrop-blur">
-                  <h2 className="text-base font-semibold text-white">
-                    {isEnglish ? "Background Color Tint" : "Warna Latar Belakang Baru"}
-                  </h2>
-                  <div className="mt-4 flex flex-wrap gap-2.5">
-                    {[
-                      { id: "transparent", label: isEnglish ? "Transparent" : "Transparan", color: "bg-transparent border-dashed" },
-                      { id: "#ffffff", label: isEnglish ? "Pure White" : "Putih Katalog", color: "bg-white" },
-                      { id: "#0f172a", label: isEnglish ? "Dark Slate" : "Hitam Slate", color: "bg-slate-900" },
-                      { id: "#fce7f3", label: isEnglish ? "Pastel Pink" : "Pastel Pink", color: "bg-pink-100" },
-                      { id: "#e0f2fe", label: isEnglish ? "Soft Blue" : "Soft Blue", color: "bg-sky-100" },
-                    ].map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => handleStudioBgColorChange(c.id)}
-                        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                          studioBgColor === c.id
-                            ? "border-pink-500 bg-pink-500/15 text-white"
-                            : "border-slate-800 bg-slate-950 text-slate-400 hover:text-white"
-                        }`}
-                      >
-                        <span className={`h-3.5 w-3.5 rounded-full border border-slate-700 ${c.color}`} />
-                        {c.label}
-                      </button>
-                    ))}
+                <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-5 shadow-xl backdrop-blur">
+                  {/* Header & Status Terpilih */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                    <div>
+                      <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+                        <Sparkles className="h-4 w-4 text-pink-400" />
+                        {isEnglish ? "Background Catalog (200+ Choices)" : "Pilihan Background (200+ Variasi)"}
+                      </h2>
+                      <p className="text-[11px] text-slate-400">
+                        {isEnglish ? "Choose floral, nature, podium materials, gradients, or solid colors" : "Pilih bunga & flora, alam, podium marmer/kayu, gradien, atau warna"}
+                      </p>
+                    </div>
+
+                    {/* Terpilih badge */}
+                    <div className="inline-flex items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 px-2.5 py-1 text-[11px] font-medium text-pink-300">
+                      <span
+                        className="h-3 w-3 rounded-full border border-pink-400/50 shadow-sm"
+                        style={{ background: selectedBgItem.cssBackground || selectedBgItem.value || "#000" }}
+                      />
+                      <span className="truncate max-w-[120px]">{isEnglish ? selectedBgItem.nameEn : selectedBgItem.nameId}</span>
+                    </div>
+                  </div>
+
+                  {/* Search & Custom Color bar */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        value={bgSearch}
+                        onChange={(e) => setBgSearch(e.target.value)}
+                        placeholder={isEnglish ? "Search 200+ backgrounds (e.g. mawar, pantai, marmer)..." : "Cari 200+ background (misal: mawar, pantai, marmer)..."}
+                        className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 pl-9 pr-8 text-xs text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none transition"
+                      />
+                      {bgSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setBgSearch("")}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Custom Color Input */}
+                    <label
+                      className="relative flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950 px-2.5 py-2 text-xs font-medium text-slate-300 hover:border-slate-700 transition"
+                      title={isEnglish ? "Pick custom hex color" : "Pilih warna hex custom"}
+                    >
+                      <div
+                        className="h-4 w-4 rounded-full border border-slate-600 shadow-sm"
+                        style={{ backgroundColor: customHexColor }}
+                      />
+                      <span className="text-[11px] hidden sm:inline">{isEnglish ? "Custom" : "Kustom"}</span>
+                      <input
+                        type="color"
+                        value={customHexColor}
+                        onChange={(e) => handleCustomColorChange(e.target.value)}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                    </label>
+                  </div>
+
+                  {/* Category Pills */}
+                  <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-700">
+                    {BACKGROUND_CATEGORIES.map((cat) => {
+                      const isActive = bgCategory === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setBgCategory(cat.id)}
+                          className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${
+                            isActive
+                              ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm"
+                              : "border border-slate-800 bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-white"
+                          }`}
+                        >
+                          <span>{cat.icon}</span>
+                          <span>{isEnglish ? cat.nameEn : cat.nameId}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Scrollable Background Catalog Grid */}
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5 px-0.5">
+                      <span>
+                        {isEnglish
+                          ? `Showing ${filteredBackgrounds.length} presets`
+                          : `Menampilkan ${filteredBackgrounds.length} pilihan`}
+                      </span>
+                      {selectedBgItem.id !== "transparent" && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectBackground(BACKGROUND_CATALOG[0])}
+                          className="text-pink-400 hover:text-pink-300 transition font-medium"
+                        >
+                          {isEnglish ? "Reset to Transparent" : "Reset ke Transparan"}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid max-h-[300px] grid-cols-4 sm:grid-cols-6 gap-2 overflow-y-auto rounded-xl border border-slate-800/80 bg-slate-950/60 p-2 scrollbar-thin scrollbar-thumb-slate-700">
+                      {filteredBackgrounds.map((item) => {
+                        const isSelected = selectedBgItem.id === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleSelectBackground(item)}
+                            title={isEnglish ? item.nameEn : item.nameId}
+                            className={`group relative flex flex-col items-center rounded-xl p-1.5 text-center transition ${
+                              isSelected
+                                ? "bg-pink-500/20 ring-2 ring-pink-500 shadow-md shadow-pink-500/10"
+                                : "border border-slate-800/80 bg-slate-900/60 hover:border-slate-600 hover:bg-slate-800/60"
+                            }`}
+                          >
+                            {/* Preview Thumbnail */}
+                            <div
+                              className="relative h-14 w-full rounded-lg overflow-hidden border border-slate-700/60 shadow-inner"
+                              style={{
+                                background: item.cssBackground || (item.value ? item.value : undefined),
+                                backgroundColor: item.fallbackColor || undefined,
+                              }}
+                            >
+                              {item.type === "transparent" && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white tracking-wider">
+                                    PNG
+                                  </span>
+                                </div>
+                              )}
+                              {isSelected && (
+                                <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-white shadow">
+                                  <Check className="h-2.5 w-2.5 stroke-[3]" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Name Label */}
+                            <span className={`mt-1.5 block w-full truncate text-[10px] leading-tight font-medium ${
+                              isSelected ? "text-pink-300" : "text-slate-300 group-hover:text-white"
+                            }`}>
+                              {isEnglish ? item.nameEn : item.nameId}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1943,9 +2175,8 @@ function AIDesignContent() {
                           </span>
                           <div
                             className={`relative aspect-square w-full overflow-hidden rounded-xl border border-pink-500/40 ${
-                              studioBgColor === "transparent" ? "bg-[radial-gradient(#334155_1.5px,transparent_1.5px)] [background-size:16px_16px] bg-slate-950" : ""
+                              selectedBgItem.type === "transparent" ? "bg-[radial-gradient(#334155_1.5px,transparent_1.5px)] [background-size:16px_16px] bg-slate-950" : "bg-slate-950"
                             }`}
-                            style={{ backgroundColor: studioBgColor !== "transparent" ? studioBgColor : undefined }}
                           >
                             <NextImage src={studioResultUrl} alt="After" fill className="object-contain" unoptimized />
                           </div>
@@ -1954,9 +2185,8 @@ function AIDesignContent() {
                     ) : (
                       <div
                         className={`relative aspect-square max-h-[520px] w-full overflow-hidden rounded-xl border border-slate-800 ${
-                          studioBgColor === "transparent" ? "bg-[radial-gradient(#334155_1.5px,transparent_1.5px)] [background-size:16px_16px] bg-slate-950" : ""
+                          selectedBgItem.type === "transparent" ? "bg-[radial-gradient(#334155_1.5px,transparent_1.5px)] [background-size:16px_16px] bg-slate-950" : "bg-slate-950"
                         }`}
-                        style={{ backgroundColor: studioBgColor !== "transparent" ? studioBgColor : undefined }}
                       >
                         <NextImage
                           src={studioResultUrl}

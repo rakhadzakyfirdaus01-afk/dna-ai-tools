@@ -272,7 +272,7 @@ Kembalikan HANYA SATU JSON VALID murni tanpa format markdown code fences.
     const client = new GoogleGenAI({
       apiKey,
       httpOptions: {
-        timeout: 45000, // 45 detik timeout per panggilan agar tidak mengenai batas gateway
+        timeout: 100000, // 100 detik batas waktu penuh untuk project web kompleks
       },
     });
 
@@ -287,7 +287,7 @@ Kembalikan HANYA SATU JSON VALID murni tanpa format markdown code fences.
             systemInstruction: SYSTEM_PROMPT,
             responseMimeType: "application/json",
             temperature: 0.2,
-            maxOutputTokens: 16384,
+            maxOutputTokens: 8192,
           },
         });
 

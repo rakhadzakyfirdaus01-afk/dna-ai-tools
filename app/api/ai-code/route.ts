@@ -712,6 +712,56 @@ function getPreviewFiles(
   );
 }
 
+function formatAICodeErrorMessage(error: unknown): string {
+  if (!error) return "Terjadi kesalahan pada sistem AI Code.";
+
+  const raw = error instanceof Error ? error.message : String(error);
+  const normalized = raw.toLowerCase();
+
+  if (
+    normalized.includes("504") ||
+    normalized.includes("deadline_exceeded") ||
+    normalized.includes("deadline exceeded") ||
+    normalized.includes("timed out") ||
+    normalized.includes("timeout") ||
+    normalized.includes("gateway timeout")
+  ) {
+    return "Server AI sedang mengalami lonjakan antrean sehingga batas waktu pemrosesan habis (Timeout 504 / Deadline Exceeded). Silakan klik 'Build Project' kembali atau coba pilih model lain.";
+  }
+
+  if (
+    normalized.includes("429") ||
+    normalized.includes("quota") ||
+    normalized.includes("resource_exhausted")
+  ) {
+    return "Kuota permintaan model AI sementara sedang penuh (Rate Limit 429). Mohon tunggu beberapa saat lalu coba kembali.";
+  }
+
+  if (
+    normalized.includes("503") ||
+    normalized.includes("unavailable") ||
+    normalized.includes("temporarily unavailable")
+  ) {
+    return "Layanan model AI sedang mengalami beban tinggi sementara (503 Service Unavailable). Silakan coba sesaat lagi.";
+  }
+
+  // Coba parse jika error berupa JSON string mentah dari Google API
+  try {
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const errObj = parsed?.error || parsed;
+      if (errObj?.message && typeof errObj.message === "string") {
+        return `Gagal membuat kode: ${errObj.message}`;
+      }
+    }
+  } catch {
+    // Abaikan jika bukan format JSON
+  }
+
+  return raw;
+}
+
 export async function POST(
   req: Request
 ) {
@@ -1018,10 +1068,7 @@ export async function POST(
       error
     );
 
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Terjadi kesalahan pada AI Code.";
+    const message = formatAICodeErrorMessage(error);
 
     return NextResponse.json(
       {

@@ -14,23 +14,31 @@ function getCleanApiKey(raw?: string): string {
   return raw.replace(/^["']|["']$/g, "").trim();
 }
 
-// Fallback API key agar tidak pernah gagal jika salah satu key mencapai limit
-const primaryApiKey = getCleanApiKey(
-  process.env.GEMINI_CODE_API_KEY ||
-  process.env.GEMINI_API_KEY ||
-  process.env.GEMINI_DEBUGGER_API_KEY ||
-  ""
-);
+/**
+ * Mendapatkan daftar API keys yang tersedia untuk rotasi otomatis tanpa downtime.
+ */
+function getCandidateKeys(): string[] {
+  const keys = [
+    process.env.GEMINI_CODE_API_KEY,
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_DEBUGGER_API_KEY,
+    process.env.GEMINI_AI_DESIGN_API_KEY,
+    process.env.GEMINI_DOCUMENT_API_KEY,
+    process.env.GEMINI_IMAGE_PROMPT_API_KEY,
+    process.env.GEMINI_OCR_API_KEY,
+    process.env.GEMINI_TRANSLATOR_API_KEY,
+  ];
 
-const ai = new GoogleGenAI({
-  apiKey: primaryApiKey,
-  httpOptions: {
-    timeout: 120000,
-    retryOptions: {
-      attempts: 1,
-    },
-  },
-});
+  const unique = Array.from(
+    new Set(
+      keys
+        .map((k) => getCleanApiKey(k))
+        .filter((k): k is string => Boolean(k && k !== "ISI_NILAI_ASLI"))
+    )
+  );
+
+  return unique;
+}
 
 export type CodeBuilderMode = "web" | "software" | "fix" | "game" | "auto";
 
@@ -241,46 +249,60 @@ Bangun project kelas produksi yang lengkap, mandiri, dan executable di browser.
 Kembalikan HANYA SATU JSON VALID murni tanpa format markdown code fences.
 `.trim();
 
-  // Model fallback gratis (Gemini Flash free tier)
+  // Model fallback gratis (Gemini Flash free tier) & Key Rotation
   const candidateModels = resolveModelCandidates(model);
+  const candidateKeys = getCandidateKeys();
+
+  if (candidateKeys.length === 0) {
+    throw new Error("GEMINI_API_KEY belum dikonfigurasi di server.");
+  }
+
   let lastError: unknown = null;
 
-  for (const candidateModel of candidateModels) {
-    try {
-      console.log(`[AI Code 10X Engine] Trying model: ${candidateModel}`);
+  // Rotasi multi-key & multi-model dengan auto-fallback anti-timeout (504 / DEADLINE_EXCEEDED / 429)
+  for (const apiKey of candidateKeys) {
+    const client = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        timeout: 60000, // 60 detik timeout per panggilan agar segera fallback jika model pertama lambat
+      },
+    });
 
-      const result = await ai.models.generateContent({
-        model: candidateModel,
-        contents: userPrompt,
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          responseMimeType: "application/json",
-          temperature: 0.25,
-          maxOutputTokens: 65536,
-          httpOptions: {
-            timeout: 120000,
+    for (const candidateModel of candidateModels) {
+      try {
+        console.log(`[AI Code 10X Engine] Trying model: ${candidateModel} (key prefix: ${apiKey.slice(0, 6)}...)`);
+
+        const result = await client.models.generateContent({
+          model: candidateModel,
+          contents: userPrompt,
+          config: {
+            systemInstruction: SYSTEM_PROMPT,
+            responseMimeType: "application/json",
+            temperature: 0.2,
+            maxOutputTokens: 16384,
           },
-        },
-      });
+        });
 
-      const text = result.text?.trim() ?? "";
+        const text = result.text?.trim() ?? "";
 
-      if (text) {
-        console.log(`[AI Code 10X Engine] Succeeded with model: ${candidateModel}`);
-        return text;
-      }
+        if (text) {
+          console.log(`[AI Code 10X Engine] Succeeded with model: ${candidateModel}`);
+          return text;
+        }
 
-      lastError = new Error(`Model ${candidateModel} menghasilkan response kosong.`);
-    } catch (error) {
-      lastError = error;
-      console.warn(`[AI Code 10X Engine] Model ${candidateModel} failed:`, error);
+        lastError = new Error(`Model ${candidateModel} menghasilkan response kosong.`);
+      } catch (error) {
+        lastError = error;
+        console.warn(`[AI Code 10X Engine] Model ${candidateModel} failed:`, error);
 
-      if (isModelFallbackError(error)) {
-        // Otomatis coba model gratis berikutnya jika kuota model saat ini habis
+        if (isModelFallbackError(error)) {
+          // Otomatis coba model gratis berikutnya jika timeout (504), kuota habis (429), atau overload (503)
+          continue;
+        }
+
+        // Tetap coba model berikutnya demi ketahanan maksimal sistem
         continue;
       }
-
-      throw error;
     }
   }
 

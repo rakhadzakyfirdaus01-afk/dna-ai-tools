@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import {
   resolveModelCandidates,
+  isModelFallbackError,
   type AIModelId,
 } from "@/lib/ai-models";
 import { getLanguageInstruction } from "@/lib/language";
@@ -62,51 +63,6 @@ Aturan menjawab:
 
 // ==========================================
 // DETEKSI ERROR YANG BOLEH FALLBACK
-// ==========================================
-
-function isModelFallbackError(
-  error: unknown
-): boolean {
-  const message =
-    error instanceof Error
-      ? error.message
-      : String(error);
-
-  const normalized =
-    message.toLowerCase();
-
-  return (
-    normalized.includes("429") ||
-    normalized.includes(
-      "too many requests"
-    ) ||
-    normalized.includes(
-      "resource_exhausted"
-    ) ||
-    normalized.includes("quota") ||
-    normalized.includes(
-      "rate limit"
-    ) ||
-    normalized.includes(
-      "exceeded your current quota"
-    ) ||
-    normalized.includes("503") ||
-    normalized.includes(
-      "service unavailable"
-    ) ||
-    normalized.includes(
-      "temporarily unavailable"
-    ) ||
-    normalized.includes("404") ||
-    normalized.includes(
-      "not found"
-    ) ||
-    normalized.includes(
-      "no longer available"
-    )
-  );
-}
-
 // ==========================================
 // AI GEMINI DENGAN AUTO FALLBACK
 // ==========================================

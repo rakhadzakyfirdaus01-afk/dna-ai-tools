@@ -6,11 +6,103 @@ export interface BackgroundItem {
   nameEn: string;
   category: "flowers" | "nature" | "materials" | "gradients" | "colors" | "abstract" | "interiors";
   type: BackgroundType;
+  icon?: string; // Logo/emoji representing the background (e.g. 🌸 for sakura, 🌹 for rose)
   value?: string; // hex color for 'color'
   stops?: { offset: number; color: string }[]; // for 'gradient'
   cssBackground?: string; // CSS style string for instant UI thumbnail preview
   url?: string; // image URL for 'image'
   fallbackColor?: string;
+}
+
+export function getBackgroundThumbnail(item: BackgroundItem): string | undefined {
+  if (item.type !== "image" || !item.url) return undefined;
+  const baseUrl = item.url.split("?")[0];
+  return `${baseUrl}?auto=format&fit=crop&w=240&h=180&q=75`;
+}
+
+export function getBackgroundIcon(item: BackgroundItem): string {
+  if (item.icon) return item.icon;
+  if (item.id === "transparent" || item.type === "transparent") return "🔲";
+
+  const key = `${item.id} ${item.nameId} ${item.nameEn}`.toLowerCase();
+
+  // Flowers & Flora
+  if (key.includes("sakura") || key.includes("cherry")) return "🌸";
+  if (key.includes("rose") || key.includes("mawar")) return "🌹";
+  if (key.includes("sunflower") || key.includes("matahari")) return "🌻";
+  if (key.includes("lavender")) return "🪻";
+  if (key.includes("tulip")) return "🌷";
+  if (key.includes("lotus") || key.includes("teratai")) return "🪷";
+  if (key.includes("peony") || key.includes("hibiscus")) return "🌺";
+  if (key.includes("orchid") || key.includes("anggrek")) return "💐";
+  if (key.includes("daisy") || key.includes("wildflower") || key.includes("chamomile")) return "🌼";
+  if (key.includes("monstera") || key.includes("palm") || key.includes("leaf") || key.includes("daun")) return "🌿";
+  if (key.includes("cactus") || key.includes("succulent") || key.includes("kaktus")) return "🌵";
+  if (key.includes("bamboo") || key.includes("bambu")) return "🎋";
+  if (item.category === "flowers") return "🌸";
+
+  // Nature & Landscapes
+  if (key.includes("beach") || key.includes("pantai") || key.includes("sand")) return "🏖️";
+  if (key.includes("ocean") || key.includes("sea") || key.includes("wave") || key.includes("laut")) return "🌊";
+  if (key.includes("mountain") || key.includes("alps") || key.includes("gunung")) return "🏔️";
+  if (key.includes("forest") || key.includes("pine") || key.includes("hutan") || key.includes("pohon")) return "🌲";
+  if (key.includes("desert") || key.includes("gurun") || key.includes("dune")) return "🏜️";
+  if (key.includes("aurora") || key.includes("borealis")) return "🌌";
+  if (key.includes("waterfall") || key.includes("air terjun")) return "🌊";
+  if (key.includes("sunset") || key.includes("senja") || key.includes("sunrise")) return "🌅";
+  if (key.includes("snow") || key.includes("winter") || key.includes("salju")) return "❄️";
+  if (key.includes("lake") || key.includes("danau")) return "🏞️";
+  if (item.category === "nature") return "🏞️";
+
+  // Studio & Materials
+  if (key.includes("marble") || key.includes("marmer") || key.includes("carrara") || key.includes("onyx")) return "🏛️";
+  if (key.includes("wood") || key.includes("kayu") || key.includes("oak") || key.includes("walnut")) return "🪵";
+  if (key.includes("concrete") || key.includes("beton") || key.includes("semen")) return "🏢";
+  if (key.includes("gold") || key.includes("silk") || key.includes("sutra") || key.includes("emas")) return "✨";
+  if (key.includes("terrazzo") || key.includes("stone") || key.includes("batu")) return "🪨";
+  if (key.includes("podium") || key.includes("studio")) return "🎯";
+  if (item.category === "materials") return "🏛️";
+
+  // Gradients
+  if (key.includes("cyber") || key.includes("neon")) return "⚡";
+  if (key.includes("sunset")) return "🌅";
+  if (key.includes("purple") || key.includes("violet")) return "🔮";
+  if (key.includes("ocean") || key.includes("blue")) return "🌊";
+  if (key.includes("peach") || key.includes("pink")) return "🍑";
+  if (item.category === "gradients") return "🌈";
+
+  // Abstract & Effects
+  if (key.includes("bokeh") || key.includes("sparkle") || key.includes("glitter")) return "✨";
+  if (key.includes("water") || key.includes("ripple") || key.includes("air")) return "💧";
+  if (key.includes("watercolor") || key.includes("cat air")) return "🎨";
+  if (key.includes("smoke") || key.includes("asap") || key.includes("fog")) return "🌫️";
+  if (key.includes("hologram") || key.includes("prism")) return "🔮";
+  if (key.includes("cyber") || key.includes("grid")) return "🌐";
+  if (item.category === "abstract") return "🔮";
+
+  // Interiors & Spaces
+  if (key.includes("cafe") || key.includes("coffee") || key.includes("kafe")) return "☕";
+  if (key.includes("living") || key.includes("sofa") || key.includes("kamar")) return "🛋️";
+  if (key.includes("kitchen") || key.includes("dapur") || key.includes("dining")) return "🍽️";
+  if (key.includes("office") || key.includes("kantor") || key.includes("workspace")) return "💼";
+  if (key.includes("gallery") || key.includes("museum") || key.includes("art")) return "🖼️";
+  if (key.includes("tokyo") || key.includes("city") || key.includes("kota")) return "🏮";
+  if (item.category === "interiors") return "🏙️";
+
+  // Solid Colors
+  if (key.includes("putih") || key.includes("white")) return "⚪";
+  if (key.includes("hitam") || key.includes("black")) return "⚫";
+  if (key.includes("merah") || key.includes("red")) return "🔴";
+  if (key.includes("biru") || key.includes("blue")) return "🔵";
+  if (key.includes("hijau") || key.includes("green")) return "🟢";
+  if (key.includes("kuning") || key.includes("yellow")) return "🟡";
+  if (key.includes("ungu") || key.includes("purple")) return "🟣";
+  if (key.includes("pink")) return "🌸";
+  if (key.includes("cokelat") || key.includes("brown")) return "🟤";
+  if (key.includes("oranye") || key.includes("orange")) return "🟠";
+  if (item.category === "colors") return "🎨";
+
+  return "🎨";
 }
 
 export interface BackgroundCategoryMeta {

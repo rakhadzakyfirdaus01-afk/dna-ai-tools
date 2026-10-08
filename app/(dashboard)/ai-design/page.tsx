@@ -34,6 +34,8 @@ import {
 import {
   BACKGROUND_CATALOG,
   BACKGROUND_CATEGORIES,
+  getBackgroundIcon,
+  getBackgroundThumbnail,
   type BackgroundItem,
 } from "@/lib/background-catalog";
 
@@ -1014,6 +1016,12 @@ function AIDesignContent() {
     setSelectedBgItem(bgItem);
     if (studioCutoutBlob) {
       try {
+        setStudioLoading(true);
+        setStudioProgress(
+          isEnglish
+            ? `Applying ${bgItem.nameEn} background...`
+            : `Menerapkan latar ${bgItem.nameId}...`
+        );
         if (bgItem.type === "transparent") {
           setStudioResultUrl(URL.createObjectURL(studioCutoutBlob));
         } else {
@@ -1022,6 +1030,9 @@ function AIDesignContent() {
         }
       } catch (err) {
         console.warn("Gagal mengubah background:", err);
+      } finally {
+        setStudioLoading(false);
+        setStudioProgress("");
       }
     }
   }
@@ -1912,12 +1923,16 @@ function AIDesignContent() {
                     </div>
 
                     {/* Terpilih badge */}
-                    <div className="inline-flex items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 px-2.5 py-1 text-[11px] font-medium text-pink-300">
-                      <span
-                        className="h-3 w-3 rounded-full border border-pink-400/50 shadow-sm"
-                        style={{ background: selectedBgItem.cssBackground || selectedBgItem.value || "#000" }}
-                      />
-                      <span className="truncate max-w-[120px]">{isEnglish ? selectedBgItem.nameEn : selectedBgItem.nameId}</span>
+                    <div className="inline-flex items-center gap-2 rounded-xl border border-pink-500/40 bg-pink-500/15 px-3 py-1.5 text-xs font-semibold text-pink-200 shadow-sm">
+                      <span className="text-base">{getBackgroundIcon(selectedBgItem)}</span>
+                      <div className="flex flex-col text-left">
+                        <span className="text-[9px] text-pink-300/80 uppercase tracking-wider font-bold">
+                          {isEnglish ? "Selected Background" : "Latar Terpilih"}
+                        </span>
+                        <span className="truncate max-w-[140px] text-white">
+                          {isEnglish ? selectedBgItem.nameEn : selectedBgItem.nameId}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -1929,7 +1944,7 @@ function AIDesignContent() {
                         type="text"
                         value={bgSearch}
                         onChange={(e) => setBgSearch(e.target.value)}
-                        placeholder={isEnglish ? "Search 200+ backgrounds (e.g. mawar, pantai, marmer)..." : "Cari 200+ background (misal: mawar, pantai, marmer)..."}
+                        placeholder={isEnglish ? "Search 200+ backgrounds (e.g. sakura, mawar, pantai, marmer)..." : "Cari 200+ background (misal: sakura, mawar, pantai, marmer)..."}
                         className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 pl-9 pr-8 text-xs text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none transition"
                       />
                       {bgSearch && (
@@ -2003,7 +2018,7 @@ function AIDesignContent() {
                       )}
                     </div>
 
-                    <div className="grid max-h-[300px] grid-cols-4 sm:grid-cols-6 gap-2 overflow-y-auto rounded-xl border border-slate-800/80 bg-slate-950/60 p-2 scrollbar-thin scrollbar-thumb-slate-700">
+                    <div className="grid max-h-[320px] grid-cols-4 sm:grid-cols-6 gap-2.5 overflow-y-auto rounded-xl border border-slate-800/80 bg-slate-950/60 p-2.5 scrollbar-thin scrollbar-thumb-slate-700">
                       {filteredBackgrounds.map((item) => {
                         const isSelected = selectedBgItem.id === item.id;
                         return (
@@ -2018,23 +2033,39 @@ function AIDesignContent() {
                                 : "border border-slate-800/80 bg-slate-900/60 hover:border-slate-600 hover:bg-slate-800/60"
                             }`}
                           >
-                            {/* Preview Thumbnail */}
+                            {/* Preview Thumbnail with Real Photo & Logo */}
                             <div
-                              className="relative h-14 w-full rounded-lg overflow-hidden border border-slate-700/60 shadow-inner"
+                              className="relative h-16 w-full rounded-lg overflow-hidden border border-slate-700/60 shadow-inner bg-slate-900"
                               style={{
                                 background: item.cssBackground || (item.value ? item.value : undefined),
                                 backgroundColor: item.fallbackColor || undefined,
                               }}
                             >
+                              {/* Real Image Preview */}
+                              {item.type === "image" && item.url && (
+                                <img
+                                  src={getBackgroundThumbnail(item) || item.url}
+                                  alt={item.nameId}
+                                  loading="lazy"
+                                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                />
+                              )}
+
+                              {/* Logo / Emoji Badge in bottom-left */}
+                              <div className="absolute bottom-1 left-1 flex h-5 w-5 items-center justify-center rounded-md bg-black/75 backdrop-blur-sm text-xs shadow-md border border-white/10">
+                                <span>{getBackgroundIcon(item)}</span>
+                              </div>
+
                               {item.type === "transparent" && (
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <span className="rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white tracking-wider">
+                                  <span className="rounded bg-black/75 px-1 py-0.5 text-[9px] font-bold text-white tracking-wider border border-white/10">
                                     PNG
                                   </span>
                                 </div>
                               )}
+
                               {isSelected && (
-                                <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-white shadow">
+                                <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-white shadow ring-2 ring-white/50">
                                   <Check className="h-2.5 w-2.5 stroke-[3]" />
                                 </div>
                               )}
@@ -2042,7 +2073,7 @@ function AIDesignContent() {
 
                             {/* Name Label */}
                             <span className={`mt-1.5 block w-full truncate text-[10px] leading-tight font-medium ${
-                              isSelected ? "text-pink-300" : "text-slate-300 group-hover:text-white"
+                              isSelected ? "text-pink-300 font-bold" : "text-slate-300 group-hover:text-white"
                             }`}>
                               {isEnglish ? item.nameEn : item.nameId}
                             </span>
@@ -2197,6 +2228,60 @@ function AIDesignContent() {
                         />
                       </div>
                     )
+                  ) : selectedBgItem.id !== "transparent" ? (
+                    <div className="relative flex aspect-square max-h-[520px] w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-pink-500/30 p-6 text-center">
+                      {/* Background Visual Showcase */}
+                      {selectedBgItem.type === "image" && selectedBgItem.url ? (
+                        <img
+                          src={selectedBgItem.url}
+                          alt={selectedBgItem.nameId}
+                          className="absolute inset-0 h-full w-full object-cover opacity-85 transition-opacity"
+                        />
+                      ) : (
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: selectedBgItem.cssBackground || selectedBgItem.value,
+                          }}
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/20" />
+
+                      {/* Content Card over Background Showcase */}
+                      <div className="relative z-10 flex flex-col items-center gap-3 max-w-sm rounded-2xl border border-white/20 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-md">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-500/20 text-2xl border border-pink-500/40 shadow-inner">
+                          {getBackgroundIcon(selectedBgItem)}
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-pink-400">
+                            {isEnglish ? "Active Background Preview" : "Pratinjau Latar Terpilih"}
+                          </span>
+                          <h3 className="text-base font-bold text-white">
+                            {isEnglish ? selectedBgItem.nameEn : selectedBgItem.nameId}
+                          </h3>
+                        </div>
+                        <p className="text-xs text-slate-300">
+                          {studioFile
+                            ? isEnglish
+                              ? "Photo uploaded! Click the button below to isolate your subject and place it on this background."
+                              : "Foto telah diunggah! Klik tombol di bawah untuk mengisolasi objek dan menempelkannya ke latar ini."
+                            : isEnglish
+                              ? "Upload your photo in the left panel to place your subject onto this background."
+                              : "Unggah foto di panel kiri untuk langsung memasang objek Anda ke latar ini."}
+                        </p>
+                        {studioFile && (
+                          <button
+                            type="button"
+                            onClick={handleStudioProcess}
+                            disabled={studioLoading}
+                            className="mt-1 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-pink-500/25 transition hover:scale-105 active:scale-95"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                            {isEnglish ? "Apply to Photo Now" : "Terapkan ke Foto Sekarang"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-center text-slate-500">
                       <Sparkles className="h-10 w-10 text-slate-700" />

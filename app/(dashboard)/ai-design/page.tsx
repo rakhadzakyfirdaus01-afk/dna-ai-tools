@@ -66,7 +66,105 @@ export const DESIGN_CATEGORIES: {
   { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
 ];
 
+export type StudioCategory = "all" | "product" | "portrait" | "creative" | "general";
+
+export interface StudioSession {
+  id: string;
+  title: string;
+  category: "product" | "portrait" | "creative" | "general";
+  createdAt: number;
+  updatedAt: number;
+  previewUrl: string; // original image data URL
+  resultUrl: string; // composited result data URL
+  cutoutDataUrl?: string; // transparent cutout data URL
+  selectedBgId: string; // ID from BACKGROUND_CATALOG
+  customHexColor?: string;
+  hasResult: boolean;
+}
+
+export const STUDIO_CATEGORIES: {
+  id: StudioCategory;
+  labelId: string;
+  labelEn: string;
+  icon: string;
+  badgeColor: string;
+}[] = [
+  { id: "all", labelId: "Semua", labelEn: "All", icon: "✂️", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
+  { id: "product", labelId: "Produk", labelEn: "Product", icon: "🛍️", badgeColor: "bg-pink-500/10 text-pink-300 border-pink-500/30" },
+  { id: "portrait", labelId: "Potret", labelEn: "Portrait", icon: "👤", badgeColor: "bg-purple-500/10 text-purple-300 border-purple-500/30" },
+  { id: "creative", labelId: "Bunga & Flora", labelEn: "Flora & Art", icon: "🌸", badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" },
+  { id: "general", labelId: "Umum", labelEn: "General", icon: "📁", badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
+];
+
 const DESIGN_SESSIONS_STORAGE_KEY = "dna_ai_design_sessions_v1";
+const STUDIO_SESSIONS_STORAGE_KEY = "dna_ai_studio_sessions_v1";
+
+function createNewStudioSession(
+  category: "product" | "portrait" | "creative" | "general" = "product",
+  isEn = false
+): StudioSession {
+  return {
+    id: "studiosession-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
+    title: isEn ? "New Cutout" : "Hapus Background Baru",
+    category,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    previewUrl: "",
+    resultUrl: "",
+    cutoutDataUrl: "",
+    selectedBgId: "transparent",
+    hasResult: false,
+  };
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function compressImageForStorage(fileOrBlob: File | Blob, maxDim = 800): Promise<string> {
+  return new Promise((resolve) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          let w = img.naturalWidth || img.width || 800;
+          let h = img.naturalHeight || img.height || 800;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/webp", 0.85));
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(fileOrBlob);
+    } catch {
+      resolve("");
+    }
+  });
+}
 
 function createNewDesignSession(
   category: "poster" | "social" | "logo" | "general" = "poster",
@@ -128,6 +226,74 @@ function AIDesignContent() {
   const [bgSearch, setBgSearch] = useState<string>("");
   const [customHexColor, setCustomHexColor] = useState<string>("#ffffff");
   const studioFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Studio Session States (Persistent History)
+  const [studioSessions, setStudioSessions] = useState<StudioSession[]>([]);
+  const [activeStudioSessionId, setActiveStudioSessionId] = useState<string>("");
+  const [selectedStudioCategory, setSelectedStudioCategory] = useState<StudioCategory>("all");
+  const [studioSessionSearch, setStudioSessionSearch] = useState<string>("");
+  const [editingStudioSessionId, setEditingStudioSessionId] = useState<string | null>(null);
+  const [editingStudioTitle, setEditingStudioTitle] = useState<string>("");
+  const [categoryMenuStudioSessionId, setCategoryMenuStudioSessionId] = useState<string | null>(null);
+  const isInitialStudioLoadRef = useRef(true);
+
+  function saveStudioSessionsToStorage(updatedSessions: StudioSession[]) {
+    try {
+      localStorage.setItem(STUDIO_SESSIONS_STORAGE_KEY, JSON.stringify(updatedSessions));
+    } catch (e) {
+      console.warn("Storage quota exceeded, trimming old studio sessions:", e);
+      try {
+        const trimmed = updatedSessions.slice(0, 15);
+        localStorage.setItem(STUDIO_SESSIONS_STORAGE_KEY, JSON.stringify(trimmed));
+      } catch {}
+    }
+  }
+
+  // Load studio sessions from LocalStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STUDIO_SESSIONS_STORAGE_KEY);
+      if (raw) {
+        const parsed: StudioSession[] = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setStudioSessions(parsed);
+          const first = parsed[0];
+          setActiveStudioSessionId(first.id);
+          if (first.previewUrl) setStudioPreviewUrl(first.previewUrl);
+          if (first.resultUrl) setStudioResultUrl(first.resultUrl);
+          if (first.cutoutDataUrl) {
+            fetch(first.cutoutDataUrl)
+              .then((r) => r.blob())
+              .then((b) => setStudioCutoutBlob(b))
+              .catch(() => {});
+          }
+          if (first.selectedBgId) {
+            const bg = BACKGROUND_CATALOG.find((b) => b.id === first.selectedBgId);
+            if (bg) setSelectedBgItem(bg);
+          }
+          if (first.customHexColor) setCustomHexColor(first.customHexColor);
+          isInitialStudioLoadRef.current = false;
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Error loading studio sessions:", e);
+    }
+    const defaultStudioSession = createNewStudioSession("product", locale === "en");
+    setStudioSessions([defaultStudioSession]);
+    setActiveStudioSessionId(defaultStudioSession.id);
+    isInitialStudioLoadRef.current = false;
+  }, []);
+
+  const filteredStudioSessions = useMemo(() => {
+    return studioSessions.filter((s) => {
+      const matchesCat = selectedStudioCategory === "all" || s.category === selectedStudioCategory;
+      if (!matchesCat) return false;
+      if (!studioSessionSearch.trim()) return true;
+      const q = studioSessionSearch.toLowerCase();
+      return s.title.toLowerCase().includes(q);
+    });
+  }, [studioSessions, selectedStudioCategory, studioSessionSearch]);
 
   const filteredBackgrounds = useMemo(() => {
     return BACKGROUND_CATALOG.filter((item) => {
@@ -347,6 +513,105 @@ function AIDesignContent() {
       return matchCategory && matchSearch;
     });
   }, [sessions, selectedCategory, sessionSearch]);
+
+  async function handleSelectStudioSession(targetId: string) {
+    if (targetId === activeStudioSessionId) {
+      setMobileSidebarOpen(false);
+      return;
+    }
+    const target = studioSessions.find((s) => s.id === targetId);
+    if (!target) return;
+
+    setActiveStudioSessionId(targetId);
+    setStudioFile(null);
+    setStudioPreviewUrl(target.previewUrl || "");
+    setStudioResultUrl(target.resultUrl || "");
+    setStudioError("");
+
+    if (target.selectedBgId) {
+      const bg = BACKGROUND_CATALOG.find((b) => b.id === target.selectedBgId);
+      if (bg) setSelectedBgItem(bg);
+    }
+    if (target.customHexColor) setCustomHexColor(target.customHexColor);
+
+    if (target.cutoutDataUrl) {
+      try {
+        const res = await fetch(target.cutoutDataUrl);
+        const blob = await res.blob();
+        setStudioCutoutBlob(blob);
+      } catch {
+        setStudioCutoutBlob(null);
+      }
+    } else {
+      setStudioCutoutBlob(null);
+    }
+    setMobileSidebarOpen(false);
+  }
+
+  function handleCreateNewStudioSession(category: StudioCategory = "product") {
+    const newSession = createNewStudioSession(
+      category === "all" ? "product" : category,
+      isEnglish
+    );
+    const updated = [newSession, ...studioSessions];
+    setStudioSessions(updated);
+    setActiveStudioSessionId(newSession.id);
+    saveStudioSessionsToStorage(updated);
+
+    // Reset workspace
+    setStudioFile(null);
+    setStudioPreviewUrl("");
+    setStudioResultUrl("");
+    setStudioCutoutBlob(null);
+    setSelectedBgItem(BACKGROUND_CATALOG[0]);
+    setStudioError("");
+    setMobileSidebarOpen(false);
+  }
+
+  function handleDeleteStudioSession(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    const updated = studioSessions.filter((s) => s.id !== id);
+    if (updated.length === 0) {
+      const fresh = createNewStudioSession("product", isEnglish);
+      setStudioSessions([fresh]);
+      setActiveStudioSessionId(fresh.id);
+      saveStudioSessionsToStorage([fresh]);
+      setStudioFile(null);
+      setStudioPreviewUrl("");
+      setStudioResultUrl("");
+      setStudioCutoutBlob(null);
+      setSelectedBgItem(BACKGROUND_CATALOG[0]);
+    } else {
+      setStudioSessions(updated);
+      saveStudioSessionsToStorage(updated);
+      if (id === activeStudioSessionId) {
+        handleSelectStudioSession(updated[0].id);
+      }
+    }
+  }
+
+  function handleSaveRenameStudio(id: string) {
+    if (!editingStudioTitle.trim()) {
+      setEditingStudioSessionId(null);
+      return;
+    }
+    const updated = studioSessions.map((s) =>
+      s.id === id ? { ...s, title: editingStudioTitle.trim(), updatedAt: Date.now() } : s
+    );
+    setStudioSessions(updated);
+    saveStudioSessionsToStorage(updated);
+    setEditingStudioSessionId(null);
+  }
+
+  function handleChangeStudioCategory(id: string, newCat: StudioSession["category"], e: React.MouseEvent) {
+    e.stopPropagation();
+    const updated = studioSessions.map((s) =>
+      s.id === id ? { ...s, category: newCat, updatedAt: Date.now() } : s
+    );
+    setStudioSessions(updated);
+    saveStudioSessionsToStorage(updated);
+    setCategoryMenuStudioSessionId(null);
+  }
 
   const ui = {
     headerDescription: isEnglish
@@ -848,7 +1113,7 @@ function AIDesignContent() {
     });
   }
 
-  function handleStudioFileChange(e: ChangeEvent<HTMLInputElement>) {
+  async function handleStudioFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -863,15 +1128,49 @@ function AIDesignContent() {
     setStudioResultUrl("");
     const url = URL.createObjectURL(file);
     setStudioPreviewUrl(url);
+
+    // Save compressed data URL to active studio session
+    try {
+      const dataUrl = await compressImageForStorage(file, 900);
+      let autoTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      if (autoTitle) {
+        autoTitle = autoTitle.charAt(0).toUpperCase() + autoTitle.slice(1);
+      } else {
+        autoTitle = isEnglish ? "Uploaded Photo" : "Foto Unggahan";
+      }
+
+      setStudioSessions((prev) => {
+        const updated = prev.map((s) => {
+          if (s.id === activeStudioSessionId) {
+            const defaultTitles = ["Hapus Background Baru", "New Cutout"];
+            const newTitle = defaultTitles.includes(s.title) ? autoTitle : s.title;
+            return {
+              ...s,
+              title: newTitle,
+              previewUrl: dataUrl,
+              resultUrl: "",
+              cutoutDataUrl: "",
+              hasResult: false,
+              updatedAt: Date.now(),
+            };
+          }
+          return s;
+        });
+        saveStudioSessionsToStorage(updated);
+        return updated;
+      });
+    } catch (err) {
+      console.warn("Gagal menyimpan preview sesi:", err);
+    }
   }
 
   // Pre-scale image to 1440px max PNG to keep WASM neural segmentation fast and light on RAM
-  async function prepareImageForSegmentation(file: File): Promise<Blob> {
-    return new Promise((resolve) => {
+  async function prepareImageForSegmentation(input: File | Blob | string): Promise<Blob> {
+    return new Promise((resolve, reject) => {
       try {
-        const reader = new FileReader();
-        reader.onload = (e) => {
+        const processImg = (src: string) => {
           const img = new window.Image();
+          img.crossOrigin = "anonymous";
           img.onload = () => {
             const maxDimension = 1440;
             let width = img.naturalWidth || img.width || 1024;
@@ -892,23 +1191,35 @@ function AIDesignContent() {
             canvas.height = height;
             const ctx = canvas.getContext("2d");
             if (!ctx) {
-              resolve(file);
+              if (typeof input !== "string") resolve(input);
               return;
             }
 
             ctx.drawImage(img, 0, 0, width, height);
-            canvas.toBlob(
-              (blob) => resolve(blob || file),
-              "image/png"
-            );
+            canvas.toBlob((blob) => {
+              if (blob) resolve(blob);
+              else if (typeof input !== "string") resolve(input);
+              else reject(new Error("Canvas blob error"));
+            }, "image/png");
           };
-          img.onerror = () => resolve(file);
-          img.src = e.target?.result as string;
+          img.onerror = () => {
+            if (typeof input !== "string") resolve(input);
+            else reject(new Error("Failed to load image"));
+          };
+          img.src = src;
         };
-        reader.onerror = () => resolve(file);
-        reader.readAsDataURL(file);
+
+        if (typeof input === "string") {
+          processImg(input);
+        } else {
+          const reader = new FileReader();
+          reader.onload = (e) => processImg(e.target?.result as string);
+          reader.onerror = () => resolve(input);
+          reader.readAsDataURL(input);
+        }
       } catch {
-        resolve(file);
+        if (typeof input !== "string") resolve(input);
+        else reject(new Error("Failed to prepare image"));
       }
     });
   }
@@ -1022,12 +1333,33 @@ function AIDesignContent() {
             ? `Applying ${bgItem.nameEn} background...`
             : `Menerapkan latar ${bgItem.nameId}...`
         );
+        let composited: Blob = studioCutoutBlob;
         if (bgItem.type === "transparent") {
           setStudioResultUrl(URL.createObjectURL(studioCutoutBlob));
         } else {
-          const composited = await applyBackgroundToCutout(studioCutoutBlob, bgItem);
+          composited = await applyBackgroundToCutout(studioCutoutBlob, bgItem);
           setStudioResultUrl(URL.createObjectURL(composited));
         }
+
+        // Persist updated result to active studio session
+        try {
+          const resultDataUrl = await compressImageForStorage(composited, 900);
+          setStudioSessions((prev) => {
+            const updated = prev.map((s) => {
+              if (s.id === activeStudioSessionId) {
+                return {
+                  ...s,
+                  resultUrl: resultDataUrl,
+                  selectedBgId: bgItem.id,
+                  updatedAt: Date.now(),
+                };
+              }
+              return s;
+            });
+            saveStudioSessionsToStorage(updated);
+            return updated;
+          });
+        } catch {}
       } catch (err) {
         console.warn("Gagal mengubah background:", err);
       } finally {
@@ -1053,10 +1385,10 @@ function AIDesignContent() {
   }
 
   // Fallback edge & color isolation for devices that cannot execute WASM models
-  async function fallbackBackgroundRemoval(file: File | Blob, bgColor: string): Promise<Blob> {
+  async function fallbackBackgroundRemoval(fileOrBlobOrUrl: File | Blob | string, bgColor: string): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const img = new window.Image();
-      const url = URL.createObjectURL(file);
+      const url = typeof fileOrBlobOrUrl === "string" ? fileOrBlobOrUrl : URL.createObjectURL(fileOrBlobOrUrl);
       img.onload = () => {
         try {
           const canvas = document.createElement("canvas");
@@ -1066,8 +1398,8 @@ function AIDesignContent() {
           canvas.height = h;
           const ctx = canvas.getContext("2d");
           if (!ctx) {
-            URL.revokeObjectURL(url);
-            resolve(file);
+            if (typeof fileOrBlobOrUrl !== "string") URL.revokeObjectURL(url);
+            reject(new Error("No canvas context"));
             return;
           }
 
@@ -1110,21 +1442,27 @@ function AIDesignContent() {
               outCtx.fillStyle = bgColor;
               outCtx.fillRect(0, 0, w, h);
               outCtx.drawImage(canvas, 0, 0);
-              URL.revokeObjectURL(url);
-              outCanvas.toBlob((b) => resolve(b || file), "image/png");
+              if (typeof fileOrBlobOrUrl !== "string") URL.revokeObjectURL(url);
+              outCanvas.toBlob((b) => {
+                if (b) resolve(b);
+                else reject(new Error("Blob error"));
+              }, "image/png");
               return;
             }
           }
 
-          URL.revokeObjectURL(url);
-          canvas.toBlob((b) => resolve(b || file), "image/png");
+          if (typeof fileOrBlobOrUrl !== "string") URL.revokeObjectURL(url);
+          canvas.toBlob((b) => {
+            if (b) resolve(b);
+            else reject(new Error("Blob error"));
+          }, "image/png");
         } catch (e) {
-          URL.revokeObjectURL(url);
+          if (typeof fileOrBlobOrUrl !== "string") URL.revokeObjectURL(url);
           reject(e);
         }
       };
       img.onerror = (e) => {
-        URL.revokeObjectURL(url);
+        if (typeof fileOrBlobOrUrl !== "string") URL.revokeObjectURL(url);
         reject(e);
       };
       img.src = url;
@@ -1132,7 +1470,8 @@ function AIDesignContent() {
   }
 
   async function handleStudioProcess() {
-    if (!studioFile) {
+    const imageSource = studioFile || studioPreviewUrl;
+    if (!imageSource) {
       setStudioError(isEnglish ? "Please upload a photo first." : "Unggah foto terlebih dahulu.");
       return;
     }
@@ -1146,7 +1485,7 @@ function AIDesignContent() {
         isEnglish ? "Preparing image for AI analysis..." : "Menyiapkan gambar untuk analisis AI..."
       );
 
-      const preparedBlob = await prepareImageForSegmentation(studioFile);
+      const preparedBlob = await prepareImageForSegmentation(imageSource);
 
       setStudioProgress(
         isEnglish ? "Loading neural segmentation engine..." : "Memuat model AI neural segmentasi..."
@@ -1176,11 +1515,48 @@ function AIDesignContent() {
 
       setStudioCutoutBlob(cutoutBlob);
 
+      let finalBlob = cutoutBlob;
       if (selectedBgItem && selectedBgItem.type !== "transparent") {
         const composited = await applyBackgroundToCutout(cutoutBlob, selectedBgItem);
+        finalBlob = composited;
         setStudioResultUrl(URL.createObjectURL(composited));
       } else {
         setStudioResultUrl(URL.createObjectURL(cutoutBlob));
+      }
+
+      // Persist to active studio session
+      try {
+        const [cutoutDataUrl, resultDataUrl] = await Promise.all([
+          blobToDataUrl(cutoutBlob),
+          compressImageForStorage(finalBlob, 900),
+        ]);
+
+        setStudioSessions((prev) => {
+          const updated = prev.map((s) => {
+            if (s.id === activeStudioSessionId) {
+              const bgLabel = isEnglish ? selectedBgItem.nameEn : selectedBgItem.nameId;
+              let title = s.title;
+              const defaultTitles = ["Hapus Background Baru", "New Cutout", "Uploaded Photo", "Foto Unggahan"];
+              if (defaultTitles.includes(title)) {
+                title = `Foto (${bgLabel})`;
+              }
+              return {
+                ...s,
+                title,
+                cutoutDataUrl,
+                resultUrl: resultDataUrl,
+                selectedBgId: selectedBgItem.id,
+                hasResult: true,
+                updatedAt: Date.now(),
+              };
+            }
+            return s;
+          });
+          saveStudioSessionsToStorage(updated);
+          return updated;
+        });
+      } catch (saveErr) {
+        console.warn("Gagal persist hasil studio:", saveErr);
       }
 
       // Simpan riwayat di background secara senyap
@@ -1207,9 +1583,34 @@ function AIDesignContent() {
           isEnglish ? "Applying edge isolation..." : "Menerapkan segmentasi visual tepi..."
         );
         const fallbackColor = selectedBgItem.value || selectedBgItem.fallbackColor || "#ffffff";
-        const fallbackBlob = await fallbackBackgroundRemoval(studioFile, fallbackColor);
+        const fallbackBlob = await fallbackBackgroundRemoval(imageSource, fallbackColor);
         setStudioCutoutBlob(fallbackBlob);
         setStudioResultUrl(URL.createObjectURL(fallbackBlob));
+
+        // Persist fallback result
+        try {
+          const [cutoutDataUrl, resultDataUrl] = await Promise.all([
+            blobToDataUrl(fallbackBlob),
+            compressImageForStorage(fallbackBlob, 900),
+          ]);
+          setStudioSessions((prev) => {
+            const updated = prev.map((s) => {
+              if (s.id === activeStudioSessionId) {
+                return {
+                  ...s,
+                  cutoutDataUrl,
+                  resultUrl: resultDataUrl,
+                  selectedBgId: selectedBgItem.id,
+                  hasResult: true,
+                  updatedAt: Date.now(),
+                };
+              }
+              return s;
+            });
+            saveStudioSessionsToStorage(updated);
+            return updated;
+          });
+        } catch {}
       } catch {
         setStudioError(
           isEnglish
@@ -1467,6 +1868,258 @@ function AIDesignContent() {
     </div>
   );
 
+  const renderStudioSidebarContent = () => (
+    <div className="flex flex-col h-full p-4 space-y-3">
+      {/* HEADER */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-2">
+          <Layers size={18} className="text-pink-400" />
+          <span className="text-xs sm:text-sm font-bold text-white tracking-wide">
+            {isEnglish ? "Cutout Sessions" : "Daftar Hapus Background"}
+          </span>
+          <span className="rounded-full bg-pink-500/10 px-2 py-0.5 text-[10px] font-semibold text-pink-400 border border-pink-500/20">
+            {studioSessions.length}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSidebarOpen(false);
+            setMobileSidebarOpen(false);
+          }}
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"
+          title={isEnglish ? "Close" : "Tutup"}
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* + SESI BARU BUTTON */}
+      <button
+        type="button"
+        onClick={() => handleCreateNewStudioSession(selectedStudioCategory === "all" ? "product" : selectedStudioCategory)}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-lg transition hover:scale-[1.02] active:scale-[0.98]"
+      >
+        <Plus size={16} />
+        <span>{isEnglish ? "+ New Cutout" : "+ Sesi Baru"}</span>
+      </button>
+
+      {/* SEARCH INPUT */}
+      <div className="relative">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={studioSessionSearch}
+          onChange={(e) => setStudioSessionSearch(e.target.value)}
+          placeholder={isEnglish ? "Search cutouts..." : "Cari hasil..."}
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 pl-8 pr-7 py-1.5 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-pink-500/50"
+        />
+        {studioSessionSearch && (
+          <button
+            type="button"
+            onClick={() => setStudioSessionSearch("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+
+      {/* FOLDER / CATEGORY TABS */}
+      <div>
+        <div className="mb-1 flex items-center justify-between px-1 text-[11px] font-semibold text-slate-400">
+          <span>{isEnglish ? "FOLDERS" : "FOLDER SESI"}</span>
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+          {STUDIO_CATEGORIES.map((cat) => {
+            const isActive = selectedStudioCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedStudioCategory(cat.id)}
+                className={`flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-medium transition ${
+                  isActive
+                    ? "bg-pink-500/20 text-pink-300 border border-pink-500/40 shadow-[0_0_10px_rgba(236,72,153,0.2)]"
+                    : "bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent"
+                }`}
+              >
+                <span>{cat.icon}</span>
+                <span>{isEnglish ? cat.labelEn : cat.labelId}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* SESSIONS LIST */}
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
+        {filteredStudioSessions.length === 0 ? (
+          <div className="p-4 text-center text-slate-500">
+            <p>{isEnglish ? "No cutouts found in this folder." : "Belum ada hasil di folder ini."}</p>
+            <button
+              type="button"
+              onClick={() => handleCreateNewStudioSession(selectedStudioCategory === "all" ? "product" : selectedStudioCategory)}
+              className="mt-2 text-pink-400 hover:underline"
+            >
+              {isEnglish ? "+ New Cutout" : "+ Buat sesi baru"}
+            </button>
+          </div>
+        ) : (
+          filteredStudioSessions.map((session) => {
+            const isActive = session.id === activeStudioSessionId;
+            const isEditing = editingStudioSessionId === session.id;
+            const bgItem = BACKGROUND_CATALOG.find((b) => b.id === session.selectedBgId);
+            const icon = bgItem ? getBackgroundIcon(bgItem) : "✂️";
+
+            return (
+              <div
+                key={session.id}
+                onClick={() => handleSelectStudioSession(session.id)}
+                className={`group relative flex items-center justify-between rounded-xl px-3 py-2.5 transition cursor-pointer border ${
+                  isActive
+                    ? "bg-pink-500/10 border-pink-500/40 text-white shadow-[0_0_12px_rgba(236,72,153,0.15)]"
+                    : "bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-800/60 hover:text-white hover:border-slate-700"
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {session.resultUrl || session.previewUrl ? (
+                    <img
+                      src={session.resultUrl || session.previewUrl}
+                      alt="Thumbnail"
+                      className="h-8 w-8 rounded-lg object-contain bg-slate-900 border border-slate-700 shrink-0"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 border border-slate-700 text-slate-400 shrink-0">
+                      <Layers size={14} />
+                    </div>
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    {isEditing ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="text"
+                          value={editingStudioTitle}
+                          onChange={(e) => setEditingStudioTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveRenameStudio(session.id);
+                            if (e.key === "Escape") setEditingStudioSessionId(null);
+                          }}
+                          autoFocus
+                          className="w-full rounded border border-pink-500 bg-slate-950 px-1.5 py-0.5 text-xs text-white outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveRenameStudio(session.id)}
+                          className="rounded p-1 text-green-400 hover:bg-green-500/20"
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingStudioSessionId(null)}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-700"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="truncate font-medium text-slate-200 group-hover:text-white">
+                          {session.title}
+                        </p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                          <span>{icon}</span>
+                          <span>
+                            {session.hasResult
+                              ? (bgItem ? (isEnglish ? bgItem.nameEn : bgItem.nameId) : (isEnglish ? "Result Ready" : "Hasil Siap"))
+                              : (isEnglish ? "Draft" : "Draf")}
+                          </span>
+                          <span>•</span>
+                          <span>{formatTimeAgo(session.updatedAt, locale)}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {!isEditing && (
+                  <div
+                    className={`flex items-center gap-1 shrink-0 ${
+                      isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    } transition`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Category / Folder picker */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCategoryMenuStudioSessionId(
+                            categoryMenuStudioSessionId === session.id ? null : session.id
+                          )
+                        }
+                        className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-pink-300 transition"
+                        title={isEnglish ? "Move to folder" : "Pindah folder"}
+                      >
+                        <Folder size={12} />
+                      </button>
+
+                      {categoryMenuStudioSessionId === session.id && (
+                        <div className="absolute right-0 top-full z-40 mt-1 w-36 rounded-xl border border-slate-700 bg-slate-900 p-1 shadow-2xl backdrop-blur">
+                          <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase">
+                            {isEnglish ? "Select Folder" : "Pilih Folder"}
+                          </div>
+                          {STUDIO_CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={(e) => handleChangeStudioCategory(session.id, cat.id as any, e)}
+                              className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] text-left text-slate-200 hover:bg-slate-800 transition"
+                            >
+                              <span>{cat.icon}</span>
+                              <span className="truncate">{isEnglish ? cat.labelEn : cat.labelId}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rename */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingStudioSessionId(session.id);
+                        setEditingStudioTitle(session.title);
+                      }}
+                      className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-white transition"
+                      title={isEnglish ? "Rename" : "Ubah nama"}
+                    >
+                      <Edit3 size={12} />
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteStudioSession(session.id, e)}
+                      className="rounded p-1 text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition"
+                      title={isEnglish ? "Delete" : "Hapus sesi"}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-[calc(100vh-120px)] px-4 py-6 lg:px-6">
       <div className="mx-auto w-full max-w-6xl">
@@ -1496,39 +2149,56 @@ function AIDesignContent() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {activeMainTab === "design" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSidebarOpen((prev) => !prev);
-                      setMobileSidebarOpen((prev) => !prev);
-                    }}
-                    className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-3 text-sm font-semibold transition ${
-                      sidebarOpen || mobileSidebarOpen
-                        ? "border-pink-300 bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.3)]"
-                        : "border-white/20 bg-white/10 text-white hover:bg-white/20"
-                    }`}
-                    title={sidebarOpen ? (isEnglish ? "Hide Designs" : "Sembunyikan Desain") : (isEnglish ? "Show Designs" : "Daftar Desain")}
-                  >
-                    <PanelLeft size={18} />
-                    <span className="hidden sm:inline">{isEnglish ? "Designs" : "Daftar Desain"}</span>
-                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
-                      {sessions.length}
-                    </span>
-                  </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarOpen((prev) => !prev);
+                  setMobileSidebarOpen((prev) => !prev);
+                }}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-3 text-sm font-semibold transition ${
+                  sidebarOpen || mobileSidebarOpen
+                    ? "border-pink-300 bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                    : "border-white/20 bg-white/10 text-white hover:bg-white/20"
+                }`}
+                title={
+                  sidebarOpen
+                    ? (isEnglish ? "Hide History" : "Sembunyikan Daftar")
+                    : (isEnglish ? "Show History" : "Daftar Hasil")
+                }
+              >
+                <PanelLeft size={18} />
+                <span className="hidden sm:inline">
+                  {activeMainTab === "remove-bg"
+                    ? (isEnglish ? "Cutouts" : "Daftar Hasil")
+                    : (isEnglish ? "Designs" : "Daftar Desain")}
+                </span>
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
+                  {activeMainTab === "remove-bg" ? studioSessions.length : sessions.length}
+                </span>
+              </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleCreateNewDesign()}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-purple-700 shadow-lg transition hover:bg-white/90 active:scale-95"
-                    title={isEnglish ? "New Design" : "+ Desain Baru"}
-                  >
-                    <Plus size={18} />
-                    <span>{isEnglish ? "New Design" : "+ Desain Baru"}</span>
-                  </button>
-                </>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeMainTab === "remove-bg") {
+                    handleCreateNewStudioSession();
+                  } else {
+                    handleCreateNewDesign();
+                  }
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-purple-700 shadow-lg transition hover:bg-white/90 active:scale-95"
+                title={
+                  activeMainTab === "remove-bg"
+                    ? (isEnglish ? "New Cutout" : "+ Sesi Baru")
+                    : (isEnglish ? "New Design" : "+ Desain Baru")}
+              >
+                <Plus size={18} />
+                <span>
+                  {activeMainTab === "remove-bg"
+                    ? (isEnglish ? "+ New Cutout" : "+ Sesi Baru")
+                    : (isEnglish ? "+ New Design" : "+ Desain Baru")}
+                </span>
+              </button>
 
               <button
                 type="button"
@@ -1564,7 +2234,6 @@ function AIDesignContent() {
             type="button"
             onClick={() => {
               setActiveMainTab("remove-bg");
-              setStudioResultUrl("");
             }}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition ${
               activeMainTab === "remove-bg"
@@ -1843,9 +2512,33 @@ function AIDesignContent() {
         </div>
         )}
 
-        {/* STUDIO WORKSPACE (REMOVE-BG & STAGING) */}
+        {/* STUDIO WORKSPACE (REMOVE-BG & PERSISTENT SESSIONS) */}
         {activeMainTab !== "design" && (
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+          <div className="relative flex gap-6 items-start">
+            {/* DESKTOP SIDEBAR FOR STUDIO */}
+            {sidebarOpen && (
+              <aside className="hidden md:flex w-72 lg:w-80 shrink-0 flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-xl overflow-hidden min-h-[580px] max-h-[820px] transition-all duration-300">
+                {renderStudioSidebarContent()}
+              </aside>
+            )}
+
+            {/* MOBILE DRAWER FOR STUDIO */}
+            {mobileSidebarOpen && (
+              <div
+                className="fixed inset-0 z-50 flex md:hidden bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={() => setMobileSidebarOpen(false)}
+              >
+                <div
+                  className="w-80 max-w-[85vw] h-full flex flex-col bg-slate-900 border-r border-slate-700 shadow-2xl animate-in slide-in-from-left duration-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {renderStudioSidebarContent()}
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 min-w-0">
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
             {/* Left Column: Upload & Controls */}
             <div className="space-y-6 lg:col-span-5">
               {/* Box Upload Foto */}
@@ -2297,7 +2990,9 @@ function AIDesignContent() {
               </div>
             </div>
           </div>
-        )}
+        </div>
+      </div>
+    )}
 
       </div>
     </div>

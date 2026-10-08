@@ -22,12 +22,14 @@ const POLLINATIONS_BASE = "https://image.pollinations.ai/prompt";
 function buildPollinationsUrl(
   visualPrompt: string,
   size: string,
-  seed: number
+  seed: number,
+  userPromptHint?: string
 ): string {
-  let width = 1344;
-  let height = 768;
+  let width = 1024;
+  let height = 1024;
 
   const lowerSize = size.toLowerCase();
+  const lowerHint = (userPromptHint || "").toLowerCase();
 
   if (
     lowerSize === "portrait" ||
@@ -38,6 +40,13 @@ function buildPollinationsUrl(
     width = 768;
     height = 1344;
   } else if (
+    lowerSize === "landscape" ||
+    lowerSize === "16:9" ||
+    lowerSize === "horizontal"
+  ) {
+    width = 1344;
+    height = 768;
+  } else if (
     lowerSize === "instagram post" ||
     lowerSize === "square" ||
     lowerSize === "1:1"
@@ -45,14 +54,56 @@ function buildPollinationsUrl(
     width = 1024;
     height = 1024;
   } else {
-    // Default to widescreen landscape 16:9 for cinematic composition
-    width = 1344;
-    height = 768;
+    // 100X INTELLIGENT AUTO RATIO DETECTION:
+    // Infer optimal commercial advertising aspect ratio from design context:
+    if (
+      lowerHint.includes("poster") ||
+      lowerHint.includes("story") ||
+      lowerHint.includes("flyer") ||
+      lowerHint.includes("pamflet") ||
+      lowerHint.includes("brosur") ||
+      lowerHint.includes("standing banner") ||
+      lowerHint.includes("vertikal") ||
+      lowerHint.includes("menu")
+    ) {
+      // Commercial posters, menus & flyers shine in vertical portrait
+      width = 768;
+      height = 1344;
+    } else if (
+      lowerHint.includes("billboard") ||
+      lowerHint.includes("reklame") ||
+      lowerHint.includes("baliho") ||
+      lowerHint.includes("banner") ||
+      lowerHint.includes("wallpaper") ||
+      lowerHint.includes("header") ||
+      lowerHint.includes("youtube") ||
+      lowerHint.includes("lanskap")
+    ) {
+      // Billboards, web headers & horizontal banners use cinematic widescreen
+      width = 1344;
+      height = 768;
+    } else if (
+      lowerHint.includes("logo") ||
+      lowerHint.includes("icon") ||
+      lowerHint.includes("feed") ||
+      lowerHint.includes("avatar") ||
+      lowerHint.includes("badge") ||
+      lowerHint.includes("stiker") ||
+      lowerHint.includes("persegi")
+    ) {
+      // Logos and social feeds use 1:1 square
+      width = 1024;
+      height = 1024;
+    } else {
+      // Versatile balanced advertising canvas
+      width = 1024;
+      height = 1024;
+    }
   }
 
   // Safe length limit to prevent HTTP 414 URI Too Long on proxies
-  const safePrompt = visualPrompt.length > 900
-    ? visualPrompt.slice(0, 900).replace(/\s+\S*$/, "")
+  const safePrompt = visualPrompt.length > 850
+    ? visualPrompt.slice(0, 850).replace(/\s+\S*$/, "")
     : visualPrompt;
 
   const encoded = encodeURIComponent(safePrompt);
@@ -79,7 +130,7 @@ function buildFullVisualPrompt(
   const parts: string[] = [basePrompt.trim()];
 
   if (designType && designType !== "Auto" && !basePrompt.toLowerCase().includes(designType.toLowerCase())) {
-    parts.push(`design type: ${designType}`);
+    parts.push(`format: ${designType}`);
   }
 
   if (style && style !== "Auto" && !basePrompt.toLowerCase().includes(style.toLowerCase())) {
@@ -91,12 +142,8 @@ function buildFullVisualPrompt(
   }
 
   if (color && color !== "Auto" && !basePrompt.toLowerCase().includes(color.toLowerCase())) {
-    parts.push(`color palette: ${color}`);
+    parts.push(`color harmony: ${color}`);
   }
-
-  parts.push(
-    "professional commercial quality, high detail, sharp focus, 8K resolution, no watermark"
-  );
 
   return parts.join(", ");
 }
@@ -251,8 +298,7 @@ export async function POST(request: NextRequest) {
     // ==========================================
 
     const seed = Math.floor(Math.random() * 2_000_000_000);
-
-    const imageUrl = buildPollinationsUrl(visualPrompt, size, seed);
+    const imageUrl = buildPollinationsUrl(visualPrompt, size, seed, prompt);
 
     console.log("POLLINATIONS URL:", imageUrl);
     console.log("========================================");

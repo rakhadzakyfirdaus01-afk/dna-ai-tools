@@ -1188,7 +1188,7 @@ export default function AICodePage() {
 
       const formatLabels: Record<string, string> = {
         apk: "Android APK (.apk)",
-        windows: "Windows Desktop App",
+        windows: "Windows Desktop App (.exe)",
         linux: "Linux Desktop App",
         "single-html": "Single HTML File",
         zip: "ZIP Source Code",
@@ -2595,7 +2595,7 @@ export default function AICodePage() {
                 </div>
               </div>
 
-              {/* CARD 2: WINDOWS DESKTOP APP (.zip) */}
+              {/* CARD 2: WINDOWS DESKTOP APP (.zip dengan .exe) */}
               <div className="group rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-950/20 to-slate-900/60 p-4 transition hover:border-blue-400 hover:shadow-lg hover:shadow-blue-950/30">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-start gap-3">
@@ -2604,13 +2604,13 @@ export default function AICodePage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-semibold text-white">Windows Desktop App (.exe / .bat)</h4>
-                        <span className="rounded bg-blue-500/20 border border-blue-500/30 px-1.5 py-0.5 text-[10px] font-medium text-blue-300">
-                          Windows 10 / 11
+                        <h4 className="text-sm font-semibold text-white">Windows Desktop App (.exe Standalone)</h4>
+                        <span className="rounded bg-blue-500/20 border border-blue-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-blue-300">
+                          File .exe Siap Klik
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                        Paket aplikasi desktop mandiri. Klik ganda 'run.bat' atau 'run-silent.vbs' untuk membuka aplikasi di jendela native desktop tanpa address bar browser.
+                        Paket aplikasi desktop lengkap dengan file executable <span className="font-semibold text-blue-300">[nama-app].exe</span> asli. Cukup klik ganda file .exe untuk langsung membuka aplikasi di jendela desktop tanpa konsol/CMD!
                       </p>
                     </div>
                   </div>
@@ -2628,7 +2628,7 @@ export default function AICodePage() {
                     ) : (
                       <>
                         <Download size={14} />
-                        <span>Download Windows</span>
+                        <span>Download Windows (.EXE)</span>
                       </>
                     )}
                   </button>

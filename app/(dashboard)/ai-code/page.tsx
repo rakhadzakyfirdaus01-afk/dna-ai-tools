@@ -49,6 +49,12 @@ import {
 import { toast } from "sonner";
 import { useLanguage } from "@/components/shared/language-provider";
 
+import { AntigravitySlashMenu } from "@/components/antigravity/antigravity-slash-menu";
+import {
+  ANTIGRAVITY_SLASH_COMMANDS,
+  type SlashCommand,
+} from "@/components/antigravity/slash-commands";
+
 import { addNotification } from "@/components/notifications/notification-store";
 import {
   requestNotificationPermission,
@@ -194,6 +200,16 @@ export default function AICodePage() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<string | null>(null);
   const isInitialLoadRef = useRef(true);
+
+  // Antigravity Slash Commands State
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [slashFilter, setSlashFilter] = useState("");
+  const [slashIndex, setSlashIndex] = useState(0);
+
+  function handleSelectSlashCommand(command: SlashCommand) {
+    setPrompt(`${command.command} `);
+    setSlashMenuOpen(false);
+  }
 
   // 1. Inisialisasi daftar sesi project dari LocalStorage
   useEffect(() => {
@@ -1742,7 +1758,7 @@ export default function AICodePage() {
             </div>
 
             {/* PROMPT */}
-            <div>
+            <div className="relative">
               <label className="mb-2 block text-sm font-medium text-slate-300">
                 {mode === "fix"
                   ? isEnglish
@@ -1757,13 +1773,66 @@ export default function AICodePage() {
                   : "Aplikasi web apa yang ingin kamu buat?"}
               </label>
 
+              {slashMenuOpen && (
+                <AntigravitySlashMenu
+                  filter={slashFilter}
+                  selectedIndex={slashIndex}
+                  onSelect={handleSelectSlashCommand}
+                  onClose={() => setSlashMenuOpen(false)}
+                />
+              )}
+
               <textarea
                 value={prompt}
-                onChange={(event) =>
-                  setPrompt(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setPrompt(val);
+                  if (val.startsWith("/")) {
+                    setSlashMenuOpen(true);
+                    setSlashFilter(val.slice(1));
+                  } else {
+                    setSlashMenuOpen(false);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (slashMenuOpen) {
+                    const cleanFilter = slashFilter.toLowerCase().trim();
+                    const filtered = ANTIGRAVITY_SLASH_COMMANDS.filter((cmd) => {
+                      if (!cleanFilter) return true;
+                      return (
+                        cmd.command.toLowerCase().includes(cleanFilter) ||
+                        cmd.label.toLowerCase().includes(cleanFilter) ||
+                        cmd.description.toLowerCase().includes(cleanFilter)
+                      );
+                    });
+
+                    if (event.key === "ArrowDown") {
+                      event.preventDefault();
+                      setSlashIndex((prev) => (prev + 1) % (filtered.length || 1));
+                      return;
+                    }
+                    if (event.key === "ArrowUp") {
+                      event.preventDefault();
+                      setSlashIndex(
+                        (prev) => (prev - 1 + (filtered.length || 1)) % (filtered.length || 1)
+                      );
+                      return;
+                    }
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      if (filtered.length > 0) {
+                        const selected = filtered[slashIndex % filtered.length];
+                        handleSelectSlashCommand(selected);
+                        return;
+                      }
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      setSlashMenuOpen(false);
+                      return;
+                    }
+                  }
+                }}
                 placeholder={
                   mode === "software"
                     ? isEnglish

@@ -235,10 +235,45 @@ Gunakan kode di atas sebagai rujukan atau project yang harus diperbaiki/dikemban
 `
     : "";
 
+  let slashInstruction = "";
+  if (cleanPrompt.startsWith("/plan") || cleanPrompt.includes("/plan")) {
+    slashInstruction = `
+==================================================
+ANTIGRAVITY SLASH COMMAND: /plan (PLANNING & ARCHITECTURE MODE)
+==================================================
+Pengguna mengaktifkan mode Antigravity /plan.
+Tugas Anda:
+1. Pada atribut "description", buatkan rencana arsitektur mendalam:
+   - 🏗️ Arsitektur Sistem & Komponen
+   - 📋 Tahapan Langkah Kerja (Milestones)
+   - ⚠️ Mitigasi Risiko & Edge Cases
+   - ✅ Checklist Verifikasi Kualitas
+2. Bangun kode yang mengimplementasikan seluruh rencana tersebut secara sempurna tanpa kompromi!
+`;
+  } else if (cleanPrompt.startsWith("/goal") || cleanPrompt.includes("/goal")) {
+    slashInstruction = `
+==================================================
+ANTIGRAVITY SLASH COMMAND: /goal (AUTONOMOUS GOAL MODE)
+==================================================
+Pengguna mengaktifkan mode Antigravity /goal.
+Lakukan verifikasi otonom tanpa henti: tangani semua edge cases, optimalkan performa, dan berikan kode kelas produksi yang 100% tuntas.
+`;
+  } else if (cleanPrompt.startsWith("/boost") || cleanPrompt.includes("/boost")) {
+    slashInstruction = `
+==================================================
+ANTIGRAVITY SLASH COMMAND: /boost (DEEP THINKING MODE)
+==================================================
+Pengguna mengaktifkan mode Antigravity /boost.
+Terapkan penalaran multi-perspektif (Principal Architect, QA Tester, Security Reviewer). Pastikan kode memiliki pertahanan defensif tertinggi dan optimalisasi tingkat lanjut.
+`;
+  }
+
   const userPrompt = `
 ${getLanguageInstruction(locale)}
 
 ${modeInstruction}
+
+${slashInstruction}
 
 ${contextSection}
 

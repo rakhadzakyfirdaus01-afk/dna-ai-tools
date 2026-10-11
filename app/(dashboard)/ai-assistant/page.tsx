@@ -44,6 +44,13 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { AntigravitySlashMenu } from "@/components/antigravity/antigravity-slash-menu";
+import { AntigravityMessageContent } from "@/components/antigravity/antigravity-message-content";
+import {
+  ANTIGRAVITY_SLASH_COMMANDS,
+  type SlashCommand,
+} from "@/components/antigravity/slash-commands";
+
 import { addNotification } from "@/components/notifications/notification-store";
 import {
   requestNotificationPermission,
@@ -229,6 +236,16 @@ export default function Page() {
   const [webSearchEnabled, setWebSearchEnabled] =
     useState(false);
   const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
+
+  // Antigravity Agentic Slash Commands State
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [slashFilter, setSlashFilter] = useState("");
+  const [slashIndex, setSlashIndex] = useState(0);
+
+  function handleSelectSlashCommand(command: SlashCommand) {
+    setInput(`${command.command} `);
+    setSlashMenuOpen(false);
+  }
 
   useEffect(() => {
     const checkMobileOrTablet = () => {
@@ -1569,14 +1586,18 @@ export default function Page() {
     };
   }, []);
 
-  async function sendMessage() {
-    const text = input.trim();
+  async function sendMessage(
+    overrideText?: string | React.MouseEvent | unknown
+  ) {
+    const text = (typeof overrideText === "string" ? overrideText : input).trim();
 
     const currentImageUrl = imageUrl.trim();
 
     if (!text && !file && !currentImageUrl) {
       return;
     }
+
+    setSlashMenuOpen(false);
 
     // Minta izin notifikasi HP agar siap mengirim pemberitahuan saat user buka aplikasi lain
     requestNotificationPermission().catch(() => {});
@@ -1607,7 +1628,9 @@ export default function Page() {
       userMessage,
     ]);
 
-    setInput("");
+    if (typeof overrideText !== "string") {
+      setInput("");
+    }
     setLoading(true);
 
     try {
@@ -1852,6 +1875,44 @@ export default function Page() {
   function handleKeyDown(
     event: React.KeyboardEvent<HTMLTextAreaElement>
   ) {
+    if (slashMenuOpen) {
+      const cleanFilter = slashFilter.toLowerCase().trim();
+      const filtered = ANTIGRAVITY_SLASH_COMMANDS.filter((cmd) => {
+        if (!cleanFilter) return true;
+        return (
+          cmd.command.toLowerCase().includes(cleanFilter) ||
+          cmd.label.toLowerCase().includes(cleanFilter) ||
+          cmd.description.toLowerCase().includes(cleanFilter)
+        );
+      });
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setSlashIndex((prev) => (prev + 1) % (filtered.length || 1));
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setSlashIndex(
+          (prev) => (prev - 1 + (filtered.length || 1)) % (filtered.length || 1)
+        );
+        return;
+      }
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        if (filtered.length > 0) {
+          const selected = filtered[slashIndex % filtered.length];
+          handleSelectSlashCommand(selected);
+          return;
+        }
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSlashMenuOpen(false);
+        return;
+      }
+    }
+
     if (
       event.key === "Enter" &&
       !event.shiftKey
@@ -2463,23 +2524,11 @@ export default function Page() {
 
 
                       {message.role === "assistant" ? (
-                        <div className="prose prose-invert max-w-none text-sm leading-7 break-words [&>p]:mb-3 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm [&>h1]:font-bold [&>h2]:font-bold [&>h3]:font-semibold [&>h1]:mt-4 [&>h2]:mt-3 [&>h3]:mt-2 [&>code]:bg-slate-800/80 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-cyan-300">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              a: ({ node, ...props }) => (
-                                <a
-                                  {...props}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-cyan-400 underline decoration-cyan-500/40 hover:text-cyan-300 hover:decoration-cyan-400 font-medium inline-flex items-center gap-0.5 transition"
-                                />
-                              ),
-                            }}
-                          >
-                            {message.content}
-                          </ReactMarkdown>
-                        </div>
+                        <AntigravityMessageContent
+                          content={message.content}
+                          onSelectOption={(opt) => sendMessage(opt)}
+                          isEnglish={isEnglish}
+                        />
                       ) : (
                         <div className="whitespace-pre-wrap leading-7">
                           {message.content}
@@ -2654,15 +2703,28 @@ export default function Page() {
 
             )}
 
-            <div className="rounded-3xl border border-border bg-input p-2 shadow-lg focus-within:border-cyan-500">
+            <div className="relative rounded-3xl border border-border bg-input p-2 shadow-lg focus-within:border-cyan-500">
+              {slashMenuOpen && (
+                <AntigravitySlashMenu
+                  filter={slashFilter}
+                  selectedIndex={slashIndex}
+                  onSelect={handleSelectSlashCommand}
+                  onClose={() => setSlashMenuOpen(false)}
+                />
+              )}
 
               <textarea
                 value={input}
-                onChange={(event) =>
-                  setInput(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setInput(val);
+                  if (val.startsWith("/")) {
+                    setSlashMenuOpen(true);
+                    setSlashFilter(val.slice(1));
+                  } else {
+                    setSlashMenuOpen(false);
+                  }
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder={ui.placeholder}
                 rows={3}

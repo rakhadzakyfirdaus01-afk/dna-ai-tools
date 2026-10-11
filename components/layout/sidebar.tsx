@@ -10,6 +10,8 @@ import {
   History,
   Settings,
   Smartphone,
+  Code2,
+  Terminal,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -26,9 +28,14 @@ export default function Sidebar({
 
   const menus = [
     {
-      title: "AI Asisten",
+      title: "Google Antigravity",
       href: "/ai-assistant",
-      icon: MessageCircle,
+      icon: Terminal,
+    },
+    {
+      title: "AI Code Studio",
+      href: "/ai-code",
+      icon: Code2,
     },
     {
       title: t.history,

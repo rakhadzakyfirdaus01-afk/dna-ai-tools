@@ -40,12 +40,16 @@ import {
   Film,
   Palette,
   History,
+  Terminal,
+  Layout,
+  Bot,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { AntigravitySlashMenu } from "@/components/antigravity/antigravity-slash-menu";
 import { AntigravityMessageContent } from "@/components/antigravity/antigravity-message-content";
+import { AntigravityAuxiliaryPane } from "@/components/antigravity/antigravity-auxiliary-pane";
 import {
   ANTIGRAVITY_SLASH_COMMANDS,
   type SlashCommand,
@@ -246,6 +250,12 @@ export default function Page() {
     setInput(`${command.command} `);
     setSlashMenuOpen(false);
   }
+
+  // Antigravity Auxiliary Pane State (Terminal Sandbox, Artifacts, Subagents)
+  const [auxiliaryPaneOpen, setAuxiliaryPaneOpen] = useState(false);
+  const [auxiliaryTab, setAuxiliaryTab] = useState<"terminal" | "artifacts" | "subagents">("terminal");
+  const [activeArtifact, setActiveArtifact] = useState("");
+  const [activeArtifactTitle, setActiveArtifactTitle] = useState("Antigravity Artifact");
 
   useEffect(() => {
     const checkMobileOrTablet = () => {
@@ -485,14 +495,14 @@ export default function Page() {
   }, [isVoicePaused]);
 
   const ui = {
-    title: isEnglish ? "AI Assistant" : "AI Asisten",
+    title: "Google Antigravity",
     subtitle: isEnglish
-      ? "One AI for all your needs"
-      : "Satu AI untuk berbagai kebutuhanmu",
+      ? "Autonomous Coding & Agentic Studio 2.0"
+      : "Studio Agentic AI & Coding Otonom 2.0",
     camera: isEnglish ? "Camera" : "Kamera",
     cameraDescription: isEnglish
-      ? "Take a photo to send to AI Assistant"
-      : "Ambil foto untuk dikirim ke AI Asisten",
+      ? "Take a photo to send to Antigravity"
+      : "Ambil foto untuk dikirim ke Antigravity",
     cancel: isEnglish ? "Cancel" : "Batal",
     takePhoto: isEnglish ? "Take photo" : "Ambil foto",
     upload: isEnglish ? "Attach" : "Lampirkan",
@@ -500,11 +510,11 @@ export default function Page() {
     cameraDesktopNote: isEnglish
       ? "Desktop only sends image URLs. File upload and camera are available on mobile."
       : "Desktop hanya mengirim URL gambar. Upload file dan kamera tersedia di HP.",
-    placeholder: isEnglish ? "Ask anything..." : "Tanyakan apa saja...",
-    heroTitle: isEnglish ? "How can I help?" : "Apa yang bisa saya bantu?",
+    placeholder: isEnglish ? "Type a prompt or /slash command..." : "Ketik instruksi atau perintah /slash...",
+    heroTitle: "Google Antigravity Studio",
     heroDescription: isEnglish
-      ? "Ask anything. AI Assistant can help with programming, image prompts, documents, text recognition from images, and translation."
-      : "Tanyakan apa saja. AI Asisten dapat membantu pemrograman, membuat prompt gambar, mengolah dokumen, membaca teks dari gambar, dan menerjemahkan bahasa.",
+      ? "Advanced agentic coding, interactive live terminal sandbox, artifacts canvas, and autonomous subagent orchestration."
+      : "Agentic coding cerdas, sandbox terminal interaktif langsung, kanvas artefak, dan orkestrasi subagen mandiri.",
     techTitle: "🤖 AI Tech Assistant",
     techDescription: isEnglish
       ? "Debug code and solve technology problems."
@@ -1980,12 +1990,16 @@ export default function Page() {
         )}
       </div>
 
-      {/* FOLDER / CATEGORY TABS */}
-      <div>
-        <div className="mb-1 flex items-center justify-between px-1 text-[11px] font-semibold text-slate-400">
-          <span>{isEnglish ? "FOLDERS" : "FOLDER SESI"}</span>
+      {/* ANTIGRAVITY WORKSPACE & SESSION FILTER */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between rounded-xl border border-cyan-500/20 bg-cyan-950/20 px-2.5 py-1.5 text-[11px] text-cyan-300">
+          <span className="font-mono flex items-center gap-1.5 font-medium">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            ~/workspace/antigravity
+          </span>
+          <span className="text-[10px] uppercase tracking-wider text-cyan-400/80 font-bold">LIVE</span>
         </div>
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar">
           {CHAT_CATEGORIES.map((cat) => {
             const isActive = selectedCategory === cat.id;
             return (
@@ -1993,9 +2007,9 @@ export default function Page() {
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-medium transition ${
+                className={`flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition ${
                   isActive
-                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
                     : "bg-slate-900/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent"
                 }`}
               >
@@ -2358,14 +2372,80 @@ export default function Page() {
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
+              {/* Antigravity Auxiliary Pane Controls */}
+              <div className="hidden sm:flex items-center gap-1 bg-slate-900/80 p-0.5 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (auxiliaryPaneOpen && auxiliaryTab === "terminal") {
+                      setAuxiliaryPaneOpen(false);
+                    } else {
+                      setAuxiliaryTab("terminal");
+                      setAuxiliaryPaneOpen(true);
+                    }
+                  }}
+                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition ${
+                    auxiliaryPaneOpen && auxiliaryTab === "terminal"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                  }`}
+                  title="Antigravity Live Terminal Sandbox"
+                >
+                  <Terminal size={14} className={auxiliaryPaneOpen && auxiliaryTab === "terminal" ? "text-cyan-400" : "text-slate-400"} />
+                  <span>Terminal</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (auxiliaryPaneOpen && auxiliaryTab === "artifacts") {
+                      setAuxiliaryPaneOpen(false);
+                    } else {
+                      setAuxiliaryTab("artifacts");
+                      setAuxiliaryPaneOpen(true);
+                    }
+                  }}
+                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition ${
+                    auxiliaryPaneOpen && auxiliaryTab === "artifacts"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                  }`}
+                  title="Antigravity Artifacts & Canvas"
+                >
+                  <Layout size={14} className={auxiliaryPaneOpen && auxiliaryTab === "artifacts" ? "text-cyan-400" : "text-slate-400"} />
+                  <span>Artifacts</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (auxiliaryPaneOpen && auxiliaryTab === "subagents") {
+                      setAuxiliaryPaneOpen(false);
+                    } else {
+                      setAuxiliaryTab("subagents");
+                      setAuxiliaryPaneOpen(true);
+                    }
+                  }}
+                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition ${
+                    auxiliaryPaneOpen && auxiliaryTab === "subagents"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                  }`}
+                  title="Antigravity Subagents Orchestration"
+                >
+                  <Bot size={14} className={auxiliaryPaneOpen && auxiliaryTab === "subagents" ? "text-cyan-400" : "text-slate-400"} />
+                  <span>Subagents</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => handleCreateNewChat()}
-                className="flex h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 text-xs font-semibold text-white shadow transition hover:opacity-90 active:scale-95"
+                className="flex h-8 sm:h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 text-xs font-semibold text-white shadow transition hover:opacity-90 active:scale-95"
                 title={isEnglish ? "New Chat" : "Chat Baru"}
               >
                 <Plus size={15} />
-                <span className="hidden sm:inline">{isEnglish ? "New Chat" : "Chat Baru"}</span>
+                <span className="hidden md:inline">{isEnglish ? "New Chat" : "Chat Baru"}</span>
               </button>
             </div>
           </div>
@@ -3165,10 +3245,10 @@ export default function Page() {
 
             </div>
 
-            <p className="mt-3 text-center text-xs text-slate-600">
+            <p className="mt-3 text-center text-xs text-slate-500 font-mono">
               {isEnglish
-                ? "AI Assistant can use different functions based on the needs of the conversation."
-                : "AI Asisten dapat menggunakan beberapa fungsi berdasarkan kebutuhan percakapan."}
+                ? "Google Antigravity 2.0 • Live Terminal Sandbox • Autonomous Agents Active"
+                : "Google Antigravity 2.0 • Sandbox Terminal Langsung • Agen Otonom Aktif"}
             </p>
 
           </div>
@@ -3176,6 +3256,16 @@ export default function Page() {
         </div>
 
       </div>
+
+      {/* ANTIGRAVITY AUXILIARY PANE (TERMINAL SANDBOX / ARTIFACTS / SUBAGENTS) */}
+      <AntigravityAuxiliaryPane
+        isOpen={auxiliaryPaneOpen}
+        activeTab={auxiliaryTab}
+        onTabChange={setAuxiliaryTab}
+        onClose={() => setAuxiliaryPaneOpen(false)}
+        activeArtifact={activeArtifact}
+        activeArtifactTitle={activeArtifactTitle}
+      />
 
     </div>
 

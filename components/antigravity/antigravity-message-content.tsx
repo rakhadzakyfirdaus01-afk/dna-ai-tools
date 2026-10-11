@@ -7,22 +7,51 @@ import {
   BrainCircuit,
   ChevronDown,
   ChevronUp,
-  Cpu,
-  ShieldCheck,
   CheckCircle2,
-  HelpCircle,
   Sparkles,
-  Info,
-  Lightbulb,
-  AlertTriangle,
-  AlertOctagon,
   Bot,
+  Copy,
+  Check,
+  Code2,
 } from "lucide-react";
 
 interface AntigravityMessageContentProps {
   content: string;
   onSelectOption?: (optionText: string) => void;
   isEnglish?: boolean;
+}
+
+function CopyCodeButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="flex items-center gap-1 rounded-md bg-slate-800/80 hover:bg-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:text-white transition"
+      title="Salin kode"
+    >
+      {copied ? (
+        <>
+          <Check size={12} className="text-emerald-400" />
+          <span className="text-emerald-400 font-medium">Tersalin!</span>
+        </>
+      ) : (
+        <>
+          <Copy size={12} />
+          <span>Salin</span>
+        </>
+      )}
+    </button>
+  );
 }
 
 export function AntigravityMessageContent({
@@ -107,15 +136,15 @@ export function AntigravityMessageContent({
   const processedContent = formatAlerts(cleanContent);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3.5">
       {/* ========================================================
           A. SUBAGENTS ORCHESTRATION BANNER
       ======================================================== */}
       {subagents.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-blue-950/40 px-3.5 py-2 text-xs shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/40 via-slate-900/70 to-blue-950/40 px-3.5 py-2 text-xs shadow-sm">
           <div className="flex items-center gap-1.5 font-semibold text-cyan-300">
             <Bot size={14} className="text-cyan-400 animate-pulse" />
-            <span>Subagents Orchestration:</span>
+            <span>Subagents:</span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {subagents.map((agent, i) => (
@@ -165,9 +194,9 @@ export function AntigravityMessageContent({
       )}
 
       {/* ========================================================
-          C. MAIN MARKDOWN RESPONSE
+          C. MAIN MARKDOWN RESPONSE WITH CODE COPY & STYLING
       ======================================================== */}
-      <div className="prose prose-invert max-w-none text-sm leading-7 break-words [&>p]:mb-3 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm [&>h1]:font-bold [&>h2]:font-bold [&>h3]:font-semibold [&>h1]:mt-4 [&>h2]:mt-3 [&>h3]:mt-2 [&>code]:bg-slate-800/80 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-cyan-300">
+      <div className="prose prose-invert max-w-none text-sm leading-7 break-words [&>p]:mb-3 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm [&>h1]:font-bold [&>h2]:font-bold [&>h3]:font-semibold [&>h1]:mt-4 [&>h2]:mt-3 [&>h3]:mt-2">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -179,6 +208,52 @@ export function AntigravityMessageContent({
                 className="text-cyan-400 underline decoration-cyan-500/40 hover:text-cyan-300 hover:decoration-cyan-400 font-medium inline-flex items-center gap-0.5 transition"
               />
             ),
+            blockquote: ({ children, ...props }) => (
+              <blockquote
+                className="my-3 border-l-4 border-cyan-500/60 bg-slate-900/50 py-1.5 px-3.5 rounded-r-xl text-slate-300 not-italic shadow-sm"
+                {...props}
+              >
+                {children}
+              </blockquote>
+            ),
+            pre: ({ children, ...props }) => (
+              <div className="not-prose my-3 overflow-hidden rounded-2xl border border-slate-700/80 bg-[#0d1117] shadow-xl">
+                {children}
+              </div>
+            ),
+            code: ({ className, children, ...props }) => {
+              const match = /language-(\w+)/.exec(className || "");
+              const isInline = !match && !String(children).includes("\n");
+
+              if (isInline) {
+                return (
+                  <code
+                    className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-xs text-cyan-300 border border-slate-700/50"
+                    {...props}
+                  >
+                    {children}
+                  </code>
+                );
+              }
+
+              const lang = match ? match[1] : "code";
+              const codeText = String(children).replace(/\n$/, "");
+
+              return (
+                <div>
+                  <div className="flex items-center justify-between border-b border-slate-800 bg-[#161b22] px-4 py-2 text-xs text-slate-400">
+                    <div className="flex items-center gap-1.5 font-mono font-semibold uppercase tracking-wider text-cyan-400">
+                      <Code2 size={13} />
+                      <span>{lang}</span>
+                    </div>
+                    <CopyCodeButton text={codeText} />
+                  </div>
+                  <pre className="overflow-x-auto p-4 text-xs font-mono leading-relaxed text-slate-200 custom-scrollbar">
+                    <code>{children}</code>
+                  </pre>
+                </div>
+              );
+            },
           }}
         >
           {processedContent}

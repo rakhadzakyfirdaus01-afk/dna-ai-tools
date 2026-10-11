@@ -1781,6 +1781,27 @@ export default function AICodePage() {
                   onClose={() => setSlashMenuOpen(false)}
                 />
               )}
+              {/* ANTIGRAVITY QUICK ACTION PILLS */}
+              <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+                <span className="shrink-0 text-[11px] font-semibold text-slate-400 flex items-center gap-1">
+                  <Sparkles size={12} className="text-emerald-400" />
+                  <span>Commands:</span>
+                </span>
+                {ANTIGRAVITY_SLASH_COMMANDS.map((cmd) => (
+                  <button
+                    key={cmd.command}
+                    type="button"
+                    onClick={() => {
+                      setPrompt(`${cmd.command} `);
+                    }}
+                    className="shrink-0 flex items-center gap-1 rounded-full border border-slate-700/80 bg-slate-900/80 hover:bg-emerald-500/10 hover:border-emerald-500/40 px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:text-emerald-300 transition active:scale-95 shadow-sm"
+                    title={cmd.description}
+                  >
+                    <span className="font-mono text-emerald-400 font-bold">{cmd.command}</span>
+                    <span className="text-slate-400 text-[10px] hidden sm:inline">{cmd.label}</span>
+                  </button>
+                ))}
+              </div>
 
               <textarea
                 value={prompt}

@@ -2403,58 +2403,77 @@ export default function Page() {
 
 
                 <div className="mt-8 hidden grid-cols-1 gap-3 md:grid md:grid-cols-2">
-
-                  <div className="rounded-2xl border border-border bg-secondary/70 p-4 text-left">
-
-                    <p className="font-semibold text-foreground">
-                      {ui.techTitle}
+                  <button
+                    type="button"
+                    onClick={() => setInput("/plan ")}
+                    className="group rounded-2xl border border-border/80 bg-secondary/60 hover:bg-cyan-500/10 hover:border-cyan-500/40 p-4 text-left transition shadow-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">/plan</span>
+                      <p className="font-semibold text-foreground group-hover:text-cyan-300 transition">
+                        {isEnglish ? "Architecture & Roadmap" : "Perencanaan Arsitektur & Checklist"}
+                      </p>
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+                      {isEnglish
+                        ? "Design a complete architecture, dependencies, risk analysis, and checklist before building."
+                        : "Rancang blueprint arsitektur sistem, dependensi, mitigasi risiko, dan checklist implementasi."}
                     </p>
+                  </button>
 
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {ui.techDescription}
+                  <button
+                    type="button"
+                    onClick={() => setInput("/goal ")}
+                    className="group rounded-2xl border border-border/80 bg-secondary/60 hover:bg-emerald-500/10 hover:border-emerald-500/40 p-4 text-left transition shadow-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">/goal</span>
+                      <p className="font-semibold text-foreground group-hover:text-emerald-300 transition">
+                        {isEnglish ? "Autonomous Goal Loop" : "Target Mandiri & Otonom Tuntas"}
+                      </p>
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+                      {isEnglish
+                        ? "Execute full end-to-end solutions autonomously with exhaustive edge-case coverage."
+                        : "Selesaikan target tugas secara mandiri dari awal sampai tuntas tanpa kompromi."}
                     </p>
+                  </button>
 
-                  </div>
-
-
-                  <div className="rounded-2xl border border-border bg-secondary/70 p-4 text-left">
-
-                    <p className="font-semibold text-foreground">
-                      {ui.imagePromptTitle}
+                  <button
+                    type="button"
+                    onClick={() => setInput("/boost ")}
+                    className="group rounded-2xl border border-border/80 bg-secondary/60 hover:bg-indigo-500/10 hover:border-indigo-500/40 p-4 text-left transition shadow-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">/boost</span>
+                      <p className="font-semibold text-foreground group-hover:text-indigo-300 transition">
+                        {isEnglish ? "Deep Thinking & CoT" : "Penalaran Multi-Perspektif Mendalam"}
+                      </p>
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+                      {isEnglish
+                        ? "Multi-agent deep reasoning analyzing code, architecture, performance, and security."
+                        : "Penalaran multi-agen yang membedah arsitektur, kualitas kode, performa, dan keamanan."}
                     </p>
+                  </button>
 
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {ui.imagePromptDescription}
+                  <button
+                    type="button"
+                    onClick={() => setInput("/grill-me ")}
+                    className="group rounded-2xl border border-border/80 bg-secondary/60 hover:bg-amber-500/10 hover:border-amber-500/40 p-4 text-left transition shadow-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">/grill-me</span>
+                      <p className="font-semibold text-foreground group-hover:text-amber-300 transition">
+                        {isEnglish ? "Interactive Requirements Interview" : "Wawancara Kebutuhan Interaktif"}
+                      </p>
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+                      {isEnglish
+                        ? "AI asks targeted questions with 1-click selectable options to clarify specifications."
+                        : "AI mewawancarai Anda dengan tombol pilihan 1-klik untuk membedah kebutuhan produk."}
                     </p>
-
-                  </div>
-
-
-                  <div className="rounded-2xl border border-border bg-secondary/70 p-4 text-left">
-
-                    <p className="font-semibold text-foreground">
-                      {ui.documentTitle}
-                    </p>
-
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {ui.documentDescription}
-                    </p>
-
-                  </div>
-
-
-                  <div className="rounded-2xl border border-border bg-secondary/70 p-4 text-left">
-
-                    <p className="font-semibold text-foreground">
-                      {ui.ocrTranslatorTitle}
-                    </p>
-
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {ui.ocrTranslatorDescription}
-                    </p>
-
-                  </div>
-
+                  </button>
                 </div>
 
               </div>
@@ -2480,10 +2499,26 @@ export default function Page() {
                     <div
                       className={`max-w-[85%] rounded-3xl px-5 py-4 ${
                         message.role === "user"
-                          ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white"
-                          : "border border-border bg-secondary text-foreground"
+                          ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-950/20"
+                          : "border border-border/70 bg-card/95 text-foreground shadow-lg backdrop-blur-sm"
                       }`}
                     >
+                      {message.role === "assistant" && (
+                        <div className="mb-2.5 flex items-center justify-between border-b border-border/40 pb-2 text-xs">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 shadow-sm shadow-cyan-500/30">
+                              <Sparkles size={11} className="text-white" />
+                            </div>
+                            <span className="font-semibold text-foreground">Antigravity Agent</span>
+                            <span className="rounded bg-cyan-500/15 border border-cyan-500/30 px-1.5 py-0.2 text-[9px] font-mono font-medium text-cyan-300">
+                              Deep CoT
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {MODEL_OPTIONS.find(m => m.id === selectedModel)?.name || "Gemini"}
+                          </span>
+                        </div>
+                      )}
 
                       {message.imagePreview && (
                         <div className="mb-3 overflow-hidden rounded-2xl">
@@ -2700,8 +2735,29 @@ export default function Page() {
                 </button>
 
               </div>
-
             )}
+
+            {/* ANTIGRAVITY QUICK ACTION PILLS */}
+            <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+              <span className="shrink-0 text-[11px] font-semibold text-muted-foreground flex items-center gap-1 pl-1">
+                <Sparkles size={12} className="text-cyan-400" />
+                <span>Commands:</span>
+              </span>
+              {ANTIGRAVITY_SLASH_COMMANDS.map((cmd) => (
+                <button
+                  key={cmd.command}
+                  type="button"
+                  onClick={() => {
+                    setInput(`${cmd.command} `);
+                  }}
+                  className="shrink-0 flex items-center gap-1 rounded-full border border-border/80 bg-secondary/80 hover:bg-cyan-500/10 hover:border-cyan-500/40 px-2.5 py-1 text-[11px] font-medium text-foreground hover:text-cyan-300 transition active:scale-95 shadow-sm"
+                  title={cmd.description}
+                >
+                  <span className="font-mono text-cyan-400 font-bold">{cmd.command}</span>
+                  <span className="text-muted-foreground text-[10px] hidden sm:inline">{cmd.label}</span>
+                </button>
+              ))}
+            </div>
 
             <div className="relative rounded-3xl border border-border bg-input p-2 shadow-lg focus-within:border-cyan-500">
               {slashMenuOpen && (

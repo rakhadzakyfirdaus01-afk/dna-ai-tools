@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs/promises";
 import { exec } from "child_process";
+import { WorkspaceManager } from "./workspace-manager";
 
 export type SecurityLevel = "safe" | "requires_permission" | "blocked";
 
@@ -8,6 +9,7 @@ export interface SecurityCheckResult {
   allowed: boolean;
   level: SecurityLevel;
   reason?: string;
+  resolvedPath?: string;
 }
 
 export class SecurityGate {
@@ -33,29 +35,35 @@ export class SecurityGate {
     "mkfs",
   ];
 
-  public static getWorkspaceRoot(): string {
+  public static getWorkspaceRoot(userId?: string): string {
+    if (userId) {
+      return WorkspaceManager.getWorkspaceDirSync(userId);
+    }
     return this.workspaceRoot;
   }
 
-  public static isPathWithinWorkspace(targetPath: string): boolean {
-    const resolved = path.resolve(this.workspaceRoot, targetPath);
-    const relative = path.relative(this.workspaceRoot, resolved);
+  public static isPathWithinWorkspace(targetPath: string, userId?: string): boolean {
+    const root = this.getWorkspaceRoot(userId);
+    const resolved = path.resolve(root, targetPath);
+    const relative = path.relative(root, resolved);
     // Jika relative dimulai dengan ".." atau berupa root absolut di luar workspace
     if (relative.startsWith("..") || path.isAbsolute(relative)) {
       return false;
     }
-    // Pastikan prefix sesuai dengan workspaceRoot
-    return resolved === this.workspaceRoot || resolved.startsWith(this.workspaceRoot + path.sep);
+    // Pastikan prefix sesuai dengan root
+    return resolved === root || resolved.startsWith(root + path.sep);
   }
 
   public static checkFileAccess(
     targetPath: string,
-    mode: "read" | "write"
+    mode: "read" | "write",
+    userId?: string
   ): SecurityCheckResult {
-    const resolved = path.resolve(this.workspaceRoot, targetPath);
+    const root = this.getWorkspaceRoot(userId);
+    const resolved = path.resolve(root, targetPath);
 
     // 1. Cek apakah di luar workspace
-    if (!this.isPathWithinWorkspace(resolved)) {
+    if (!this.isPathWithinWorkspace(resolved, userId)) {
       return {
         allowed: false,
         level: "blocked",
@@ -64,7 +72,7 @@ export class SecurityGate {
     }
 
     // 2. Cek apakah menyentuh direktori terlarang atau file rahasia
-    const relative = path.relative(this.workspaceRoot, resolved);
+    const relative = path.relative(root, resolved);
     const segments = relative.split(path.sep);
 
     for (const forbidden of this.forbiddenPaths) {
@@ -93,11 +101,12 @@ export class SecurityGate {
           allowed: true,
           level: "requires_permission",
           reason: `Perubahan pada konfigurasi inti (${relative}) memerlukan izin pengguna.`,
+          resolvedPath: resolved,
         };
       }
     }
 
-    return { allowed: true, level: "safe" };
+    return { allowed: true, level: "safe", resolvedPath: resolved };
   }
 
   public static checkTerminalCommand(command: string): SecurityCheckResult {

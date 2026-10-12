@@ -3,6 +3,11 @@ import path from "path";
 import { exec } from "child_process";
 import { SecurityGate } from "../security-gate";
 
+export interface ToolExecutionContext {
+  userId?: string;
+  grantedPermissions?: boolean;
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
@@ -11,7 +16,7 @@ export interface ToolDefinition {
     properties: Record<string, { type: string; description: string; items?: any }>;
     required: string[];
   };
-  execute: (args: any, grantedPermissions?: boolean) => Promise<ToolResult>;
+  execute: (args: any, grantedPermissions?: boolean, context?: ToolExecutionContext) => Promise<ToolResult>;
 }
 
 export interface ToolResult {
@@ -25,6 +30,15 @@ export interface ToolResult {
 
 export class ToolRegistry {
   private static tools: Map<string, ToolDefinition> = new Map();
+  private static activeUserId: string | null = null;
+
+  public static setActiveUserId(userId: string | null) {
+    this.activeUserId = userId;
+  }
+
+  public static getActiveUserId(): string | undefined {
+    return this.activeUserId || undefined;
+  }
 
   public static registerTool(tool: ToolDefinition) {
     this.tools.set(tool.name, tool);
@@ -62,18 +76,34 @@ ToolRegistry.registerTool({
     },
     required: ["filePath"],
   },
-  execute: async (args: { filePath: string; startLine?: number; endLine?: number }) => {
+  execute: async (
+    args: { filePath: string; startLine?: number; endLine?: number },
+    granted?: boolean,
+    context?: ToolExecutionContext
+  ) => {
     if (!args || typeof args.filePath !== "string" || !args.filePath.trim()) {
       return { success: false, error: "Parameter 'filePath' harus berupa string yang tidak kosong." };
     }
 
-    const sec = SecurityGate.checkFileAccess(args.filePath, "read");
+    const userId = context?.userId || ToolRegistry.getActiveUserId();
+    const sec = SecurityGate.checkFileAccess(args.filePath, "read", userId);
     if (!sec.allowed) {
       return { success: false, error: sec.reason };
     }
 
     try {
-      const fullPath = path.resolve(SecurityGate.getWorkspaceRoot(), args.filePath);
+      let fullPath = sec.resolvedPath || path.resolve(SecurityGate.getWorkspaceRoot(userId), args.filePath);
+      if (userId) {
+        try {
+          await fs.access(fullPath);
+        } catch {
+          const projectCandidate = path.resolve(SecurityGate.getWorkspaceRoot(), args.filePath);
+          const projectSec = SecurityGate.checkFileAccess(args.filePath, "read");
+          if (projectSec.allowed) {
+            fullPath = projectCandidate;
+          }
+        }
+      }
       const content = await fs.readFile(fullPath, "utf-8");
       const lines = content.split("\n");
 
@@ -120,7 +150,11 @@ ToolRegistry.registerTool({
     },
     required: ["filePath", "content"],
   },
-  execute: async (args: { filePath: string; content: string }, granted?: boolean) => {
+  execute: async (
+    args: { filePath: string; content: string },
+    granted?: boolean,
+    context?: ToolExecutionContext
+  ) => {
     if (!args || typeof args.filePath !== "string" || !args.filePath.trim()) {
       return { success: false, error: "Parameter 'filePath' harus berupa string yang tidak kosong." };
     }
@@ -128,7 +162,8 @@ ToolRegistry.registerTool({
       return { success: false, error: "Parameter 'content' harus berupa string." };
     }
 
-    const sec = SecurityGate.checkFileAccess(args.filePath, "write");
+    const userId = context?.userId || ToolRegistry.getActiveUserId();
+    const sec = SecurityGate.checkFileAccess(args.filePath, "write", userId);
     if (!sec.allowed) {
       return { success: false, error: sec.reason };
     }
@@ -143,7 +178,7 @@ ToolRegistry.registerTool({
     }
 
     try {
-      const fullPath = path.resolve(SecurityGate.getWorkspaceRoot(), args.filePath);
+      const fullPath = sec.resolvedPath || path.resolve(SecurityGate.getWorkspaceRoot(userId), args.filePath);
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
       await fs.writeFile(fullPath, args.content, "utf-8");
       return {
@@ -171,7 +206,11 @@ ToolRegistry.registerTool({
     },
     required: ["filePath", "targetText", "replacementText"],
   },
-  execute: async (args: { filePath: string; targetText: string; replacementText: string }, granted?: boolean) => {
+  execute: async (
+    args: { filePath: string; targetText: string; replacementText: string },
+    granted?: boolean,
+    context?: ToolExecutionContext
+  ) => {
     if (!args || typeof args.filePath !== "string" || !args.filePath.trim()) {
       return { success: false, error: "Parameter 'filePath' harus berupa string yang tidak kosong." };
     }
@@ -182,7 +221,8 @@ ToolRegistry.registerTool({
       return { success: false, error: "Parameter 'replacementText' harus berupa string." };
     }
 
-    const sec = SecurityGate.checkFileAccess(args.filePath, "write");
+    const userId = context?.userId || ToolRegistry.getActiveUserId();
+    const sec = SecurityGate.checkFileAccess(args.filePath, "write", userId);
     if (!sec.allowed) {
       return { success: false, error: sec.reason };
     }
@@ -197,7 +237,7 @@ ToolRegistry.registerTool({
     }
 
     try {
-      const fullPath = path.resolve(SecurityGate.getWorkspaceRoot(), args.filePath);
+      const fullPath = sec.resolvedPath || path.resolve(SecurityGate.getWorkspaceRoot(userId), args.filePath);
       const original = await fs.readFile(fullPath, "utf-8");
 
       if (!original.includes(args.targetText)) {
@@ -307,7 +347,11 @@ ToolRegistry.registerTool({
     },
     required: ["command"],
   },
-  execute: async (args: { command: string }, granted?: boolean) => {
+  execute: async (
+    args: { command: string },
+    granted?: boolean,
+    context?: ToolExecutionContext
+  ) => {
     if (!args || typeof args.command !== "string" || !args.command.trim()) {
       return { success: false, error: "Parameter 'command' harus berupa string yang tidak kosong." };
     }
@@ -326,12 +370,15 @@ ToolRegistry.registerTool({
       };
     }
 
+    const userId = context?.userId || ToolRegistry.getActiveUserId();
+    const workspaceRoot = SecurityGate.getWorkspaceRoot(userId);
+
     return new Promise((resolve) => {
       const shell = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
       exec(
         args.command,
         {
-          cwd: SecurityGate.getWorkspaceRoot(),
+          cwd: workspaceRoot,
           shell,
           timeout: 20000,
           maxBuffer: 1024 * 1024 * 2,

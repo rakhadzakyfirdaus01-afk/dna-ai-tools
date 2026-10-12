@@ -8,12 +8,12 @@ import path from "path";
 let passedCount = 0;
 let failedCount = 0;
 
-function assert(condition: boolean, testName: string) {
+function assert(condition: any, testName: string, detail?: any) {
   if (condition) {
     console.log(`  ✓ PASS: ${testName}`);
     passedCount++;
   } else {
-    console.error(`  ✗ FAIL: ${testName}`);
+    console.error(`  ✗ FAIL: ${testName}`, detail !== undefined ? JSON.stringify(detail) : "");
     failedCount++;
   }
 }
@@ -63,7 +63,7 @@ async function runToolRegistryTests() {
 
   if (readFileTool) {
     const validRead = await readFileTool.execute({ filePath: "package.json", startLine: 1, endLine: 5 });
-    assert(validRead.success && typeof validRead.data.content === "string", "read_file succeeds on valid workspace file");
+    assert(validRead.success && typeof validRead.data?.content === "string", "read_file succeeds on valid workspace file", validRead);
 
     const invalidRead = await readFileTool.execute({ filePath: "non_existent_file_12345.xyz" });
     assert(!invalidRead.success && !!invalidRead.error, "read_file handles non-existent file gracefully");
@@ -105,7 +105,7 @@ async function runToolRegistryTests() {
   const searchTool = ToolRegistry.getTool("search_codebase");
   if (searchTool) {
     const searchRes = await searchTool.execute({ query: "dna-ai-tools", fileExtension: ".json" });
-    assert(searchRes.success && searchRes.data.matchCount > 0, "search_codebase finds query occurrences");
+    assert(searchRes.success && searchRes.data?.matchCount > 0, "search_codebase finds query occurrences", searchRes);
   }
 
   // Cleanup test fixture
@@ -146,7 +146,7 @@ async function runTaskStateAndMemoryTests() {
   assert(analysis.structure.configFiles.length > 0, "CodebaseIntelligence identifies core config files");
 
   const symbols = await CodebaseIntelligence.findSymbols("SecurityGate");
-  assert(symbols.length > 0, "CodebaseIntelligence locates symbols (SecurityGate)");
+  assert(symbols.length > 0, "CodebaseIntelligence locates symbols (SecurityGate)", symbols);
 
   // 3. Project Memory
   const loadedMemory = await ProjectMemory.load();

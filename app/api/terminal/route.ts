@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { exec } from "child_process";
 import path from "path";
 import { authOptions } from "@/auth";
+import { WorkspaceManager } from "@/lib/antigravity/workspace-manager";
+import { SecurityGate } from "@/lib/antigravity/security-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,7 @@ export async function POST(req: Request) {
       );
     }
 
+    const userId = session?.user?.email || (session?.user as any)?.id || "dev-user";
     const body = await req.json();
     const command = typeof body.command === "string" ? body.command.trim() : "";
     const requestedCwd = typeof body.cwd === "string" ? body.cwd.trim() : "";
@@ -28,22 +31,43 @@ export async function POST(req: Request) {
       );
     }
 
-    // Workspace working directory
-    const workspaceDir = requestedCwd ? path.resolve(requestedCwd) : process.cwd();
+    // 1. Validasi keamanan perintah melalui SecurityGate
+    const sec = SecurityGate.checkTerminalCommand(command);
+    if (!sec.allowed) {
+      return NextResponse.json(
+        { error: sec.reason || "Perintah diblokir oleh Security Gate." },
+        { status: 403 }
+      );
+    }
 
-    // Jalankan perintah terminal secara aman dengan timeout 20 detik
+    // 2. Dapatkan workspace per-user yang terisolasi dan writable
+    const userWorkspace = await WorkspaceManager.getOrCreateWorkspace(userId);
+    let effectiveCwd = userWorkspace.workspaceDir;
+
+    // 3. Jika user meminta cwd kustom, validasi ketat agar tidak keluar dari workspace per-user
+    if (requestedCwd) {
+      const pathValidation = await WorkspaceManager.resolveAndValidatePath(userId, requestedCwd);
+      if (!pathValidation.isWithinWorkspace) {
+        return NextResponse.json(
+          { error: pathValidation.reason || "Cwd berada di luar batas workspace pengguna." },
+          { status: 403 }
+        );
+      }
+      effectiveCwd = pathValidation.resolvedPath;
+    }
+
+    // 4. Jalankan perintah terminal secara aman dengan batas timeout 20 detik dan buffer 2MB
     const result = await new Promise<{
       stdout: string;
       stderr: string;
       exitCode: number;
     }>((resolve) => {
-      // Gunakan PowerShell di Windows
       const shell = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
 
       const child = exec(
         command,
         {
-          cwd: workspaceDir,
+          cwd: effectiveCwd,
           shell,
           timeout: 20000,
           maxBuffer: 1024 * 1024 * 2, // 2MB buffer
@@ -69,7 +93,9 @@ export async function POST(req: Request) {
       stdout: result.stdout,
       stderr: result.stderr,
       exitCode: result.exitCode,
-      cwd: workspaceDir,
+      cwd: effectiveCwd,
+      workspaceId: userWorkspace.userWorkspaceHash,
+      isEphemeral: userWorkspace.isEphemeral,
       timestamp: Date.now(),
     });
   } catch (error) {

@@ -53,6 +53,8 @@ export class AntigravityOrchestrator {
       };
     }
 
+    ToolRegistry.setActiveUserId(userId);
+
     const toolsUsed: Set<string> = new Set();
     const memory = await ProjectMemory.load();
     const memoryContext = ProjectMemory.getMemoryContextPrompt();
@@ -209,7 +211,10 @@ INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY (STAGE 10 CAPABILITY):
                grantedPermissions[toolName])
             );
 
-            const execResult: ToolResult = await tool.execute(toolArgs, isGranted);
+            const execResult: ToolResult = await tool.execute(toolArgs, isGranted, {
+              userId,
+              grantedPermissions: isGranted,
+            });
 
             TaskStateManager.addLog(
               task.taskId,
@@ -326,6 +331,7 @@ INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY (STAGE 10 CAPABILITY):
         }
       }
     } finally {
+      ToolRegistry.setActiveUserId(null);
       await TaskStateManager.releaseLock(task.taskId, workerId);
     }
 

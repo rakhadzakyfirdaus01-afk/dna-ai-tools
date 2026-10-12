@@ -270,7 +270,7 @@ export function AntigravityAuxiliaryPane({
           {/* Quick Terminal Command Pills */}
           <div className="flex items-center gap-1.5 border-b border-slate-800/80 bg-slate-900/40 px-3 py-1.5 overflow-x-auto custom-scrollbar">
             <span className="text-[10px] text-slate-500 font-semibold uppercase">Presets:</span>
-            {["git status", "dir", "node -v", "npm list --depth=0"].map((preset) => (
+            {["git status", "dir", "node -v", "git log -5 --oneline", "npm list --depth=0"].map((preset) => (
               <button
                 key={preset}
                 type="button"

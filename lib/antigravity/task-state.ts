@@ -116,8 +116,9 @@ export class TaskStateManager {
 
   public static async listUserTasks(userId: string): Promise<TaskState[]> {
     await this.ensureInitialized();
+    if (!userId || typeof userId !== "string") return [];
     return Array.from(this.tasks.values())
-      .filter((t) => t.userId === userId || userId === "anonymous")
+      .filter((t) => t.userId === userId)
       .sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
@@ -155,7 +156,8 @@ export class TaskStateManager {
   public static async requestCancel(taskId: string, userId: string): Promise<boolean> {
     const task = await this.getTask(taskId);
     if (!task) return false;
-    if (task.userId !== userId && userId !== "anonymous") return false;
+    // Otorisasi ketat: Hanya pemilik tugas yang berhak membatalkannya
+    if (task.userId !== userId) return false;
 
     task.cancelRequested = true;
     task.status = "cancelled";

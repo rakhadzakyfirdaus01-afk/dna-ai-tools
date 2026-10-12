@@ -1,7 +1,12 @@
 import fs from "fs/promises";
 import path from "path";
+import os from "os";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { URL } from "url";
 import { BrowserSecurityGate } from "./security";
+
+const execFileAsync = promisify(execFile);
 
 export interface DOMElement {
   tag: string;
@@ -47,6 +52,8 @@ export interface PageState {
   alerts: string[];
   interactiveElements: DOMElement[];
   rawHtml: string;
+  redirectHistory?: string[];
+  realScreenshotPath?: string;
 }
 
 export interface ElementQuery {
@@ -65,20 +72,30 @@ export interface VisualSnapshotArtifact {
   status: number;
   timestamp: string;
   artifactPath: string;
+  realScreenshotPath?: string;
   layoutWireframe: string;
   interactiveCount: number;
   detectedAlerts: string[];
+  engineType: "Lightweight-DOM-Parser" | "Real-Headless-Chromium";
 }
 
 export class BrowserEngine {
   private static instance: BrowserEngine | null = null;
-  private currentSession: PageState | null = null;
-  private history: string[] = [];
-  private sessionCookies: Map<string, string> = new Map();
+  
+  // Sesi terisolasi per task atau ID sesi untuk mencegah kebocoran antar-user
+  private sessions: Map<string, {
+    page: PageState | null;
+    history: string[];
+    cookies: Map<string, string>;
+  }> = new Map();
+
+  private defaultSessionId = "default-session";
   private artifactsDir: string;
+  private realBrowserPath: string | null = null;
 
   public constructor() {
     this.artifactsDir = path.resolve(process.cwd(), ".antigravity-artifacts", "snapshots");
+    this.detectLocalBrowser();
   }
 
   public static getInstance(): BrowserEngine {
@@ -89,14 +106,55 @@ export class BrowserEngine {
   }
 
   /**
-   * Mengambil status halaman saat ini
+   * Deteksi apakah Chrome atau Edge terpasang di sistem untuk Real Browser automation
    */
-  public getCurrentPage(): PageState | null {
-    return this.currentSession;
+  private async detectLocalBrowser(): Promise<void> {
+    const candidates = [
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+      "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    ];
+
+    for (const bin of candidates) {
+      try {
+        await fs.access(bin);
+        this.realBrowserPath = bin;
+        break;
+      } catch {}
+    }
   }
 
   /**
-   * Helper untuk membersihkan HTML tag menjadi teks polos
+   * Mendapatkan status path binary browser sungguhan
+   */
+  public getRealBrowserPath(): string | null {
+    return this.realBrowserPath;
+  }
+
+  /**
+   * Mengambil atau menginisialisasi sesi terisolasi
+   */
+  private getSession(sessionId = this.defaultSessionId) {
+    if (!this.sessions.has(sessionId)) {
+      this.sessions.set(sessionId, {
+        page: null,
+        history: [],
+        cookies: new Map(),
+      });
+    }
+    return this.sessions.get(sessionId)!;
+  }
+
+  /**
+   * Mengambil status halaman saat ini
+   */
+  public getCurrentPage(sessionId = this.defaultSessionId): PageState | null {
+    return this.getSession(sessionId).page;
+  }
+
+  /**
+   * Helper pembersih HTML tag menjadi teks
    */
   private static stripHtml(html: string): string {
     return html
@@ -114,7 +172,7 @@ export class BrowserEngine {
   }
 
   /**
-   * Parse atribut dari tag HTML string
+   * Parse atribut tag HTML
    */
   private static parseAttributes(tagContent: string): Record<string, string> {
     const attrs: Record<string, string> = {};
@@ -129,7 +187,7 @@ export class BrowserEngine {
   }
 
   /**
-   * Parser DOM mandiri zero-dependency untuk menganalisis dokumen HTML
+   * Parser DOM mandiri untuk analisis dokumen HTML
    */
   private parseHtmlDocument(html: string, currentUrl: string): PageState {
     // 1. Ekstrak Judul
@@ -236,14 +294,15 @@ export class BrowserEngine {
       forms.push({
         id: formAttrs.id,
         action: formAction,
-        method: (formAttrs.method?.toUpperCase() === "POST" ? "POST" : "GET"),
+        method: formAttrs.method?.toUpperCase() === "POST" ? "POST" : "GET",
         fields,
       });
     }
 
     // 6. Ekstrak Alert & Pesan Error
     const alerts: string[] = [];
-    const alertRegex = /<(?:div|p|span)\s+([^>]*?(?:role=["']alert["']|class=["'][^"']*(?:error|alert|warning|danger)[^"']*)[^>]*?)>(.*?)<\/(?:div|p|span)>/gi;
+    const alertRegex =
+      /<(?:div|p|span)\s+([^>]*?(?:role=["']alert["']|class=["'][^"']*(?:error|alert|warning|danger)[^"']*)[^>]*?)>(.*?)<\/(?:div|p|span)>/gi;
     let alMatch;
     while ((alMatch = alertRegex.exec(html)) !== null) {
       const alertText = BrowserEngine.stripHtml(alMatch[2]);
@@ -290,71 +349,190 @@ export class BrowserEngine {
   }
 
   /**
-   * Membuka dan memuat URL dengan pengamanan SSRF ketat
+   * Navigasi URL dengan perlindungan redirect bertahap (mencegah SSRF Open Redirect bypass)
    */
-  public async navigate(url: string): Promise<PageState> {
+  public async navigate(url: string, sessionId = this.defaultSessionId): Promise<PageState> {
+    const session = this.getSession(sessionId);
+
+    // 1. Validasi URL Awal
     const sec = BrowserSecurityGate.validateUrl(url, true);
     if (!sec.allowed || !sec.sanitizedUrl) {
       throw new Error(sec.reason || "URL ditolak oleh Security Gate.");
     }
 
-    const targetUrl = sec.sanitizedUrl;
+    let currentTarget = sec.sanitizedUrl;
     const startTime = Date.now();
+    const redirectHistory: string[] = [];
+    const maxRedirectHops = 5;
+    let hops = 0;
+    let response: Response | null = null;
 
-    const headers: Record<string, string> = {
-      "User-Agent": "Antigravity-BrowserAgent/2.0 (Headless; Autonomous)",
-      Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
-    };
+    // Loop penanganan redirect secara manual agar setiap target redirect tervalidasi
+    while (hops <= maxRedirectHops) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    // Sertakan session cookies jika ada
-    if (this.sessionCookies.size > 0) {
-      const cookieStr = Array.from(this.sessionCookies.entries())
-        .map(([k, v]) => `${k}=${v}`)
-        .join("; ");
-      headers["Cookie"] = cookieStr;
+      const headers: Record<string, string> = {
+        "User-Agent": "Antigravity-BrowserAgent/2.0 (Headless; Autonomous)",
+        Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
+      };
+
+      if (session.cookies.size > 0) {
+        headers["Cookie"] = Array.from(session.cookies.entries())
+          .map(([k, v]) => `${k}=${v}`)
+          .join("; ");
+      }
+
+      try {
+        response = await fetch(currentTarget, {
+          method: "GET",
+          headers,
+          redirect: "manual", // Handle manual agar setiap redirect divalidasi
+          signal: controller.signal,
+        });
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError") {
+          throw new Error(`Permintaan ke '${currentTarget}' melebihi batas waktu (Timeout 15s).`);
+        }
+        throw new Error(`Koneksi jaringan gagal ke '${currentTarget}': ${err.message}`);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      // Simpan Set-Cookie
+      const setCookie = response.headers.get("set-cookie");
+      if (setCookie) {
+        const parts = setCookie.split(";")[0].split("=");
+        if (parts.length >= 2) {
+          session.cookies.set(parts[0].trim(), parts[1].trim());
+        }
+      }
+
+      // Deteksi status HTTP Redirect (301, 302, 303, 307, 308)
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get("location");
+        if (!location) break;
+
+        hops++;
+        redirectHistory.push(currentTarget);
+
+        let nextUrl: string;
+        try {
+          nextUrl = new URL(location, currentTarget).toString();
+        } catch {
+          throw new Error(`Header redirect location tidak valid: '${location}'`);
+        }
+
+        // VALIDASI SSRF PADA SETIAP HOP REDIRECT!
+        const redirectSec = BrowserSecurityGate.validateUrl(nextUrl, true);
+        if (!redirectSec.allowed || !redirectSec.sanitizedUrl) {
+          throw new Error(
+            `Akses diblokir pada redirect hop #${hops}: Target redirect '${nextUrl}' terindikasi berbahaya (${redirectSec.reason}).`
+          );
+        }
+
+        currentTarget = redirectSec.sanitizedUrl;
+        continue;
+      }
+
+      // Bukan redirect, respons final tercapai
+      break;
     }
 
-    const response = await fetch(targetUrl, {
-      method: "GET",
-      headers,
-      redirect: "follow",
-    });
+    if (!response) {
+      throw new Error("Tidak ada respons yang diterima dari target.");
+    }
 
     const loadTimeMs = Date.now() - startTime;
     const contentType = response.headers.get("content-type") || "text/html";
     const bodyText = await response.text();
 
-    // Rekam Set-Cookie jika ada
-    const setCookie = response.headers.get("set-cookie");
-    if (setCookie) {
-      const parts = setCookie.split(";")[0].split("=");
-      if (parts.length >= 2) {
-        this.sessionCookies.set(parts[0].trim(), parts[1].trim());
-      }
-    }
-
-    const pageState = this.parseHtmlDocument(bodyText, response.url || targetUrl);
+    const pageState = this.parseHtmlDocument(bodyText, currentTarget);
     pageState.status = response.status;
     pageState.statusText = response.statusText;
     pageState.contentType = contentType;
     pageState.loadTimeMs = loadTimeMs;
+    pageState.redirectHistory = redirectHistory;
 
-    this.currentSession = pageState;
-    this.history.push(pageState.url);
+    session.page = pageState;
+    session.history.push(pageState.url);
 
     return pageState;
   }
 
   /**
-   * Mencari elemen DOM berdasarkan kriteria seleksi
+   * Real Chromium Headless Engine: Mengambil screenshot asli menggunakan browser Chrome lokal
    */
-  public findElements(query: ElementQuery): DOMElement[] {
-    if (!this.currentSession) {
+  public async captureRealScreenshot(
+    targetUrl: string,
+    outputFilename?: string
+  ): Promise<{ success: boolean; screenshotPath?: string; error?: string }> {
+    if (!this.realBrowserPath) {
+      return {
+        success: false,
+        error: "Real Chrome/Edge executable tidak ditemukan pada sistem.",
+      };
+    }
+
+    const sec = BrowserSecurityGate.validateUrl(targetUrl, true);
+    if (!sec.allowed || !sec.sanitizedUrl) {
+      return { success: false, error: sec.reason };
+    }
+
+    await fs.mkdir(this.artifactsDir, { recursive: true });
+
+    const filename = outputFilename || `real_shot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.png`;
+    const outputPath = path.join(this.artifactsDir, filename);
+
+    // Buat profil direktori sementara yang terisolasi agar tidak mengganggu sesi pengguna
+    const tempUserDataDir = path.join(os.tmpdir(), `antigravity-chrome-${Date.now()}`);
+
+    try {
+      await fs.mkdir(tempUserDataDir, { recursive: true });
+
+      const args = [
+        "--headless=new",
+        `--user-data-dir=${tempUserDataDir}`,
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--window-size=1280,800",
+        `--screenshot=${outputPath}`,
+        sec.sanitizedUrl,
+      ];
+
+      await execFileAsync(this.realBrowserPath, args, { timeout: 20000 });
+
+      const fileExists = await fs
+        .access(outputPath)
+        .then(() => true)
+        .catch(() => false);
+
+      if (fileExists) {
+        return { success: true, screenshotPath: outputPath };
+      }
+      return { success: false, error: "Chrome selesai namun file screenshot tidak terbentuk." };
+    } catch (err: any) {
+      return { success: false, error: `Eksekusi Real Headless Chrome gagal: ${err.message}` };
+    } finally {
+      // Bersihkan profil sementara
+      try {
+        await fs.rm(tempUserDataDir, { recursive: true, force: true });
+      } catch {}
+    }
+  }
+
+  /**
+   * Mencari elemen DOM berdasarkan query
+   */
+  public findElements(query: ElementQuery, sessionId = this.defaultSessionId): DOMElement[] {
+    const session = this.getSession(sessionId);
+    if (!session.page) {
       throw new Error("Tidak ada halaman yang aktif. Jalankan navigate() terlebih dahulu.");
     }
 
     const { tag, role, text, name, id } = query;
-    return this.currentSession.interactiveElements.filter((el) => {
+    return session.page.interactiveElements.filter((el) => {
       if (tag && el.tag.toLowerCase() !== tag.toLowerCase()) return false;
       if (role && el.role?.toLowerCase() !== role.toLowerCase()) return false;
       if (id && el.id !== id) return false;
@@ -367,88 +545,83 @@ export class BrowserEngine {
   }
 
   /**
-   * Mengklik elemen tombol atau link pada halaman aktif
+   * Mengklik elemen tombol atau link
    */
-  public async clickElement(query: ElementQuery): Promise<{
+  public async clickElement(
+    query: ElementQuery,
+    sessionId = this.defaultSessionId
+  ): Promise<{
     clicked: DOMElement;
     actionType: "navigated" | "triggered";
     newPage: PageState;
   }> {
-    if (!this.currentSession) {
+    const session = this.getSession(sessionId);
+    if (!session.page) {
       throw new Error("Tidak ada halaman yang aktif. Jalankan navigate() terlebih dahulu.");
     }
 
-    const matches = this.findElements(query);
+    const matches = this.findElements(query, sessionId);
     if (matches.length === 0) {
-      throw new Error(
-        `Elemen tidak ditemukan dengan kriteria: ${JSON.stringify(query)}`
-      );
+      throw new Error(`Elemen tidak ditemukan dengan kriteria: ${JSON.stringify(query)}`);
     }
 
     const target = matches[0];
 
-    // Jika elemen adalah tautan (link dengan href)
+    // Jika tautan (link)
     if (target.href) {
-      const newPage = await this.navigate(target.href);
-      return {
-        clicked: target,
-        actionType: "navigated",
-        newPage,
-      };
+      const newPage = await this.navigate(target.href, sessionId);
+      return { clicked: target, actionType: "navigated", newPage };
     }
 
-    // Jika tombol merupakan bagian dari form
+    // Jika tombol form
     if (target.tag === "button" || target.type === "submit") {
-      if (this.currentSession.forms.length > 0) {
-        const form = this.currentSession.forms[0];
+      if (session.page.forms.length > 0) {
+        const form = session.page.forms[0];
         const dummyData: Record<string, string> = {};
         form.fields.forEach((f) => {
           dummyData[f.name] = f.value || "";
         });
-        const newPage = await this.fillForm("", dummyData, true);
-        return {
-          clicked: target,
-          actionType: "triggered",
-          newPage,
-        };
+        const newPage = await this.fillForm("", dummyData, true, sessionId);
+        return { clicked: target, actionType: "triggered", newPage };
       }
     }
 
     return {
       clicked: target,
       actionType: "triggered",
-      newPage: this.currentSession,
+      newPage: session.page,
     };
   }
 
   /**
-   * Mengisi formulir dan mengirimkan request (POST/GET)
+   * Mengisi data form dan melakukan submit
    */
   public async fillForm(
     formSelector: string,
     fields: Record<string, string>,
-    submit = true
+    submit = true,
+    sessionId = this.defaultSessionId
   ): Promise<PageState> {
-    if (!this.currentSession) {
+    const session = this.getSession(sessionId);
+    if (!session.page) {
       throw new Error("Tidak ada halaman yang aktif. Jalankan navigate() terlebih dahulu.");
     }
 
     let targetForm: FormInfo | undefined;
     if (formSelector) {
-      targetForm = this.currentSession.forms.find(
+      targetForm = session.page.forms.find(
         (f) => f.id === formSelector || f.action.includes(formSelector)
       );
     }
 
-    if (!targetForm && this.currentSession.forms.length > 0) {
-      targetForm = this.currentSession.forms[0];
+    if (!targetForm && session.page.forms.length > 0) {
+      targetForm = session.page.forms[0];
     }
 
     if (!targetForm) {
       throw new Error("Formulir tidak ditemukan pada halaman saat ini.");
     }
 
-    // Update field values
     for (const f of targetForm.fields) {
       if (fields[f.name] !== undefined) {
         f.value = fields[f.name];
@@ -456,10 +629,9 @@ export class BrowserEngine {
     }
 
     if (!submit) {
-      return this.currentSession;
+      return session.page;
     }
 
-    // Eksekusi Submit
     const sec = BrowserSecurityGate.validateUrl(targetForm.action, true);
     if (!sec.allowed || !sec.sanitizedUrl) {
       throw new Error(`Action URL formulir diblokir: ${sec.reason}`);
@@ -503,19 +675,22 @@ export class BrowserEngine {
     newPage.contentType = contentType;
     newPage.loadTimeMs = loadTimeMs;
 
-    this.currentSession = newPage;
-    this.history.push(newPage.url);
+    session.page = newPage;
+    session.history.push(newPage.url);
 
     return newPage;
   }
 
   /**
-   * Menangkap visual wireframe snapshot dan menyimpannya sebagai artefak verifikasi
+   * Menangkap visual snapshot layout dan screenshot (jika real browser aktif)
    */
   public async captureVisualSnapshot(
-    label = "Inspection Snapshot"
+    label = "Inspection Snapshot",
+    sessionId = this.defaultSessionId,
+    captureRealBrowserShot = true
   ): Promise<VisualSnapshotArtifact> {
-    if (!this.currentSession) {
+    const session = this.getSession(sessionId);
+    if (!session.page) {
       throw new Error("Tidak ada halaman yang aktif untuk diinspeksi.");
     }
 
@@ -525,34 +700,47 @@ export class BrowserEngine {
     const artifactJsonPath = path.join(this.artifactsDir, `${snapshotId}.json`);
     const artifactHtmlPath = path.join(this.artifactsDir, `${snapshotId}.html`);
 
-    // Konstruksi ASCII Layout Wireframe
+    let realShotPath: string | undefined;
+
+    // Jika Real Browser tersedia dan diizinkan, ambil screenshot binary asli
+    if (captureRealBrowserShot && this.realBrowserPath && session.page.url.startsWith("http")) {
+      const shotResult = await this.captureRealScreenshot(
+        session.page.url,
+        `${snapshotId}_real.png`
+      );
+      if (shotResult.success && shotResult.screenshotPath) {
+        realShotPath = shotResult.screenshotPath;
+      }
+    }
+
     const wireframeLines: string[] = [
       `+-------------------------------------------------------------+`,
-      `| [BROWSER INSPECTION] ${this.currentSession.title.slice(0, 40).padEnd(40, " ")} |`,
-      `| URL: ${this.currentSession.url.slice(0, 48).padEnd(48, " ")} |`,
-      `| HTTP STATUS: ${this.currentSession.status} ${this.currentSession.statusText} (${this.currentSession.loadTimeMs}ms) |`,
+      `| [BROWSER INSPECTION] ${session.page.title.slice(0, 40).padEnd(40, " ")} |`,
+      `| URL: ${session.page.url.slice(0, 48).padEnd(48, " ")} |`,
+      `| HTTP STATUS: ${session.page.status} ${session.page.statusText} (${session.page.loadTimeMs}ms) |`,
+      `| REAL SCREENSHOT: ${(realShotPath ? "AVAILABLE (PNG)" : "N/A (HTML Wireframe)").padEnd(42, " ")} |`,
       `+-------------------------------------------------------------+`,
     ];
 
-    if (this.currentSession.alerts.length > 0) {
+    if (session.page.alerts.length > 0) {
       wireframeLines.push(`| [!] DETECTED ALERTS / ERRORS:`);
-      this.currentSession.alerts.forEach((alt) => {
+      session.page.alerts.forEach((alt) => {
         wireframeLines.push(`|     * ${alt.slice(0, 50)}`);
       });
       wireframeLines.push(`+-------------------------------------------------------------+`);
     }
 
-    if (this.currentSession.headings.length > 0) {
+    if (session.page.headings.length > 0) {
       wireframeLines.push(`| HEADINGS:`);
-      this.currentSession.headings.slice(0, 5).forEach((h) => {
+      session.page.headings.slice(0, 5).forEach((h) => {
         wireframeLines.push(`|   # ${h.slice(0, 52)}`);
       });
       wireframeLines.push(`+-------------------------------------------------------------+`);
     }
 
-    if (this.currentSession.forms.length > 0) {
+    if (session.page.forms.length > 0) {
       wireframeLines.push(`| FORMS:`);
-      this.currentSession.forms.forEach((f, idx) => {
+      session.page.forms.forEach((f, idx) => {
         wireframeLines.push(`|   Form #${idx + 1} [${f.method}] -> ${f.action}`);
         f.fields.forEach((fld) => {
           wireframeLines.push(`|     - [${fld.type || "text"}] name="${fld.name}" val="${fld.value || ""}"`);
@@ -561,17 +749,17 @@ export class BrowserEngine {
       wireframeLines.push(`+-------------------------------------------------------------+`);
     }
 
-    if (this.currentSession.buttons.length > 0) {
+    if (session.page.buttons.length > 0) {
       wireframeLines.push(`| BUTTONS:`);
-      this.currentSession.buttons.forEach((b) => {
+      session.page.buttons.forEach((b) => {
         wireframeLines.push(`|   [BUTTON: "${b.text}"] (id: ${b.id || "none"})`);
       });
       wireframeLines.push(`+-------------------------------------------------------------+`);
     }
 
-    if (this.currentSession.links.length > 0) {
+    if (session.page.links.length > 0) {
       wireframeLines.push(`| NAVIGATION LINKS:`);
-      this.currentSession.links.slice(0, 6).forEach((l) => {
+      session.page.links.slice(0, 6).forEach((l) => {
         wireframeLines.push(`|   -> "${l.text}" (${l.href.slice(0, 40)})`);
       });
       wireframeLines.push(`+-------------------------------------------------------------+`);
@@ -582,42 +770,50 @@ export class BrowserEngine {
     const snapshotData = {
       snapshotId,
       label,
-      url: this.currentSession.url,
-      title: this.currentSession.title,
-      status: this.currentSession.status,
+      url: session.page.url,
+      title: session.page.title,
+      status: session.page.status,
       timestamp: new Date().toISOString(),
-      loadTimeMs: this.currentSession.loadTimeMs,
-      headings: this.currentSession.headings,
-      buttons: this.currentSession.buttons,
-      forms: this.currentSession.forms,
-      alerts: this.currentSession.alerts,
+      loadTimeMs: session.page.loadTimeMs,
+      realScreenshotPath: realShotPath,
+      engineType: realShotPath ? "Real-Headless-Chromium" : "Lightweight-DOM-Parser",
+      headings: session.page.headings,
+      buttons: session.page.buttons,
+      forms: session.page.forms,
+      alerts: session.page.alerts,
       layoutWireframe,
-      htmlLength: this.currentSession.rawHtml.length,
+      htmlLength: session.page.rawHtml.length,
     };
 
-    // Simpan JSON metadata & raw HTML
     await fs.writeFile(artifactJsonPath, JSON.stringify(snapshotData, null, 2), "utf-8");
-    await fs.writeFile(artifactHtmlPath, this.currentSession.rawHtml, "utf-8");
+    await fs.writeFile(artifactHtmlPath, session.page.rawHtml, "utf-8");
 
     return {
       snapshotId,
-      url: this.currentSession.url,
-      title: this.currentSession.title,
-      status: this.currentSession.status,
+      url: session.page.url,
+      title: session.page.title,
+      status: session.page.status,
       timestamp: snapshotData.timestamp,
       artifactPath: artifactJsonPath,
+      realScreenshotPath: realShotPath,
       layoutWireframe,
-      interactiveCount: this.currentSession.interactiveElements.length,
-      detectedAlerts: this.currentSession.alerts,
+      interactiveCount: session.page.interactiveElements.length,
+      detectedAlerts: session.page.alerts,
+      engineType: snapshotData.engineType as any,
     };
   }
 
   /**
-   * Menutup sesi browser dan membersihkan resource memori
+   * Menutup sesi dan membersihkan resource memori sesi tertentu
    */
-  public closeSession(): void {
-    this.currentSession = null;
-    this.history = [];
-    this.sessionCookies.clear();
+  public closeSession(sessionId = this.defaultSessionId): void {
+    this.sessions.delete(sessionId);
+  }
+
+  /**
+   * Membersihkan semua sesi
+   */
+  public resetAllSessions(): void {
+    this.sessions.clear();
   }
 }

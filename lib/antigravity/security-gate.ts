@@ -69,11 +69,11 @@ export class SecurityGate {
 
     for (const forbidden of this.forbiddenPaths) {
       if (segments.includes(forbidden) || relative.toLowerCase().includes(forbidden)) {
-        if (mode === "write" || forbidden.startsWith(".env")) {
+        if (mode === "write" || forbidden.startsWith(".env") || forbidden === ".git") {
           return {
             allowed: false,
             level: "blocked",
-            reason: `Akses ditolak: Tidak dapat memodifikasi atau membaca file sensitif '${forbidden}'.`,
+            reason: `Akses ditolak: Tidak dapat memodifikasi atau membaca direktori sensitif '${forbidden}'.`,
           };
         }
       }

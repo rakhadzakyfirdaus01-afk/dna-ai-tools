@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { SecurityGate } from "./security-gate";
+import { SubtaskPlan, TaskPlanDAG } from "./planner/task-planner";
 
 export type TaskStatus =
   | "queued"
@@ -9,13 +10,15 @@ export type TaskStatus =
   | "paused_for_permission"
   | "completed"
   | "failed"
-  | "cancelled";
+  | "blocked"
+  | "cancelled"
+  | "needs_review";
 
 export interface TaskPlanStep {
   id: string;
   description: string;
   status: "pending" | "in_progress" | "completed" | "failed" | "skipped";
-  subagent: "architect" | "coder" | "qa" | "security";
+  subagent: "architect" | "coder" | "qa" | "security" | "browser";
   toolName?: string;
   resultSummary?: string;
   error?: string;
@@ -27,6 +30,9 @@ export interface TaskState {
   goal: string;
   status: TaskStatus;
   steps: TaskPlanStep[];
+  subtasks: SubtaskPlan[];
+  activeSubtaskId?: string;
+  isSimpleTask?: boolean;
   currentStepIndex: number;
   iterationCount: number;
   maxIterations: number;
@@ -51,6 +57,12 @@ export interface TaskState {
     granted?: boolean;
   };
   finalReport?: string;
+  verificationEvidence?: {
+    typecheckPassed?: boolean;
+    testsPassed?: boolean;
+    browserVerified?: boolean;
+    filesModified?: string[];
+  };
 }
 
 export class TaskStateManager {
@@ -94,6 +106,7 @@ export class TaskStateManager {
       goal,
       status: "queued",
       steps: [],
+      subtasks: [],
       currentStepIndex: 0,
       iterationCount: 0,
       maxIterations,
@@ -107,6 +120,32 @@ export class TaskStateManager {
     this.tasks.set(taskId, newTask);
     await this.persistCheckpoint(newTask);
     return newTask;
+  }
+
+  public static async setPlan(taskId: string, plan: TaskPlanDAG): Promise<TaskState | undefined> {
+    const task = await this.getTask(taskId);
+    if (!task) return undefined;
+    task.subtasks = plan.subtasks;
+    task.isSimpleTask = plan.isSimpleTask;
+    task.updatedAt = Date.now();
+    await this.persistCheckpoint(task);
+    return task;
+  }
+
+  public static async updateSubtask(
+    taskId: string,
+    subtaskId: string,
+    partial: Partial<SubtaskPlan>
+  ): Promise<SubtaskPlan | undefined> {
+    const task = await this.getTask(taskId);
+    if (!task || !task.subtasks) return undefined;
+    const subtask = task.subtasks.find((s) => s.id === subtaskId);
+    if (!subtask) return undefined;
+
+    Object.assign(subtask, partial);
+    task.updatedAt = Date.now();
+    await this.persistCheckpoint(task);
+    return subtask;
   }
 
   public static async getTask(taskId: string): Promise<TaskState | undefined> {

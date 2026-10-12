@@ -19,6 +19,13 @@ import {
   Cpu,
   Layers,
   ArrowRight,
+  Globe,
+  ShieldCheck,
+  Loader2,
+  Ban,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react";
 
 export type TerminalLog = {
@@ -41,6 +48,7 @@ interface AntigravityAuxiliaryPaneProps {
   artifactsTitle?: string;
   onRunTerminalCommand?: (cmd: string) => void;
   pendingCommand?: string;
+  activeTaskId?: string;
 }
 
 export function AntigravityAuxiliaryPane({
@@ -54,6 +62,7 @@ export function AntigravityAuxiliaryPane({
   artifactsTitle = "Generated Artifact",
   onRunTerminalCommand,
   pendingCommand = "",
+  activeTaskId = "",
 }: AntigravityAuxiliaryPaneProps) {
   const [tab, setTab] = useState<"terminal" | "artifacts" | "subagents">(initialTab);
 
@@ -85,6 +94,54 @@ export function AntigravityAuxiliaryPane({
   const [copiedArtifact, setCopiedArtifact] = useState(false);
   const terminalBottomRef = useRef<HTMLDivElement>(null);
   const executedPendingRef = useRef<string>("");
+
+  // Live Task Monitor State
+  const [liveTask, setLiveTask] = useState<{
+    taskId: string;
+    status: string;
+    goal: string;
+    subtasks: any[];
+    verificationEvidence?: any;
+    finalReport?: string;
+  } | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  useEffect(() => {
+    if (!activeTaskId) return;
+    let isMounted = true;
+    const fetchTask = async () => {
+      try {
+        const res = await fetch(`/api/antigravity/orchestrate?taskId=${encodeURIComponent(activeTaskId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) setLiveTask(data);
+        }
+      } catch {}
+    };
+    fetchTask();
+    const interval = setInterval(fetchTask, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeTaskId]);
+
+  const handleCancelTask = async () => {
+    if (!liveTask?.taskId) return;
+    setIsCancelling(true);
+    try {
+      const res = await fetch("/api/antigravity/orchestrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel", taskId: liveTask.taskId }),
+      });
+      if (res.ok) {
+        setLiveTask((prev) => (prev ? { ...prev, status: "cancelled" } : null));
+      }
+    } catch {} finally {
+      setIsCancelling(false);
+    }
+  };
 
   useEffect(() => {
     if (initialTab) {
@@ -421,20 +478,114 @@ export function AntigravityAuxiliaryPane({
       )}
 
       {/* ========================================================
-          TAB 3: SUBAGENTS ORCHESTRATION
+          TAB 3: SUBAGENTS ORCHESTRATION & TASK DAG MONITOR
       ======================================================== */}
       {tab === "subagents" && (
         <div className="flex flex-col flex-1 overflow-y-auto bg-slate-950 p-4 space-y-3 custom-scrollbar">
-          <div className="border-b border-slate-800 pb-2 mb-1">
-            <h3 className="text-sm font-semibold text-white">Antigravity Autonomous Subagents</h3>
-            <p className="text-xs text-slate-400">Status kolaborasi multi-agent sistem</p>
+          <div className="border-b border-slate-800 pb-2 mb-1 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Antigravity Autonomous Subagents</h3>
+              <p className="text-xs text-slate-400">Koordinasi & monitor kolaborasi multi-agent</p>
+            </div>
+            {liveTask && (liveTask.status === "running" || liveTask.status === "queued") && (
+              <button
+                type="button"
+                onClick={handleCancelTask}
+                disabled={isCancelling}
+                className="flex items-center gap-1 rounded-xl border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300 hover:bg-rose-500/20 transition disabled:opacity-50"
+              >
+                {isCancelling ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />}
+                <span>Batal Tugas</span>
+              </button>
+            )}
+          </div>
+
+          {/* MONITOR LIVE TASK DAG JIKA ADA TASK BERJALAN */}
+          {liveTask && (
+            <div className="rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[11px] text-cyan-300 font-bold">
+                  TASK: {liveTask.taskId}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
+                    liveTask.status === "completed"
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : liveTask.status === "running"
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse"
+                      : liveTask.status === "failed"
+                      ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                      : "bg-slate-500/20 text-slate-300 border-slate-500/40"
+                  }`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  <span>{liveTask.status.toUpperCase()}</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-200 font-medium line-clamp-2">{liveTask.goal}</p>
+
+              {/* DAFTAR SUBTASK DAG */}
+              {liveTask.subtasks && liveTask.subtasks.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Alur Kerja Multi-Agent (DAG Milestones)
+                  </p>
+                  {liveTask.subtasks.map((sub: any, sIdx: number) => (
+                    <div
+                      key={sIdx}
+                      className="rounded-xl border border-slate-800 bg-slate-900/60 p-2.5 space-y-1 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono text-cyan-400 font-semibold">
+                            #{sIdx + 1} [{sub.subagentRole?.toUpperCase() || "AGENT"}]
+                          </span>
+                          <span className="text-white font-medium">{sub.title}</span>
+                        </div>
+                        <span
+                          className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                            sub.status === "completed"
+                              ? "bg-emerald-500/20 text-emerald-400"
+                              : sub.status === "in_progress"
+                              ? "bg-amber-500/20 text-amber-300 animate-pulse"
+                              : sub.status === "failed"
+                              ? "bg-rose-500/20 text-rose-400"
+                              : sub.status === "blocked"
+                              ? "bg-purple-500/20 text-purple-300"
+                              : "bg-slate-800 text-slate-400"
+                          }`}
+                        >
+                          {sub.status}
+                        </span>
+                      </div>
+                      {sub.dependencies && sub.dependencies.length > 0 && (
+                        <p className="text-[10px] text-slate-400">
+                          Prasyarat: {sub.dependencies.join(", ")}
+                        </p>
+                      )}
+                      {sub.outputEvidence?.summary && (
+                        <p className="text-[11px] text-slate-300 mt-1 pl-2 border-l-2 border-emerald-500/40">
+                          {sub.outputEvidence.summary}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="pt-2">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Direktori Spesialis Agent (Standby Roster)
+            </p>
           </div>
 
           {[
             {
               role: "Architect & Planner",
               name: "Architect Agent",
-              desc: "Merancang arsitektur sistem, memetakan dependensi, dan menyusun checklist.",
+              desc: "Merancang arsitektur sistem, memetakan dependensi, dan menyusun milestone DAG.",
               status: "Ready",
               icon: Layers,
               color: "text-cyan-400",
@@ -454,12 +605,32 @@ export function AntigravityAuxiliaryPane({
             {
               role: "QA & Diagnostic Debugger",
               name: "QA Healer Agent",
-              desc: "Deteksi bug runtime, unhandled promises, memory leak, dan boundary cases.",
+              desc: "Deteksi bug runtime, typecheck compile, pengujian regressi, dan verifikasi build.",
               status: "Ready",
               icon: Cpu,
               color: "text-indigo-400",
               bgColor: "bg-indigo-500/10",
               borderColor: "border-indigo-500/30",
+            },
+            {
+              role: "Security & Permission Auditor",
+              name: "Security Gatekeeper",
+              desc: "Proteksi kredensial (.env, .git), pencegahan path traversal, dan filter perintah berbahaya.",
+              status: "Ready",
+              icon: ShieldCheck,
+              color: "text-purple-400",
+              bgColor: "bg-purple-500/10",
+              borderColor: "border-purple-500/30",
+            },
+            {
+              role: "Browser Automation & Visual QA",
+              name: "Browser Agent",
+              desc: "Otomasi headless browser, inspeksi struktur DOM, dan bukti visual layout screenshot.",
+              status: "Ready",
+              icon: Globe,
+              color: "text-pink-400",
+              bgColor: "bg-pink-500/10",
+              borderColor: "border-pink-500/30",
             },
             {
               role: "Terminal Sandbox Runner",

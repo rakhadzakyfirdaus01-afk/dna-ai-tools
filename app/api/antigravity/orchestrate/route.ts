@@ -7,6 +7,53 @@ import { TaskStateManager } from "@/lib/antigravity/task-state";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
+export async function GET(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    const isDev = process.env.NODE_ENV !== "production";
+
+    if (!session?.user && !isDev) {
+      return NextResponse.json(
+        { error: "Unauthorized. Silakan login terlebih dahulu." },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const taskId = searchParams.get("taskId");
+    const userId = session?.user?.email || (session?.user as any)?.id || "dev-user";
+
+    if (!taskId) {
+      return NextResponse.json({ error: "Parameter 'taskId' diperlukan." }, { status: 400 });
+    }
+
+    const task = await TaskStateManager.getTask(taskId);
+    if (!task) {
+      return NextResponse.json({ error: "Task tidak ditemukan." }, { status: 404 });
+    }
+
+    // Otorisasi: Pastikan task milik user pemohon
+    if (task.userId !== userId && !isDev) {
+      return NextResponse.json({ error: "Akses ditolak ke task ini." }, { status: 403 });
+    }
+
+    return NextResponse.json({
+      taskId: task.taskId,
+      status: task.status,
+      goal: task.goal,
+      subtasks: task.subtasks || [],
+      activeSubtaskId: task.activeSubtaskId,
+      isSimpleTask: task.isSimpleTask,
+      verificationEvidence: task.verificationEvidence,
+      finalReport: task.finalReport,
+      logs: task.logs || [],
+      updatedAt: task.updatedAt,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -33,6 +80,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: cancelled, taskId: taskIdToCancel, status: "cancelled" });
     }
 
+    // Dukungan pengecekan status tugas
+    if (action === "status") {
+      const taskIdToCheck = typeof body.taskId === "string" ? body.taskId.trim() : "";
+      if (!taskIdToCheck) {
+        return NextResponse.json({ error: "taskId diperlukan." }, { status: 400 });
+      }
+      const task = await TaskStateManager.getTask(taskIdToCheck);
+      if (!task) {
+        return NextResponse.json({ error: "Task tidak ditemukan." }, { status: 404 });
+      }
+      if (task.userId !== userId && !isDev) {
+        return NextResponse.json({ error: "Akses ditolak ke task ini." }, { status: 403 });
+      }
+      return NextResponse.json({
+        taskId: task.taskId,
+        status: task.status,
+        goal: task.goal,
+        subtasks: task.subtasks || [],
+        verificationEvidence: task.verificationEvidence,
+        finalReport: task.finalReport,
+        logs: task.logs || [],
+      });
+    }
+
     const goal = typeof body.goal === "string" ? body.goal.trim() : "";
     const modelId = body.modelId || "auto";
     const grantedPermissions = body.grantedPermissions || {};
@@ -57,9 +128,12 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: result.success,
       taskId: result.taskId,
+      status: taskDetails?.status || (result.success ? "completed" : "failed"),
       finalAnswer: result.finalAnswer,
       stepsTaken: result.stepsTaken,
       toolsUsed: result.toolsUsed,
+      subtasks: taskDetails?.subtasks || [],
+      verificationEvidence: taskDetails?.verificationEvidence,
       pendingPermission: result.pendingPermission,
       logs: taskDetails?.logs || [],
     });

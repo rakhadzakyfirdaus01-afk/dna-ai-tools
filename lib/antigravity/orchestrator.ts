@@ -4,6 +4,8 @@ import { TaskStateManager, TaskState } from "./task-state";
 import { ProjectMemory } from "./memory";
 import { SUBAGENT_PERSONAS } from "./agents/personas";
 import { resolveModelCandidates, type AIModelId } from "@/lib/ai-models";
+import { TaskPlanner } from "./planner/task-planner";
+import { AgentCoordinator } from "./coordinator/agent-coordinator";
 
 function getApiKey(): string {
   return (
@@ -56,11 +58,21 @@ export class AntigravityOrchestrator {
     const memoryContext = ProjectMemory.getMemoryContextPrompt();
 
     // 1. PHASE 1: PAHAMI & RENCANAKAN (Architect Subagent)
+    const plan = TaskPlanner.createPlan(goal);
+    await TaskStateManager.setPlan(task.taskId, plan);
+
     TaskStateManager.addLog(
       task.taskId,
       SUBAGENT_PERSONAS.architect.displayName,
-      `Memulai analisis arsitektur dan perencanaan untuk target: "${goal}"`
+      `Rencana DAG dibentuk: ${plan.totalSubtasks} subtask (Simple: ${plan.isSimpleTask}) untuk target: "${goal}"`
     );
+
+    const planSummary = plan.subtasks
+      .map(
+        (s, idx) =>
+          `  ${idx + 1}. [${s.subagentRole.toUpperCase()}] ${s.title} (Status: ${s.status}, Dependensi: ${s.dependencies.join(", ") || "None"})`
+      )
+      .join("\n");
 
     const toolsDeclarations = ToolRegistry.getAllTools().map((t) => ({
       name: t.name,
@@ -79,10 +91,13 @@ ${memoryContext}
 TUGAS UTAMA (GOAL):
 ${goal}
 
+RENCANA SUBTASK MULTI-AGENT TERSTRUKTUR:
+${planSummary}
+
 INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
-1. Pahami masalah dan gunakan tools yang tersedia untuk memeriksa kondisi codebase nyata (analyze_codebase, find_symbols, read_file, search_codebase).
+1. Pahami masalah dan gunakan tools yang sesuai dengan spesialisasi agent (analyze_codebase, find_symbols, read_file, search_codebase).
 2. Jika perlu modifikasi, gunakan patch_file atau write_file.
-3. Setelah modifikasi, verifikasi hasilnya dengan verify_project_build atau run_terminal_command.
+3. Setelah modifikasi, verifikasi hasilnya secara ketat dengan verify_project_build atau run_terminal_command.
 4. Untuk pengujian web frontend atau verifikasi interaksi UI, gunakan browser_navigate, browser_query, browser_click, browser_fill_form, dan browser_snapshot untuk inspeksi visual.
 5. Jika menemui error, perbaiki dan coba kembali (self-healing loop).
 6. Jika ada perintah yang memerlukan izin pengguna, laporkan alasan spesifiknya.
@@ -242,11 +257,38 @@ INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
 
         // B. JIKA TIDAK ADA FUNCTION CALLS LAGI, MODEL SELESAI MEMBERIKAN LAPORAN
         finalAnswer = response.text || "Pekerjaan selesai.";
-        task.status = "completed";
+
+        // FASE 5: Evidence-Based Verification Contract
+        let verificationPassed = true;
+        if (toolsUsed.has("write_file") || toolsUsed.has("patch_file")) {
+          const verifyTool = ToolRegistry.getTool("verify_project_build");
+          if (verifyTool) {
+            const verifyRes = await verifyTool.execute({});
+            verificationPassed = Boolean(verifyRes.data?.passed ?? verifyRes.success);
+            task.verificationEvidence = {
+              typecheckPassed: verificationPassed,
+              filesModified: Array.from(toolsUsed),
+            };
+          }
+        }
+
+        task.status = verificationPassed ? "completed" : "failed";
+        if (!verificationPassed) {
+          finalAnswer += "\n\n[PERINGATAN VERIFIKASI]: Modifikasi kode tidak lolos kompilasi/typecheck TypeScript. Status tugas ditandai FAILED.";
+        }
         task.finalReport = finalAnswer;
 
+        // Tandai semua subtask sebagai completed jika verifikasi berhasil
+        if (task.subtasks) {
+          task.subtasks.forEach((s) => {
+            if (s.status === "pending" || s.status === "in_progress") {
+              s.status = verificationPassed ? "completed" : "failed";
+            }
+          });
+        }
+
         // Catat ke Project Memory jika ada keputusan teknis yang berhasil
-        if (toolsUsed.has("write_file") || toolsUsed.has("patch_file")) {
+        if (verificationPassed && (toolsUsed.has("write_file") || toolsUsed.has("patch_file"))) {
           await ProjectMemory.saveDecision({
             topic: goal.slice(0, 40),
             decision: "Implementasi berhasil melalui Autonomous Agent",

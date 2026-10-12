@@ -20,6 +20,19 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+    const action = body.action || "run";
+    const userId = session?.user?.email || (session?.user as any)?.id || "dev-user";
+
+    // Dukungan pembatalan tugas (Task Cancellation)
+    if (action === "cancel") {
+      const taskIdToCancel = typeof body.taskId === "string" ? body.taskId.trim() : "";
+      if (!taskIdToCancel) {
+        return NextResponse.json({ error: "taskId diperlukan untuk pembatalan." }, { status: 400 });
+      }
+      const cancelled = await TaskStateManager.requestCancel(taskIdToCancel, userId);
+      return NextResponse.json({ success: cancelled, taskId: taskIdToCancel, status: "cancelled" });
+    }
+
     const goal = typeof body.goal === "string" ? body.goal.trim() : "";
     const modelId = body.modelId || "auto";
     const grantedPermissions = body.grantedPermissions || {};
@@ -35,10 +48,11 @@ export async function POST(req: Request) {
     const result = await AntigravityOrchestrator.executeAutonomousGoal(
       goal,
       modelId,
+      userId,
       grantedPermissions
     );
 
-    const taskDetails = TaskStateManager.getTask(result.taskId);
+    const taskDetails = await TaskStateManager.getTask(result.taskId);
 
     return NextResponse.json({
       success: result.success,

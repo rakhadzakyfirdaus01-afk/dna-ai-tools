@@ -34,9 +34,23 @@ export class AntigravityOrchestrator {
   public static async executeAutonomousGoal(
     goal: string,
     modelId: AIModelId = "auto",
+    userId = "anonymous",
     grantedPermissions?: Record<string, boolean>
   ): Promise<OrchestrationResult> {
-    const task = TaskStateManager.createTask(goal, 8);
+    const task = await TaskStateManager.createTask(goal, userId, 8);
+    const workerId = "worker-" + process.pid + "-" + Date.now();
+    const locked = await TaskStateManager.acquireLock(task.taskId, workerId);
+
+    if (!locked) {
+      return {
+        success: false,
+        taskId: task.taskId,
+        finalAnswer: "Tugas sedang dikunci dan dikerjakan oleh worker lain.",
+        stepsTaken: 0,
+        toolsUsed: [],
+      };
+    }
+
     const toolsUsed: Set<string> = new Set();
     const memory = await ProjectMemory.load();
     const memoryContext = ProjectMemory.getMemoryContextPrompt();
@@ -66,12 +80,13 @@ TUGAS UTAMA (GOAL):
 ${goal}
 
 INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
-1. Pahami masalah dan gunakan tools yang tersedia untuk memeriksa kondisi codebase nyata (read_file, search_codebase, dir).
+1. Pahami masalah dan gunakan tools yang tersedia untuk memeriksa kondisi codebase nyata (analyze_codebase, find_symbols, read_file, search_codebase).
 2. Jika perlu modifikasi, gunakan patch_file atau write_file.
 3. Setelah modifikasi, verifikasi hasilnya dengan verify_project_build atau run_terminal_command.
-4. Jika menemui error, perbaiki dan coba kembali (self-healing loop).
-5. Jika ada perintah yang memerlukan izin pengguna, laporkan alasan spesifiknya.
-6. Berikan laporan hasil akhir yang transparan dan terbukti setelah semua langkah selesai.
+4. Untuk pengujian web frontend atau verifikasi interaksi UI, gunakan browser_navigate, browser_query, browser_click, browser_fill_form, dan browser_snapshot untuk inspeksi visual.
+5. Jika menemui error, perbaiki dan coba kembali (self-healing loop).
+6. Jika ada perintah yang memerlukan izin pengguna, laporkan alasan spesifiknya.
+7. Berikan laporan hasil akhir yang transparan dan terbukti setelah semua langkah selesai.
 `.trim(),
           },
         ],
@@ -84,9 +99,23 @@ INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
     const modelCandidates = resolveModelCandidates(modelId);
     const activeModel = modelCandidates[0] || "gemini-2.5-flash";
 
-    while (iteration < maxIterations) {
-      iteration++;
-      task.iterationCount = iteration;
+    try {
+      while (iteration < maxIterations) {
+        // Cek apakah ada pembatalan tugas dari pengguna
+        const currentTaskState = await TaskStateManager.getTask(task.taskId);
+        if (currentTaskState?.cancelRequested) {
+          await TaskStateManager.updateTask(task.taskId, { status: "cancelled" });
+          return {
+            success: false,
+            taskId: task.taskId,
+            finalAnswer: "Tugas telah dibatalkan atas permintaan pengguna.",
+            stepsTaken: iteration,
+            toolsUsed: Array.from(toolsUsed),
+          };
+        }
+
+        iteration++;
+        await TaskStateManager.updateTask(task.taskId, { iterationCount: iteration });
 
       try {
         // Panggil Gemini model dengan function declarations
@@ -130,9 +159,19 @@ INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
             const toolArgs = call.args || {};
             toolsUsed.add(toolName);
 
+            // Tentukan agent persona yang bertanggung jawab
+            let agentBadge = SUBAGENT_PERSONAS.architect.displayName;
+            if (toolName.startsWith("browser_")) {
+              agentBadge = SUBAGENT_PERSONAS.browser.displayName;
+            } else if (toolName === "verify_project_build" || toolName === "run_terminal_command") {
+              agentBadge = SUBAGENT_PERSONAS.qa.displayName;
+            } else if (toolName === "patch_file" || toolName === "write_file") {
+              agentBadge = SUBAGENT_PERSONAS.coder.displayName;
+            }
+
             TaskStateManager.addLog(
               task.taskId,
-              "Tool Execution",
+              agentBadge,
               `Memanggil tool [${toolName}]`,
               toolArgs
             );
@@ -171,6 +210,7 @@ INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
                 action: toolName,
                 reason: execResult.permissionReason || "Memerlukan konfirmasi izin.",
                 commandToRun: execResult.commandToGrant || toolArgs.command || toolName,
+                requestedAt: Date.now(),
               };
 
               return {
@@ -216,28 +256,32 @@ INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
         }
 
         break;
-      } catch (loopError) {
-        TaskStateManager.addLog(
-          task.taskId,
-          "Orchestrator Error",
-          `Terjadi kesalahan pada iterasi ${iteration}: ${(loopError as Error).message}`
-        );
+        } catch (loopError) {
+          TaskStateManager.addLog(
+            task.taskId,
+            "Orchestrator Error",
+            `Terjadi kesalahan pada iterasi ${iteration}: ${(loopError as Error).message}`
+          );
 
-        if (iteration >= maxIterations) {
-          task.status = "failed";
-          return {
-            success: false,
-            taskId: task.taskId,
-            finalAnswer: `Orkestrasi mencapai batas iterasi atau mengalami kendala: ${(loopError as Error).message}`,
-            stepsTaken: iteration,
-            toolsUsed: Array.from(toolsUsed),
-          };
+          if (iteration >= maxIterations) {
+            await TaskStateManager.updateTask(task.taskId, { status: "failed" });
+            return {
+              success: false,
+              taskId: task.taskId,
+              finalAnswer: `Orkestrasi mencapai batas iterasi atau mengalami kendala: ${(loopError as Error).message}`,
+              stepsTaken: iteration,
+              toolsUsed: Array.from(toolsUsed),
+            };
+          }
         }
       }
+    } finally {
+      await TaskStateManager.releaseLock(task.taskId, workerId);
     }
 
+    const currentTask = await TaskStateManager.getTask(task.taskId);
     return {
-      success: task.status === "completed",
+      success: currentTask?.status === "completed",
       taskId: task.taskId,
       finalAnswer,
       stepsTaken: iteration,

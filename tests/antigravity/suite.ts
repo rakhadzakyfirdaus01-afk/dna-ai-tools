@@ -117,18 +117,38 @@ async function runToolRegistryTests() {
 async function runTaskStateAndMemoryTests() {
   console.log("\n--- [3] TASK STATE & PROJECT MEMORY TESTS ---");
 
-  // 1. Task State Manager
-  const task = TaskStateManager.createTask("Test Goal 123", 5);
-  assert(task.status === "planning" && task.maxIterations === 5, "createTask initializes with correct defaults");
+  // 1. Persistent Task State Manager & Concurrency Locking
+  const task = await TaskStateManager.createTask("Test Goal 123", "user-1", 5);
+  assert(task.status === "queued" && task.maxIterations === 5, "createTask initializes with status 'queued'");
 
-  TaskStateManager.addLog(task.taskId, "Tester", "Step log message");
-  const retrieved = TaskStateManager.getTask(task.taskId);
-  assert(retrieved?.logs.length === 1 && retrieved.logs[0].message === "Step log message", "Task logs are tracked accurately");
+  // Test worker concurrency lock
+  const locked1 = await TaskStateManager.acquireLock(task.taskId, "worker-A");
+  assert(locked1, "Worker A successfully acquires lock on task");
 
-  TaskStateManager.updateTask(task.taskId, { status: "completed" });
-  assert(TaskStateManager.getTask(task.taskId)?.status === "completed", "updateTask mutates task state cleanly");
+  const locked2 = await TaskStateManager.acquireLock(task.taskId, "worker-B");
+  assert(!locked2, "Worker B is blocked from acquiring active lock");
 
-  // 2. Project Memory
+  await TaskStateManager.releaseLock(task.taskId, "worker-A");
+  const lockedAfterRelease = await TaskStateManager.acquireLock(task.taskId, "worker-B");
+  assert(lockedAfterRelease, "Worker B acquires lock after Worker A releases it");
+
+  // Test cancellation
+  const cancelled = await TaskStateManager.requestCancel(task.taskId, "user-1");
+  assert(cancelled, "requestCancel successfully marks task as cancelled");
+
+  const cancelledTask = await TaskStateManager.getTask(task.taskId);
+  assert(cancelledTask?.status === "cancelled", "Cancelled status persisted in state");
+
+  // 2. Codebase Intelligence Tests
+  const { CodebaseIntelligence } = await import("../../lib/antigravity/codebase-intelligence");
+  const analysis = await CodebaseIntelligence.analyzeWorkspace();
+  assert(analysis.structure.totalFiles > 0, "CodebaseIntelligence maps project files");
+  assert(analysis.structure.configFiles.length > 0, "CodebaseIntelligence identifies core config files");
+
+  const symbols = await CodebaseIntelligence.findSymbols("SecurityGate");
+  assert(symbols.length > 0, "CodebaseIntelligence locates symbols (SecurityGate)");
+
+  // 3. Project Memory
   const loadedMemory = await ProjectMemory.load();
   assert(Array.isArray(loadedMemory.recentDecisions), "ProjectMemory loads array of decisions cleanly");
 

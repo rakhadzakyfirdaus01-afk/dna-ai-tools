@@ -41,3 +41,8 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# Antigravity agent runtime tasks and test artifacts
+.antigravity-tasks/
+.antigravity-artifacts/
+tests/dist/

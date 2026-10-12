@@ -1,3 +1,16 @@
+import fs from "fs/promises";
+import path from "path";
+import { SecurityGate } from "./security-gate";
+
+export type TaskStatus =
+  | "queued"
+  | "running"
+  | "waiting_for_permission"
+  | "paused_for_permission"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
 export interface TaskPlanStep {
   id: string;
   description: string;
@@ -5,16 +18,24 @@ export interface TaskPlanStep {
   subagent: "architect" | "coder" | "qa" | "security";
   toolName?: string;
   resultSummary?: string;
+  error?: string;
 }
 
 export interface TaskState {
   taskId: string;
+  userId: string;
   goal: string;
-  status: "planning" | "executing" | "evaluating" | "completed" | "failed" | "paused_for_permission";
+  status: TaskStatus;
   steps: TaskPlanStep[];
   currentStepIndex: number;
   iterationCount: number;
   maxIterations: number;
+  createdAt: number;
+  updatedAt: number;
+  checkpointHash?: string;
+  lockedByWorker?: string | null;
+  lockedAt?: number | null;
+  cancelRequested?: boolean;
   logs: Array<{
     timestamp: number;
     sender: string;
@@ -26,38 +47,134 @@ export interface TaskState {
     action: string;
     reason: string;
     commandToRun: string;
+    requestedAt: number;
+    granted?: boolean;
   };
   finalReport?: string;
 }
 
 export class TaskStateManager {
   private static tasks: Map<string, TaskState> = new Map();
+  private static storageDir = path.resolve(SecurityGate.getWorkspaceRoot(), ".antigravity-tasks");
+  private static initialized = false;
 
-  public static createTask(goal: string, maxIterations = 8): TaskState {
+  private static async ensureInitialized() {
+    if (this.initialized) return;
+    try {
+      await fs.mkdir(this.storageDir, { recursive: true });
+      // Pulihkan task yang tersimpan dari disk (recover from restart)
+      const files = await fs.readdir(this.storageDir);
+      for (const file of files) {
+        if (file.endsWith(".json")) {
+          try {
+            const raw = await fs.readFile(path.join(this.storageDir, file), "utf-8");
+            const task: TaskState = JSON.parse(raw);
+            if (task && task.taskId) {
+              // Jika server sempat mati saat running, pulihkan status ke queued atau failed secara bersih
+              if (task.status === "running") {
+                task.status = "queued";
+                task.lockedByWorker = null;
+                task.lockedAt = null;
+              }
+              this.tasks.set(task.taskId, task);
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+    this.initialized = true;
+  }
+
+  public static async createTask(goal: string, userId = "anonymous", maxIterations = 8): Promise<TaskState> {
+    await this.ensureInitialized();
     const taskId = "task-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6);
     const newTask: TaskState = {
       taskId,
+      userId,
       goal,
-      status: "planning",
+      status: "queued",
       steps: [],
       currentStepIndex: 0,
       iterationCount: 0,
       maxIterations,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      lockedByWorker: null,
+      lockedAt: null,
+      cancelRequested: false,
       logs: [],
     };
     this.tasks.set(taskId, newTask);
+    await this.persistCheckpoint(newTask);
     return newTask;
   }
 
-  public static getTask(taskId: string): TaskState | undefined {
+  public static async getTask(taskId: string): Promise<TaskState | undefined> {
+    await this.ensureInitialized();
     return this.tasks.get(taskId);
   }
 
-  public static updateTask(taskId: string, partial: Partial<TaskState>): TaskState | undefined {
-    const existing = this.tasks.get(taskId);
+  public static async listUserTasks(userId: string): Promise<TaskState[]> {
+    await this.ensureInitialized();
+    return Array.from(this.tasks.values())
+      .filter((t) => t.userId === userId || userId === "anonymous")
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  public static async acquireLock(taskId: string, workerId: string): Promise<boolean> {
+    const task = await this.getTask(taskId);
+    if (!task) return false;
+
+    // Cek apakah sedang dikunci worker lain (timeout lock 45 detik)
+    const now = Date.now();
+    if (task.lockedByWorker && task.lockedByWorker !== workerId) {
+      if (task.lockedAt && now - task.lockedAt < 45000) {
+        return false; // Sedang dikerjakan worker lain
+      }
+    }
+
+    task.lockedByWorker = workerId;
+    task.lockedAt = now;
+    task.status = "running";
+    task.updatedAt = now;
+    await this.persistCheckpoint(task);
+    return true;
+  }
+
+  public static async releaseLock(taskId: string, workerId: string): Promise<void> {
+    const task = await this.getTask(taskId);
+    if (!task) return;
+    if (task.lockedByWorker === workerId) {
+      task.lockedByWorker = null;
+      task.lockedAt = null;
+      task.updatedAt = Date.now();
+      await this.persistCheckpoint(task);
+    }
+  }
+
+  public static async requestCancel(taskId: string, userId: string): Promise<boolean> {
+    const task = await this.getTask(taskId);
+    if (!task) return false;
+    if (task.userId !== userId && userId !== "anonymous") return false;
+
+    task.cancelRequested = true;
+    task.status = "cancelled";
+    task.updatedAt = Date.now();
+    this.addLog(taskId, "System", "Pengguna membatalkan eksekusi tugas.");
+    await this.persistCheckpoint(task);
+    return true;
+  }
+
+  public static async updateTask(taskId: string, partial: Partial<TaskState>): Promise<TaskState | undefined> {
+    const existing = await this.getTask(taskId);
     if (!existing) return undefined;
-    const updated = { ...existing, ...partial };
+    const updated = {
+      ...existing,
+      ...partial,
+      updatedAt: Date.now(),
+    };
     this.tasks.set(taskId, updated);
+    await this.persistCheckpoint(updated);
     return updated;
   }
 
@@ -77,5 +194,21 @@ export class TaskStateManager {
       toolCall,
       toolOutput,
     });
+    // Batasi logs maksimum 60 entri agar tidak membebani memori
+    if (task.logs.length > 60) {
+      task.logs = task.logs.slice(-60);
+    }
+  }
+
+  public static async persistCheckpoint(task: TaskState): Promise<void> {
+    try {
+      await fs.mkdir(this.storageDir, { recursive: true });
+      const filePath = path.join(this.storageDir, `${task.taskId}.json`);
+      const tempPath = filePath + ".tmp";
+      await fs.writeFile(tempPath, JSON.stringify(task, null, 2), "utf-8");
+      await fs.rename(tempPath, filePath);
+    } catch (err) {
+      console.warn(`[TaskStateManager] Failed to persist task ${task.taskId}:`, err);
+    }
   }
 }

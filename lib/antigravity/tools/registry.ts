@@ -390,3 +390,276 @@ ToolRegistry.registerTool({
     });
   },
 });
+
+// ==========================================
+// 7. TOOL: analyze_codebase
+// ==========================================
+ToolRegistry.registerTool({
+  name: "analyze_codebase",
+  description: "Menganalisis arsitektur proyek secara otomatis, memetakan folder, entry point, API route, dan relasi impor.",
+  parameters: {
+    type: "object",
+    properties: {},
+    required: [],
+  },
+  execute: async () => {
+    try {
+      const { CodebaseIntelligence } = await import("../codebase-intelligence");
+      const analysis = await CodebaseIntelligence.analyzeWorkspace();
+      return {
+        success: true,
+        data: {
+          structure: analysis.structure,
+          summary: analysis.summaryText,
+          topSymbolsCount: analysis.symbols.length,
+        },
+      };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+});
+
+// ==========================================
+// 8. TOOL: find_symbols
+// ==========================================
+ToolRegistry.registerTool({
+  name: "find_symbols",
+  description: "Mencari deklarasi simbol seperti fungsi, class, interface, tipe, atau konstanta export di seluruh codebase.",
+  parameters: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "Nama simbol atau fungsi yang dicari" },
+    },
+    required: ["query"],
+  },
+  execute: async (args: { query: string }) => {
+    if (!args || typeof args.query !== "string" || !args.query.trim()) {
+      return { success: false, error: "Parameter 'query' harus berupa string yang tidak kosong." };
+    }
+    try {
+      const { CodebaseIntelligence } = await import("../codebase-intelligence");
+      const symbols = await CodebaseIntelligence.findSymbols(args.query);
+      return {
+        success: true,
+        data: {
+          query: args.query,
+          matchCount: symbols.length,
+          symbols,
+        },
+      };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+});
+
+// ==========================================
+// 9. TOOL: browser_navigate
+// ==========================================
+ToolRegistry.registerTool({
+  name: "browser_navigate",
+  description: "Membuka URL di lingkungan browser headless yang terisolasi dengan proteksi SSRF.",
+  parameters: {
+    type: "object",
+    properties: {
+      url: { type: "string", description: "URL lengkap yang akan dibuka (http:// atau https://)" },
+    },
+    required: ["url"],
+  },
+  execute: async (args: { url: string }) => {
+    if (!args || typeof args.url !== "string" || !args.url.trim()) {
+      return { success: false, error: "Parameter 'url' harus berupa string yang valid." };
+    }
+    try {
+      const { BrowserEngine } = await import("../browser/engine");
+      const engine = BrowserEngine.getInstance();
+      const page = await engine.navigate(args.url);
+      return {
+        success: true,
+        data: {
+          url: page.url,
+          status: page.status,
+          statusText: page.statusText,
+          title: page.title,
+          loadTimeMs: page.loadTimeMs,
+          headings: page.headings,
+          buttonsCount: page.buttons.length,
+          formsCount: page.forms.length,
+          linksCount: page.links.length,
+          alerts: page.alerts,
+        },
+      };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+});
+
+// ==========================================
+// 10. TOOL: browser_query
+// ==========================================
+ToolRegistry.registerTool({
+  name: "browser_query",
+  description: "Mencari elemen interaktif di halaman browser aktif berdasarkan teks, role, tag, atau id.",
+  parameters: {
+    type: "object",
+    properties: {
+      text: { type: "string", description: "Teks parsial yang dicari di dalam elemen (opsional)" },
+      role: { type: "string", description: "Role ARIA elemen (contoh: button, link) (opsional)" },
+      tag: { type: "string", description: "Nama tag HTML (contoh: button, a, input) (opsional)" },
+      id: { type: "string", description: "ID elemen HTML (opsional)" },
+    },
+    required: [],
+  },
+  execute: async (args: { text?: string; role?: string; tag?: string; id?: string }) => {
+    try {
+      const { BrowserEngine } = await import("../browser/engine");
+      const engine = BrowserEngine.getInstance();
+      const elements = engine.findElements(args || {});
+      return {
+        success: true,
+        data: {
+          matchCount: elements.length,
+          elements,
+        },
+      };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+});
+
+// ==========================================
+// 11. TOOL: browser_click
+// ==========================================
+ToolRegistry.registerTool({
+  name: "browser_click",
+  description: "Mengklik elemen tombol atau tautan navigasi pada halaman aktif.",
+  parameters: {
+    type: "object",
+    properties: {
+      text: { type: "string", description: "Teks pada tombol atau link yang ingin diklik" },
+      tag: { type: "string", description: "Tag elemen (button atau a) (opsional)" },
+      id: { type: "string", description: "ID elemen (opsional)" },
+    },
+    required: [],
+  },
+  execute: async (args: { text?: string; tag?: string; id?: string }) => {
+    try {
+      const { BrowserEngine } = await import("../browser/engine");
+      const engine = BrowserEngine.getInstance();
+      const result = await engine.clickElement(args || {});
+      return {
+        success: true,
+        data: {
+          clickedTag: result.clicked.tag,
+          clickedText: result.clicked.text,
+          actionType: result.actionType,
+          currentUrl: result.newPage.url,
+          status: result.newPage.status,
+          pageTitle: result.newPage.title,
+        },
+      };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+});
+
+// ==========================================
+// 12. TOOL: browser_fill_form
+// ==========================================
+ToolRegistry.registerTool({
+  name: "browser_fill_form",
+  description: "Mengisi data form pada halaman aktif dan mengirimkannya (submit).",
+  parameters: {
+    type: "object",
+    properties: {
+      formSelector: { type: "string", description: "ID atau bagian action dari form target (opsional)" },
+      fields: { type: "object", description: "Key-value field yang akan diisi" },
+      submit: { type: "boolean", description: "Kirimkan form setelah diisi (default: true)" },
+    },
+    required: ["fields"],
+  },
+  execute: async (args: { formSelector?: string; fields: Record<string, string>; submit?: boolean }) => {
+    if (!args || !args.fields || typeof args.fields !== "object") {
+      return { success: false, error: "Parameter 'fields' harus berupa objek key-value." };
+    }
+    try {
+      const { BrowserEngine } = await import("../browser/engine");
+      const engine = BrowserEngine.getInstance();
+      const page = await engine.fillForm(
+        args.formSelector || "",
+        args.fields,
+        args.submit !== false
+      );
+      return {
+        success: true,
+        data: {
+          url: page.url,
+          status: page.status,
+          title: page.title,
+          alerts: page.alerts,
+        },
+      };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+});
+
+// ==========================================
+// 13. TOOL: browser_snapshot
+// ==========================================
+ToolRegistry.registerTool({
+  name: "browser_snapshot",
+  description: "Menangkap visual wireframe snapshot dari halaman browser dan menyimpannya sebagai file artefak verifikasi.",
+  parameters: {
+    type: "object",
+    properties: {
+      label: { type: "string", description: "Label atau nama inspeksi snapshot (opsional)" },
+    },
+    required: [],
+  },
+  execute: async (args?: { label?: string }) => {
+    try {
+      const { BrowserEngine } = await import("../browser/engine");
+      const engine = BrowserEngine.getInstance();
+      const snapshot = await engine.captureVisualSnapshot(args?.label || "Visual Verification Snapshot");
+      return {
+        success: true,
+        data: snapshot,
+      };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+});
+
+// ==========================================
+// 14. TOOL: browser_close
+// ==========================================
+ToolRegistry.registerTool({
+  name: "browser_close",
+  description: "Menutup sesi browser dan membersihkan seluruh resource memori serta riwayat navigasi.",
+  parameters: {
+    type: "object",
+    properties: {},
+    required: [],
+  },
+  execute: async () => {
+    try {
+      const { BrowserEngine } = await import("../browser/engine");
+      const engine = BrowserEngine.getInstance();
+      engine.closeSession();
+      return {
+        success: true,
+        data: { message: "Sesi browser berhasil ditutup dan memori dibersihkan." },
+      };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+});
+

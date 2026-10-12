@@ -8,6 +8,46 @@
   ],
   "recentDecisions": [
     {
+      "id": "dec-1791774665002",
+      "timestamp": 1791774665002,
+      "topic": "Unit Test Verification",
+      "decision": "All security checks automated",
+      "rationale": "Ensuring zero regression",
+      "filesAffected": [
+        "lib/antigravity/security-gate.ts"
+      ]
+    },
+    {
+      "id": "dec-1791774287934",
+      "timestamp": 1791774287934,
+      "topic": "Unit Test Verification",
+      "decision": "All security checks automated",
+      "rationale": "Ensuring zero regression",
+      "filesAffected": [
+        "lib/antigravity/security-gate.ts"
+      ]
+    },
+    {
+      "id": "dec-1791772772966",
+      "timestamp": 1791772772966,
+      "topic": "Unit Test Verification",
+      "decision": "All security checks automated",
+      "rationale": "Ensuring zero regression",
+      "filesAffected": [
+        "lib/antigravity/security-gate.ts"
+      ]
+    },
+    {
+      "id": "dec-1791772675206",
+      "timestamp": 1791772675206,
+      "topic": "Unit Test Verification",
+      "decision": "All security checks automated",
+      "rationale": "Ensuring zero regression",
+      "filesAffected": [
+        "lib/antigravity/security-gate.ts"
+      ]
+    },
+    {
       "id": "dec-1791771243823",
       "timestamp": 1791771243823,
       "topic": "Unit Test Verification",

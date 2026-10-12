@@ -1,5 +1,5 @@
 export interface SubagentPersona {
-  role: "architect" | "coder" | "qa" | "security";
+  role: "architect" | "coder" | "qa" | "security" | "browser";
   displayName: string;
   badge: string;
   systemDirective: string;
@@ -60,4 +60,30 @@ Tugasmu:
 `.trim(),
     allowedTools: ["read_file"],
   },
+
+  browser: {
+    role: "browser",
+    displayName: "Browser Automation & Visual QA Agent",
+    badge: "🌐 BROWSER AGENT",
+    systemDirective: `
+Kamu adalah Browser Automation & Visual QA Specialist Antigravity.
+Tugasmu:
+- Membuka halaman aplikasi web lokal/staging menggunakan browser_navigate.
+- Menginspeksi struktur DOM dan elemen interaktif menggunakan browser_query.
+- Melakukan interaksi seperti mengklik tombol atau link dengan browser_click.
+- Menguji pengisian form dan verifikasi submit dengan browser_fill_form.
+- Menangkap wireframe visual dan layout snapshot untuk verifikasi bukti nyata menggunakan browser_snapshot.
+- Menutup sesi dan membersihkan resource dengan browser_close setelah selesai.
+`.trim(),
+    allowedTools: [
+      "browser_navigate",
+      "browser_query",
+      "browser_click",
+      "browser_fill_form",
+      "browser_snapshot",
+      "browser_close",
+      "read_file",
+    ],
+  },
 };
+

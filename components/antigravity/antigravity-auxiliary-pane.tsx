@@ -96,8 +96,29 @@ export function AntigravityAuxiliaryPane({
   }, [terminalLogs, tab]);
 
   async function handleExecuteTerminal(commandToRun?: string) {
-    const cmd = (commandToRun || terminalInput).trim();
+    let cmd = (commandToRun || terminalInput).trim();
     if (!cmd || terminalRunning) return;
+
+    // Bersihkan prefix jika pengguna tidak sengaja copy-paste bersamaan dengan 'PS >' atau '> '
+    if (cmd.startsWith("PS >")) {
+      cmd = cmd.replace(/^PS\s*>\s*/, "").trim();
+    } else if (cmd.startsWith("PS>")) {
+      cmd = cmd.replace(/^PS>\s*/, "").trim();
+    } else if (cmd.startsWith("$ ")) {
+      cmd = cmd.replace(/^\$\s*/, "").trim();
+    } else if (cmd.startsWith("> ")) {
+      cmd = cmd.replace(/^>\s*/, "").trim();
+    }
+
+    // Jika pengguna copy-paste output multi-baris sekaligus, ambil hanya baris perintah pertamanya
+    if (cmd.includes("\n")) {
+      const firstLine = cmd.split("\n")[0].trim();
+      if (firstLine) {
+        cmd = firstLine.replace(/^(PS\s*>\s*|PS>\s*|\$\s*|>\s*)/, "").trim();
+      }
+    }
+
+    if (!cmd) return;
 
     setTerminalRunning(true);
     setTerminalInput("");

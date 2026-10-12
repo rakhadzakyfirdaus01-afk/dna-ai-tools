@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import os from "os";
 import { SecurityGate } from "./security-gate";
 import { SubtaskPlan, TaskPlanDAG } from "./planner/task-planner";
 
@@ -67,19 +68,27 @@ export interface TaskState {
 
 export class TaskStateManager {
   private static tasks: Map<string, TaskState> = new Map();
-  private static storageDir = path.resolve(SecurityGate.getWorkspaceRoot(), ".antigravity-tasks");
   private static initialized = false;
+
+  public static getStorageDir(): string {
+    // Di lingkungan serverless Vercel (AWS Lambda), process.cwd() adalah read-only kecuali /tmp
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      return path.resolve(os.tmpdir(), "antigravity-tasks");
+    }
+    return path.resolve(SecurityGate.getWorkspaceRoot(), ".antigravity-tasks");
+  }
 
   private static async ensureInitialized() {
     if (this.initialized) return;
     try {
-      await fs.mkdir(this.storageDir, { recursive: true });
+      const storageDir = this.getStorageDir();
+      await fs.mkdir(storageDir, { recursive: true });
       // Pulihkan task yang tersimpan dari disk (recover from restart)
-      const files = await fs.readdir(this.storageDir);
+      const files = await fs.readdir(storageDir);
       for (const file of files) {
         if (file.endsWith(".json")) {
           try {
-            const raw = await fs.readFile(path.join(this.storageDir, file), "utf-8");
+            const raw = await fs.readFile(path.join(storageDir, file), "utf-8");
             const task: TaskState = JSON.parse(raw);
             if (task && task.taskId) {
               // Jika server sempat mati saat running, pulihkan status ke queued atau failed secara bersih
@@ -150,7 +159,21 @@ export class TaskStateManager {
 
   public static async getTask(taskId: string): Promise<TaskState | undefined> {
     await this.ensureInitialized();
-    return this.tasks.get(taskId);
+    const cached = this.tasks.get(taskId);
+    if (cached) return cached;
+
+    // Fallback: baca langsung dari disk jika dibuat oleh instance serverless lain
+    try {
+      const storageDir = this.getStorageDir();
+      const filePath = path.join(storageDir, `${taskId}.json`);
+      const raw = await fs.readFile(filePath, "utf-8");
+      const task: TaskState = JSON.parse(raw);
+      if (task && task.taskId) {
+        this.tasks.set(task.taskId, task);
+        return task;
+      }
+    } catch {}
+    return undefined;
   }
 
   public static async listUserTasks(userId: string): Promise<TaskState[]> {
@@ -243,8 +266,9 @@ export class TaskStateManager {
 
   public static async persistCheckpoint(task: TaskState): Promise<void> {
     try {
-      await fs.mkdir(this.storageDir, { recursive: true });
-      const filePath = path.join(this.storageDir, `${task.taskId}.json`);
+      const storageDir = this.getStorageDir();
+      await fs.mkdir(storageDir, { recursive: true });
+      const filePath = path.join(storageDir, `${task.taskId}.json`);
       const tempPath = filePath + ".tmp";
       await fs.writeFile(tempPath, JSON.stringify(task, null, 2), "utf-8");
       await fs.rename(tempPath, filePath);

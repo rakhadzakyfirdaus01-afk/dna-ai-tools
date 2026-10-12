@@ -40,6 +40,7 @@ interface AntigravityAuxiliaryPaneProps {
   artifactsContent?: string;
   artifactsTitle?: string;
   onRunTerminalCommand?: (cmd: string) => void;
+  pendingCommand?: string;
 }
 
 export function AntigravityAuxiliaryPane({
@@ -52,6 +53,7 @@ export function AntigravityAuxiliaryPane({
   artifactsContent = "",
   artifactsTitle = "Generated Artifact",
   onRunTerminalCommand,
+  pendingCommand = "",
 }: AntigravityAuxiliaryPaneProps) {
   const [tab, setTab] = useState<"terminal" | "artifacts" | "subagents">(initialTab);
 
@@ -82,12 +84,21 @@ export function AntigravityAuxiliaryPane({
   ]);
   const [copiedArtifact, setCopiedArtifact] = useState(false);
   const terminalBottomRef = useRef<HTMLDivElement>(null);
+  const executedPendingRef = useRef<string>("");
 
   useEffect(() => {
     if (initialTab) {
       setTab(initialTab);
     }
   }, [initialTab]);
+
+  useEffect(() => {
+    if (pendingCommand && pendingCommand !== executedPendingRef.current) {
+      executedPendingRef.current = pendingCommand;
+      setTab("terminal");
+      handleExecuteTerminal(pendingCommand);
+    }
+  }, [pendingCommand]);
 
   useEffect(() => {
     if (tab === "terminal") {

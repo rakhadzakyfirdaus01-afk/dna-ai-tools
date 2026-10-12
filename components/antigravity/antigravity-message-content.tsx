@@ -13,11 +13,15 @@ import {
   Copy,
   Check,
   Code2,
+  Terminal,
+  Play,
+  ShieldCheck,
 } from "lucide-react";
 
 interface AntigravityMessageContentProps {
   content: string;
   onSelectOption?: (optionText: string) => void;
+  onExecuteCommand?: (command: string) => void;
   isEnglish?: boolean;
 }
 
@@ -57,6 +61,7 @@ function CopyCodeButton({ text }: { text: string }) {
 export function AntigravityMessageContent({
   content,
   onSelectOption,
+  onExecuteCommand,
   isEnglish = false,
 }: AntigravityMessageContentProps) {
   const [thinkingExpanded, setThinkingExpanded] = useState(false);
@@ -106,6 +111,21 @@ export function AntigravityMessageContent({
 
   if (options.length > 0) {
     cleanContent = cleanContent.replace(optionRegex, "").trim();
+  }
+
+  // 4. Ekstrak Autonomous Action Commands ([ACTION_COMMAND: terminal command])
+  const actionCommands: string[] = [];
+  const actionRegex = /\[ACTION_COMMAND:\s*([^\]]+)\]/gi;
+  let actionMatch: RegExpExecArray | null;
+
+  while ((actionMatch = actionRegex.exec(cleanContent)) !== null) {
+    if (actionMatch[1]) {
+      actionCommands.push(actionMatch[1].trim());
+    }
+  }
+
+  if (actionCommands.length > 0) {
+    cleanContent = cleanContent.replace(actionRegex, "").trim();
   }
 
   // Formatter untuk GitHub Alerts (> [!NOTE], > [!TIP], etc)
@@ -261,7 +281,53 @@ export function AntigravityMessageContent({
       </div>
 
       {/* ========================================================
-          D. INTERACTIVE DECISION & CLARIFICATION BUTTONS
+          D. AUTONOMOUS FILE & TERMINAL ACTION COMMANDS (PERMISSION GATE)
+      ======================================================== */}
+      {actionCommands.length > 0 && (
+        <div className="mt-3 rounded-2xl border border-amber-500/40 bg-amber-950/20 p-3.5 shadow-lg space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold text-amber-300">
+              <ShieldCheck size={16} className="text-amber-400" />
+              <span>{isEnglish ? "Permission Gate: System Action Execution" : "Persetujuan Izin: Eksekusi Perintah Sistem / File"}</span>
+            </div>
+            <span className="text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+              Safe Sandbox
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-300 leading-relaxed">
+            {isEnglish
+              ? "Antigravity prepared the following terminal action to modify/optimize your files. Click to execute with your permission:"
+              : "Antigravity telah menyiapkan perintah sistem berikut untuk memeriksa / mengoptimasi file Anda. Klik untuk mengeksekusi dengan izin Anda:"}
+          </p>
+
+          <div className="space-y-2">
+            {actionCommands.map((cmd, idx) => (
+              <div
+                key={idx}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/90 p-2.5 font-mono text-xs"
+              >
+                <div className="flex items-center gap-2 text-cyan-300 truncate">
+                  <Terminal size={13} className="shrink-0 text-cyan-400" />
+                  <span className="truncate">{cmd}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onExecuteCommand && onExecuteCommand(cmd)}
+                  className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-cyan-600 px-3 py-1.5 text-xs font-semibold text-white shadow transition hover:opacity-95 active:scale-95"
+                >
+                  <Play size={11} fill="currentColor" />
+                  <span>{isEnglish ? "Grant & Run" : "Izinkan & Jalankan"}</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          E. INTERACTIVE DECISION & CLARIFICATION BUTTONS
       ======================================================== */}
       {options.length > 0 && (
         <div className="mt-3 rounded-2xl border border-cyan-500/30 bg-slate-950/70 p-3 shadow-inner">

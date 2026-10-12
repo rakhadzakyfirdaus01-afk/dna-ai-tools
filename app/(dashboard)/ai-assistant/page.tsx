@@ -256,6 +256,7 @@ export default function Page() {
   const [auxiliaryTab, setAuxiliaryTab] = useState<"terminal" | "artifacts" | "subagents">("terminal");
   const [activeArtifact, setActiveArtifact] = useState("");
   const [activeArtifactTitle, setActiveArtifactTitle] = useState("Antigravity Artifact");
+  const [pendingTerminalCommand, setPendingTerminalCommand] = useState("");
 
   useEffect(() => {
     const checkMobileOrTablet = () => {
@@ -2642,6 +2643,11 @@ export default function Page() {
                         <AntigravityMessageContent
                           content={message.content}
                           onSelectOption={(opt) => sendMessage(opt)}
+                          onExecuteCommand={(cmd) => {
+                            setPendingTerminalCommand(cmd);
+                            setAuxiliaryTab("terminal");
+                            setAuxiliaryPaneOpen(true);
+                          }}
                           isEnglish={isEnglish}
                         />
                       ) : (
@@ -3265,6 +3271,7 @@ export default function Page() {
         onClose={() => setAuxiliaryPaneOpen(false)}
         activeArtifact={activeArtifact}
         activeArtifactTitle={activeArtifactTitle}
+        pendingCommand={pendingTerminalCommand}
       />
 
     </div>

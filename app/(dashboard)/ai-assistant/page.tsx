@@ -1709,14 +1709,25 @@ export default function Page() {
         String(webSearchEnabled)
       );
 
-      const response =
-        await fetch(
-          "/api/ai-assistant",
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
+      let response: Response;
+      const isAutonomousGoal = text.trim().startsWith("/goal ") || text.trim().startsWith("/orchestrate ");
+
+      if (isAutonomousGoal && !currentFile) {
+        const goalQuery = text.replace(/^(\/goal|\/orchestrate)\s+/, "").trim();
+        response = await fetch("/api/antigravity/orchestrate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            goal: goalQuery,
+            modelId: selectedModel,
+          }),
+        });
+      } else {
+        response = await fetch("/api/ai-assistant", {
+          method: "POST",
+          body: formData,
+        });
+      }
 
       let data: any = null;
       const rawText = await response.text();
@@ -1784,6 +1795,7 @@ export default function Page() {
         id: Date.now() + 1,
         role: "assistant",
         content:
+          data.finalAnswer ||
           data.result ||
           ui.aiNoAnswer,
       };

@@ -297,6 +297,13 @@ INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
           });
         }
 
+        await TaskStateManager.updateTask(task.taskId, {
+          status: task.status,
+          finalReport: task.finalReport,
+          subtasks: task.subtasks,
+          verificationEvidence: task.verificationEvidence,
+        });
+
         break;
         } catch (loopError) {
           TaskStateManager.addLog(

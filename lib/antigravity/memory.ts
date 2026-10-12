@@ -40,9 +40,16 @@ export class ProjectMemory {
     try {
       const raw = await fs.readFile(this.memoryFilePath, "utf-8");
       const parsed = JSON.parse(raw);
-      this.inMemoryState = { ...this.inMemoryState, ...parsed };
+      if (parsed && typeof parsed === "object") {
+        this.inMemoryState = {
+          ...this.inMemoryState,
+          ...parsed,
+          recentDecisions: Array.isArray(parsed.recentDecisions) ? parsed.recentDecisions : [],
+          knownIssues: Array.isArray(parsed.knownIssues) ? parsed.knownIssues : [],
+        };
+      }
     } catch {
-      // Memory file belum ada, gunakan default inMemoryState
+      // Memory file belum ada atau format JSON korup, pertahankan inMemoryState default
     }
     return this.inMemoryState;
   }
@@ -59,11 +66,14 @@ export class ProjectMemory {
     }
 
     try {
+      // Tulis atomik ke file sementara dulu lalu timpa
+      const tempPath = this.memoryFilePath + ".tmp";
       await fs.writeFile(
-        this.memoryFilePath,
+        tempPath,
         JSON.stringify(this.inMemoryState, null, 2),
         "utf-8"
       );
+      await fs.rename(tempPath, this.memoryFilePath);
     } catch (err) {
       console.warn("[ProjectMemory] Failed to write memory file:", err);
     }

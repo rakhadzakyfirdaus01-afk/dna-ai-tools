@@ -146,10 +146,12 @@ INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
               continue;
             }
 
-            // Eksekusi tool
+            // Eksekusi tool (hanya terima izin spesifik per perintah atau per nama aksi)
             const isGranted = Boolean(
               grantedPermissions &&
-              (grantedPermissions[toolArgs.command] || grantedPermissions[toolName] || grantedPermissions["*"])
+              ((toolArgs.command && grantedPermissions[toolArgs.command]) ||
+               (toolArgs.filePath && grantedPermissions[toolArgs.filePath]) ||
+               grantedPermissions[toolName])
             );
 
             const execResult: ToolResult = await tool.execute(toolArgs, isGranted);

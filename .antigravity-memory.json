@@ -1,0 +1,22 @@
+{
+  "framework": "Next.js 16 (App Router) + Tailwind CSS + Prisma",
+  "keyDirectories": [
+    "app/(dashboard)/ai-assistant",
+    "components/antigravity",
+    "lib/antigravity",
+    "prisma"
+  ],
+  "recentDecisions": [
+    {
+      "id": "dec-1791771243823",
+      "timestamp": 1791771243823,
+      "topic": "Unit Test Verification",
+      "decision": "All security checks automated",
+      "rationale": "Ensuring zero regression",
+      "filesAffected": [
+        "lib/antigravity/security-gate.ts"
+      ]
+    }
+  ],
+  "knownIssues": []
+}

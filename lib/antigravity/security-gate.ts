@@ -39,10 +39,13 @@ export class SecurityGate {
 
   public static isPathWithinWorkspace(targetPath: string): boolean {
     const resolved = path.resolve(this.workspaceRoot, targetPath);
-    return (
-      resolved.startsWith(this.workspaceRoot) &&
-      !resolved.includes("..")
-    );
+    const relative = path.relative(this.workspaceRoot, resolved);
+    // Jika relative dimulai dengan ".." atau berupa root absolut di luar workspace
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      return false;
+    }
+    // Pastikan prefix sesuai dengan workspaceRoot
+    return resolved === this.workspaceRoot || resolved.startsWith(this.workspaceRoot + path.sep);
   }
 
   public static checkFileAccess(
@@ -98,10 +101,24 @@ export class SecurityGate {
   }
 
   public static checkTerminalCommand(command: string): SecurityCheckResult {
-    const lower = command.toLowerCase().trim();
+    const raw = command.trim();
+    const lower = raw.toLowerCase();
 
     // 1. Cek bahaya destruktif mutlak
-    for (const danger of this.dangerousCommands) {
+    const expandedDangers = [
+      ...this.dangerousCommands,
+      "format c:",
+      "del /f /s /q",
+      "rmdir /s /q c:\\",
+      "net user",
+      "net localgroup",
+      "reg add",
+      "reg delete",
+      "diskpart",
+      "attrib -r -s -h",
+    ];
+
+    for (const danger of expandedDangers) {
       if (lower.includes(danger)) {
         return {
           allowed: false,
@@ -111,7 +128,27 @@ export class SecurityGate {
       }
     }
 
-    // 2. Perintah aman read-only
+    // 2. Evaluasi chaining (misal: "git status ; rm -rf /")
+    const segments = raw
+      .split(/(?:&&|\|\||;|\||\n)/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    // Cek setiap segmen perintah
+    for (const seg of segments) {
+      const segLower = seg.toLowerCase();
+      for (const danger of expandedDangers) {
+        if (segLower.includes(danger)) {
+          return {
+            allowed: false,
+            level: "blocked",
+            reason: `Perintah diblokir: Segmen '${seg}' mengandung instruksi berbahaya.`,
+          };
+        }
+      }
+    }
+
+    // 3. Perintah aman read-only murni (hanya jika semua segmen berstatus aman dan tidak ada chaining mencurigakan)
     const safePrefixes = [
       "git status",
       "git log",
@@ -125,11 +162,17 @@ export class SecurityGate {
       "Get-ChildItem",
     ];
 
-    if (safePrefixes.some((p) => lower.startsWith(p.toLowerCase()))) {
+    const isAllSegmentsSafe =
+      segments.length > 0 &&
+      segments.every((seg) =>
+        safePrefixes.some((p) => seg.toLowerCase().startsWith(p.toLowerCase()))
+      );
+
+    if (isAllSegmentsSafe) {
       return { allowed: true, level: "safe" };
     }
 
-    // 3. Perintah eksekusi, instalasi, atau modifikasi memerlukan persetujuan
+    // 4. Perintah eksekusi, instalasi, pengujian, atau modifikasi memerlukan persetujuan izin
     return {
       allowed: true,
       level: "requires_permission",

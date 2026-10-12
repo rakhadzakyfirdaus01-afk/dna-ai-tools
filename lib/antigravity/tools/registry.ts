@@ -63,6 +63,10 @@ ToolRegistry.registerTool({
     required: ["filePath"],
   },
   execute: async (args: { filePath: string; startLine?: number; endLine?: number }) => {
+    if (!args || typeof args.filePath !== "string" || !args.filePath.trim()) {
+      return { success: false, error: "Parameter 'filePath' harus berupa string yang tidak kosong." };
+    }
+
     const sec = SecurityGate.checkFileAccess(args.filePath, "read");
     if (!sec.allowed) {
       return { success: false, error: sec.reason };
@@ -117,6 +121,13 @@ ToolRegistry.registerTool({
     required: ["filePath", "content"],
   },
   execute: async (args: { filePath: string; content: string }, granted?: boolean) => {
+    if (!args || typeof args.filePath !== "string" || !args.filePath.trim()) {
+      return { success: false, error: "Parameter 'filePath' harus berupa string yang tidak kosong." };
+    }
+    if (typeof args.content !== "string") {
+      return { success: false, error: "Parameter 'content' harus berupa string." };
+    }
+
     const sec = SecurityGate.checkFileAccess(args.filePath, "write");
     if (!sec.allowed) {
       return { success: false, error: sec.reason };
@@ -161,6 +172,16 @@ ToolRegistry.registerTool({
     required: ["filePath", "targetText", "replacementText"],
   },
   execute: async (args: { filePath: string; targetText: string; replacementText: string }, granted?: boolean) => {
+    if (!args || typeof args.filePath !== "string" || !args.filePath.trim()) {
+      return { success: false, error: "Parameter 'filePath' harus berupa string yang tidak kosong." };
+    }
+    if (typeof args.targetText !== "string" || !args.targetText) {
+      return { success: false, error: "Parameter 'targetText' harus berupa string yang tidak kosong." };
+    }
+    if (typeof args.replacementText !== "string") {
+      return { success: false, error: "Parameter 'replacementText' harus berupa string." };
+    }
+
     const sec = SecurityGate.checkFileAccess(args.filePath, "write");
     if (!sec.allowed) {
       return { success: false, error: sec.reason };
@@ -287,6 +308,10 @@ ToolRegistry.registerTool({
     required: ["command"],
   },
   execute: async (args: { command: string }, granted?: boolean) => {
+    if (!args || typeof args.command !== "string" || !args.command.trim()) {
+      return { success: false, error: "Parameter 'command' harus berupa string yang tidak kosong." };
+    }
+
     const sec = SecurityGate.checkTerminalCommand(args.command);
     if (!sec.allowed) {
       return { success: false, error: sec.reason };

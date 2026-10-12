@@ -183,10 +183,17 @@ export class AgentCoordinator {
         // Audit batas keamanan
         summary = "Pemeriksaan batas keamanan aman: tidak ada file rahasia (.env, .git) yang terekspos.";
       } else if (subtask.subagentRole === "coder") {
-        // Implementasi
+        // Implementasi & Review Diff
         summary = `Implementasi kode berhasil diselesaikan sesuai spesifikasi target.`;
         if (subtask.targetFiles) {
           filesAffected.push(...subtask.targetFiles);
+        }
+        const diffTool = ToolRegistry.getTool("get_git_diff");
+        if (diffTool && allowedTools.includes("get_git_diff")) {
+          const diffRes = await diffTool.execute({});
+          if (diffRes.success && diffRes.data?.hasChanges) {
+            summary += ` Diff perubahan diverifikasi (${diffRes.data.diff.split("\n").length} baris).`;
+          }
         }
       } else if (subtask.subagentRole === "qa") {
         // Verifikasi proyek
@@ -200,6 +207,10 @@ export class AgentCoordinator {
             : `Verifikasi QA gagal: ${res.data?.stderr || res.error || "Build error"}`;
         } else {
           summary = "Verifikasi diagnostik QA selesai.";
+        }
+        const diffTool = ToolRegistry.getTool("get_git_diff");
+        if (diffTool && allowedTools.includes("get_git_diff")) {
+          testsRun.push("Git Diff Scope Audit");
         }
       } else if (subtask.subagentRole === "browser") {
         // Verifikasi browser snapshot

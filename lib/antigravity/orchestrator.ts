@@ -94,14 +94,15 @@ ${goal}
 RENCANA SUBTASK MULTI-AGENT TERSTRUKTUR:
 ${planSummary}
 
-INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY:
-1. Pahami masalah dan gunakan tools yang sesuai dengan spesialisasi agent (analyze_codebase, find_symbols, read_file, search_codebase).
-2. Jika perlu modifikasi, gunakan patch_file atau write_file.
-3. Setelah modifikasi, verifikasi hasilnya secara ketat dengan verify_project_build atau run_terminal_command.
-4. Untuk pengujian web frontend atau verifikasi interaksi UI, gunakan browser_navigate, browser_query, browser_click, browser_fill_form, dan browser_snapshot untuk inspeksi visual.
-5. Jika menemui error, perbaiki dan coba kembali (self-healing loop).
-6. Jika ada perintah yang memerlukan izin pengguna, laporkan alasan spesifiknya.
-7. Berikan laporan hasil akhir yang transparan dan terbukti setelah semua langkah selesai.
+INSTRUKSI PROTOKOL OTONOM GOOGLE ANTIGRAVITY (STAGE 10 CAPABILITY):
+1. Pahami masalah dan telusuri simbol/kode terkait (analyze_codebase, find_symbols, read_file, search_codebase) sebelum mengubah file.
+2. Terapkan perubahan terukur menggunakan patch_file untuk modifikasi presisi atau write_file untuk pembuatan berkas baru.
+3. Setelah menerapkan perubahan kode, periksa get_git_diff untuk memverifikasi akurasi diff dan memastikan tidak ada kode yang terhapus secara tidak sengaja.
+4. Verifikasi hasil modifikasi secara ketat menggunakan verify_project_build atau run_terminal_command.
+5. Jika menemui error kompilasi/runtime, baca pesan error aktual, identifikasi akar masalahnya, dan lakukan perbaikan perbaikan terarah (Self-Healing Loop max 3 kali).
+6. Untuk pengujian web frontend atau verifikasi interaksi UI, gunakan browser_navigate, browser_query, browser_click, browser_fill_form, dan browser_snapshot untuk inspeksi visual.
+7. Jika ada perintah yang memerlukan izin pengguna, laporkan alasan spesifiknya.
+8. Berikan laporan hasil akhir yang transparan, mencantumkan file yang dimodifikasi, status kompilasi, dan bukti verifikasi.
 `.trim(),
           },
         ],

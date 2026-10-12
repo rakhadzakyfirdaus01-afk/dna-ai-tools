@@ -663,3 +663,51 @@ ToolRegistry.registerTool({
   },
 });
 
+// ==========================================
+// 15. TOOL: get_git_diff (Review Changes & Diffs)
+// ==========================================
+ToolRegistry.registerTool({
+  name: "get_git_diff",
+  description: "Melihat diff perubahan file terkini yang belum di-commit di dalam workspace untuk memverifikasi akurasi modifikasi dan mendeteksi perubahan yang tidak terkait.",
+  parameters: {
+    type: "object",
+    properties: {
+      filePath: { type: "string", description: "Filter perubahan pada berkas tertentu saja (opsional)" },
+    },
+    required: [],
+  },
+  execute: async (args?: { filePath?: string }) => {
+    return new Promise((resolve) => {
+      const targetArg = args?.filePath ? ` "${args.filePath}"` : "";
+      const cmd = `git diff${targetArg}`;
+
+      exec(
+        cmd,
+        {
+          cwd: SecurityGate.getWorkspaceRoot(),
+          timeout: 10000,
+          maxBuffer: 1024 * 512, // 512 KB
+        },
+        (error, stdout, stderr) => {
+          if (error) {
+            resolve({
+              success: false,
+              error: `Gagal membaca git diff: ${stderr || error.message}`,
+            });
+            return;
+          }
+
+          resolve({
+            success: true,
+            data: {
+              diff: stdout || "Tidak ada perubahan git yang terdeteksi (working tree bersih).",
+              hasChanges: Boolean(stdout.trim()),
+            },
+          });
+        }
+      );
+    });
+  },
+});
+
+

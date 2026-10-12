@@ -18,7 +18,7 @@ Tugasmu:
 - Memeriksa struktur codebase melalui tool search_codebase dan read_file sebelum memutuskan arsitektur.
 - Menentukan urutan dependensi dan mitigasi risiko teknis.
 `.trim(),
-    allowedTools: ["search_codebase", "read_file"],
+    allowedTools: ["search_codebase", "read_file", "analyze_codebase", "find_symbols", "get_git_diff"],
   },
 
   coder: {
@@ -31,8 +31,9 @@ Tugasmu:
 - Mengimplementasikan fitur atau perbaikan kode turn-key, rapi, dan ber-tipe kuat.
 - Menggunakan tool patch_file untuk perubahan presisi atau write_file jika membuat file baru.
 - Menjaga konvensi kode proyek yang sudah ada tanpa menulis ulang kode yang tidak perlu.
+- Menggunakan get_git_diff untuk memverifikasi diff sebelum menandai perubahan selesai.
 `.trim(),
-    allowedTools: ["read_file", "write_file", "patch_file", "search_codebase"],
+    allowedTools: ["read_file", "write_file", "patch_file", "search_codebase", "find_symbols", "get_git_diff"],
   },
 
   qa: {
@@ -44,8 +45,9 @@ Kamu adalah QA & Verification Specialist Antigravity.
 Tugasmu:
 - Memverifikasi hasil modifikasi kode menggunakan verify_project_build atau run_terminal_command.
 - Menganalisis error log secara tajam dan memetakan root cause secara presisi jika terjadi kegagalan.
+- Memeriksa get_git_diff untuk memastikan tidak ada perubahan kode liar/tidak terkait.
 `.trim(),
-    allowedTools: ["read_file", "run_terminal_command", "verify_project_build"],
+    allowedTools: ["read_file", "run_terminal_command", "verify_project_build", "get_git_diff"],
   },
 
   security: {

@@ -266,6 +266,31 @@ async function runBenchmarks() {
   assert(failResult.success === false, "Coordinator menolak menandai task COMPLETED jika ada subtask QA yang gagal");
   assert(failResult.failedSubtasks >= 1, "Subtask yang gagal dicatat dengan akurat (failedSubtasks >= 1)");
   assert(failResult.finalReport.includes("GAGAL (UNVERIFIED)"), "Laporan akhir secara transparan menyatakan GAGAL (UNVERIFIED)");
+
+  // ----------------------------------------------------
+  // SKENARIO 11: Git Diff Scope Review & Audit Tool
+  // ----------------------------------------------------
+  console.log("\n--- [SCENARIO 11] Git Diff Scope Review Tool ---");
+  const { ToolRegistry } = await import("../../lib/antigravity/tools/registry");
+  const diffTool = ToolRegistry.getTool("get_git_diff");
+  assert(diffTool !== undefined, "Tool 'get_git_diff' terdaftar di ToolRegistry");
+  if (diffTool) {
+    const diffRes = await diffTool.execute({});
+    assert(diffRes.success === true, "Tool 'get_git_diff' berhasil dieksekusi tanpa error");
+    assert(typeof diffRes.data?.diff === "string", "Tool 'get_git_diff' mengembalikan data diff bertipe string");
+  }
+
+  // ----------------------------------------------------
+  // SKENARIO 12: Codebase Intelligence Symbol Discovery
+  // ----------------------------------------------------
+  console.log("\n--- [SCENARIO 12] Codebase Intelligence Symbol Discovery ---");
+  const symTool = ToolRegistry.getTool("find_symbols");
+  assert(symTool !== undefined, "Tool 'find_symbols' terdaftar di ToolRegistry");
+  if (symTool) {
+    const symRes = await symTool.execute({ query: "AgentCoordinator" });
+    assert(symRes.success === true, "Tool 'find_symbols' berhasil mencari simbol");
+    assert(symRes.data?.symbols?.length >= 1, "Simbol 'AgentCoordinator' berhasil ditemukan di basis kode");
+  }
 }
 
 async function run() {

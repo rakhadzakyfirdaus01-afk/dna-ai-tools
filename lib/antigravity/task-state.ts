@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import prisma from "../prisma";
 import { SecurityGate } from "./security-gate";
 import { SubtaskPlan, TaskPlanDAG } from "./planner/task-planner";
 
@@ -162,7 +163,7 @@ export class TaskStateManager {
     const cached = this.tasks.get(taskId);
     if (cached) return cached;
 
-    // Fallback: baca langsung dari disk jika dibuat oleh instance serverless lain
+    // Fallback 1: baca langsung dari disk jika dibuat oleh instance serverless lain
     try {
       const storageDir = this.getStorageDir();
       const filePath = path.join(storageDir, `${taskId}.json`);
@@ -173,12 +174,84 @@ export class TaskStateManager {
         return task;
       }
     } catch {}
+
+    // Fallback 2: baca dari database persisten Prisma/MySQL jika database aktif
+    try {
+      const dbTaskPromise = prisma.antigravityTask.findUnique({
+        where: { taskId },
+      });
+      const timeoutPromise = new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error("DB timeout")), 1200)
+      );
+      const dbTask = await Promise.race([dbTaskPromise, timeoutPromise]);
+      if (dbTask) {
+        const task: TaskState = {
+          taskId: dbTask.taskId,
+          userId: dbTask.userId,
+          goal: dbTask.goal,
+          status: dbTask.status as TaskStatus,
+          steps: JSON.parse(dbTask.stepsJson || "[]"),
+          subtasks: JSON.parse(dbTask.subtasksJson || "[]"),
+          currentStepIndex: 0,
+          iterationCount: 0,
+          maxIterations: 8,
+          createdAt: Number(dbTask.createdAt),
+          updatedAt: Number(dbTask.updatedAt),
+          lockedByWorker: dbTask.lockedByWorker,
+          lockedAt: dbTask.lockedAt ? Number(dbTask.lockedAt) : null,
+          cancelRequested: dbTask.cancelRequested,
+          logs: JSON.parse(dbTask.logsJson || "[]"),
+          finalReport: dbTask.finalReport || undefined,
+          verificationEvidence: dbTask.evidenceJson ? JSON.parse(dbTask.evidenceJson) : undefined,
+        };
+        this.tasks.set(task.taskId, task);
+        return task;
+      }
+    } catch {}
+
     return undefined;
   }
 
   public static async listUserTasks(userId: string): Promise<TaskState[]> {
     await this.ensureInitialized();
     if (!userId || typeof userId !== "string") return [];
+    
+    // Sinkronisasi dengan database jika tersedia
+    try {
+      const dbTasksPromise = prisma.antigravityTask.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        take: 20,
+      });
+      const timeoutPromise = new Promise<any[]>((_, reject) =>
+        setTimeout(() => reject(new Error("DB timeout")), 1200)
+      );
+      const dbTasks = await Promise.race([dbTasksPromise, timeoutPromise]);
+      for (const dbTask of (dbTasks || [])) {
+        if (!this.tasks.has(dbTask.taskId)) {
+          this.tasks.set(dbTask.taskId, {
+            taskId: dbTask.taskId,
+            userId: dbTask.userId,
+            goal: dbTask.goal,
+            status: dbTask.status as TaskStatus,
+            steps: JSON.parse(dbTask.stepsJson || "[]"),
+            subtasks: JSON.parse(dbTask.subtasksJson || "[]"),
+            currentStepIndex: 0,
+            iterationCount: 0,
+            maxIterations: 8,
+            createdAt: Number(dbTask.createdAt),
+            updatedAt: Number(dbTask.updatedAt),
+            lockedByWorker: dbTask.lockedByWorker,
+            lockedAt: dbTask.lockedAt ? Number(dbTask.lockedAt) : null,
+            cancelRequested: dbTask.cancelRequested,
+            logs: JSON.parse(dbTask.logsJson || "[]"),
+            finalReport: dbTask.finalReport || undefined,
+            verificationEvidence: dbTask.evidenceJson ? JSON.parse(dbTask.evidenceJson) : undefined,
+          });
+        }
+      }
+    } catch {}
+
     return Array.from(this.tasks.values())
       .filter((t) => t.userId === userId)
       .sort((a, b) => b.updatedAt - a.updatedAt);
@@ -265,6 +338,7 @@ export class TaskStateManager {
   }
 
   public static async persistCheckpoint(task: TaskState): Promise<void> {
+    // 1. Simpan ke disk lokal / tmp
     try {
       const storageDir = this.getStorageDir();
       await fs.mkdir(storageDir, { recursive: true });
@@ -273,7 +347,50 @@ export class TaskStateManager {
       await fs.writeFile(tempPath, JSON.stringify(task, null, 2), "utf-8");
       await fs.rename(tempPath, filePath);
     } catch (err) {
-      console.warn(`[TaskStateManager] Failed to persist task ${task.taskId}:`, err);
+      console.warn(`[TaskStateManager] Failed to persist task file ${task.taskId}:`, err);
+    }
+
+    // 2. Simpan secara persisten ke Database Prisma/MySQL jika terkoneksi (dengan timeout aman agar tidak hang bila DB offline)
+    try {
+      const dbUpsert = prisma.antigravityTask.upsert({
+        where: { taskId: task.taskId },
+        create: {
+          taskId: task.taskId,
+          userId: task.userId,
+          goal: task.goal,
+          status: task.status,
+          stepsJson: JSON.stringify(task.steps || []),
+          subtasksJson: JSON.stringify(task.subtasks || []),
+          logsJson: JSON.stringify(task.logs || []),
+          evidenceJson: task.verificationEvidence ? JSON.stringify(task.verificationEvidence) : null,
+          finalReport: task.finalReport || null,
+          lockedByWorker: task.lockedByWorker || null,
+          lockedAt: task.lockedAt ? BigInt(task.lockedAt) : null,
+          cancelRequested: Boolean(task.cancelRequested),
+          createdAt: BigInt(task.createdAt),
+          updatedAt: BigInt(task.updatedAt),
+        },
+        update: {
+          status: task.status,
+          stepsJson: JSON.stringify(task.steps || []),
+          subtasksJson: JSON.stringify(task.subtasks || []),
+          logsJson: JSON.stringify(task.logs || []),
+          evidenceJson: task.verificationEvidence ? JSON.stringify(task.verificationEvidence) : null,
+          finalReport: task.finalReport || null,
+          lockedByWorker: task.lockedByWorker || null,
+          lockedAt: task.lockedAt ? BigInt(task.lockedAt) : null,
+          cancelRequested: Boolean(task.cancelRequested),
+          updatedAt: BigInt(task.updatedAt),
+        },
+      });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("DB timeout")), 1200)
+      );
+
+      await Promise.race([dbUpsert, timeoutPromise]);
+    } catch (err) {
+      // Non-blocking: Jika database cloud belum disiapkan atau offline, sistem tetap beroperasi normal via disk
     }
   }
 }

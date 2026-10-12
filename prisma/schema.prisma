@@ -29,6 +29,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   history       History[]
+  tasks         AntigravityTask[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -82,4 +83,27 @@ model History {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AntigravityTask {
+  id              String   @id @default(cuid())
+  taskId          String   @unique
+  userId          String
+  goal            String   @db.Text
+  status          String   @default("queued")
+  stepsJson       String   @default("[]") @db.LongText
+  subtasksJson    String   @default("[]") @db.LongText
+  logsJson        String   @default("[]") @db.LongText
+  evidenceJson    String?  @db.LongText
+  finalReport     String?  @db.LongText
+  lockedByWorker  String?
+  lockedAt        BigInt?
+  cancelRequested Boolean  @default(false)
+  createdAt       BigInt
+  updatedAt       BigInt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }

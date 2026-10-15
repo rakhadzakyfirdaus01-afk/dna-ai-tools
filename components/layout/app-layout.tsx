@@ -8,6 +8,8 @@ import AppDownloadModal from "@/components/shared/app-download-modal";
 import DnaCompanion from "@/components/companion/dna-companion";
 
 
+import { usePathname } from "next/navigation";
+
 interface AppLayoutProps {
   children: ReactNode;
 }
@@ -15,6 +17,7 @@ interface AppLayoutProps {
 export default function AppLayout({
   children,
 }: AppLayoutProps) {
+  const pathname = usePathname();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
@@ -29,6 +32,19 @@ export default function AppLayout({
       window.removeEventListener("open-app-download-modal", handleOpenModal);
     };
   }, []);
+
+  // Jika di halaman AI Assistant, tampilkan Antigravity IDE secara penuh (Full Window Desktop Experience)
+  if (pathname === "/ai-assistant") {
+    return (
+      <div className="h-screen w-screen overflow-hidden bg-[#070a12] text-foreground">
+        {children}
+        <AppDownloadModal
+          isOpen={downloadModalOpen}
+          onClose={() => setDownloadModalOpen(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground lg:flex">

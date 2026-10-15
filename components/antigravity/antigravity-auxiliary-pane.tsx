@@ -353,9 +353,9 @@ export function AntigravityAuxiliaryPane({
           {/* Terminal Logs Output */}
           <div className="flex-1 overflow-y-auto p-3.5 space-y-3 custom-scrollbar text-slate-200">
             <div className="text-slate-500 text-[11px] select-none border-b border-slate-800/60 pb-2">
-              Google Antigravity Interactive Sandbox Terminal [v2.0]
+              DNA AI Antigravity Interactive Sandbox Terminal [v2.0]
               <br />
-              Environment: PowerShell (Windows) • Workspace Root
+              Environment: Isolated Per-User Workspace • Writable Sandbox
             </div>
 
             {terminalLogs.map((log) => (

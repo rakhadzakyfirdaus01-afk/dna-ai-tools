@@ -20,7 +20,14 @@ export class WorkspaceManager {
    */
   public static getBaseDir(): string {
     if (!this.baseWorkspaceDir) {
-      if (process.env.AWS_LAMBDA_FUNCTION_NAME || process.cwd().startsWith("/var/task") || (process.env.VERCEL && process.env.NODE_ENV === "production")) {
+      const isCloudOrLinux = Boolean(
+        process.env.AWS_LAMBDA_FUNCTION_NAME ||
+        process.env.VERCEL ||
+        process.platform === "linux" ||
+        process.cwd().startsWith("/var/task") ||
+        process.cwd().includes("vercel")
+      );
+      if (isCloudOrLinux) {
         this.baseWorkspaceDir = path.resolve(os.tmpdir(), "dna-workspaces");
       } else {
         this.baseWorkspaceDir = path.resolve(process.cwd(), ".dna-workspaces");

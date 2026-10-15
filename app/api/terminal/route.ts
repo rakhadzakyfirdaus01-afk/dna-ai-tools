@@ -56,13 +56,19 @@ export async function POST(req: Request) {
       effectiveCwd = pathValidation.resolvedPath;
     }
 
-    // 4. Jalankan perintah terminal secara aman dengan batas timeout 20 detik dan buffer 2MB
-    const result = await new Promise<{
+    // 4. Pastikan direktori kerja fisik tersedia di disk
+    const fsSync = await import("fs");
+    if (!fsSync.existsSync(effectiveCwd)) {
+      fsSync.mkdirSync(effectiveCwd, { recursive: true });
+    }
+
+    // 5. Jalankan perintah terminal secara aman dengan batas timeout 20 detik dan buffer 2MB
+    let result = await new Promise<{
       stdout: string;
       stderr: string;
       exitCode: number;
     }>((resolve) => {
-      const shell = process.platform === "win32" ? "powershell.exe" : "/bin/bash";
+      const shell = process.platform === "win32" ? "cmd.exe" : "/bin/bash";
 
       const child = exec(
         command,
@@ -73,6 +79,9 @@ export async function POST(req: Request) {
           maxBuffer: 1024 * 1024 * 2, // 2MB buffer
           env: {
             ...process.env,
+            PWD: effectiveCwd,
+            HOME: effectiveCwd,
+            TMPDIR: effectiveCwd,
             PAGER: "cat",
           },
         },
@@ -86,6 +95,46 @@ export async function POST(req: Request) {
         }
       );
     });
+
+    // Self-Healing Fallback: Jika stderr mendeteksi EROFS, re-route ke os.tmpdir() workspace dan jalankan ulang
+    if (result.stderr.includes("EROFS") || result.stderr.includes("read-only file system")) {
+      const os = await import("os");
+      const fallbackDir = path.resolve(os.tmpdir(), "dna-workspaces", userWorkspace.userWorkspaceHash);
+      fsSync.mkdirSync(fallbackDir, { recursive: true });
+      effectiveCwd = fallbackDir;
+
+      result = await new Promise<{
+        stdout: string;
+        stderr: string;
+        exitCode: number;
+      }>((resolve) => {
+        const shell = process.platform === "win32" ? "cmd.exe" : "/bin/bash";
+        exec(
+          command,
+          {
+            cwd: fallbackDir,
+            shell,
+            timeout: 20000,
+            maxBuffer: 1024 * 1024 * 2,
+            env: {
+              ...process.env,
+              PWD: fallbackDir,
+              HOME: fallbackDir,
+              TMPDIR: fallbackDir,
+              PAGER: "cat",
+            },
+          },
+          (error, stdout, stderr) => {
+            const exitCode = error ? (typeof error.code === "number" ? error.code : 1) : 0;
+            resolve({
+              stdout: stdout || "",
+              stderr: stderr || (error && !stdout ? error.message : ""),
+              exitCode,
+            });
+          }
+        );
+      });
+    }
 
     return NextResponse.json({
       success: result.exitCode === 0,

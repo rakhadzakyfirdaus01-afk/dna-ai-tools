@@ -50,6 +50,7 @@ import remarkGfm from "remark-gfm";
 import { AntigravitySlashMenu } from "@/components/antigravity/antigravity-slash-menu";
 import { AntigravityMessageContent } from "@/components/antigravity/antigravity-message-content";
 import { AntigravityAuxiliaryPane } from "@/components/antigravity/antigravity-auxiliary-pane";
+import { AntigravityIdeLayout } from "@/components/antigravity/antigravity-ide-layout";
 import {
   ANTIGRAVITY_SLASH_COMMANDS,
   type SlashCommand,
@@ -277,7 +278,7 @@ export default function Page() {
   const [activeSessionId, setActiveSessionId] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<ChatCategory>("all");
   const [sessionSearch, setSessionSearch] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -2172,7 +2173,13 @@ export default function Page() {
   );
 
   return (
-    <div className="flex min-h-[calc(100vh-2rem)] flex-col">
+    <AntigravityIdeLayout
+      workspaceName="dna-workspace"
+      onRunTerminalCommand={(cmd) => {
+        setPendingTerminalCommand(cmd);
+      }}
+    >
+      <div className="flex flex-1 flex-col h-full w-full overflow-hidden bg-[#090d16]">
 
       {/* CAMERA MODAL */}
 
@@ -3304,6 +3311,7 @@ export default function Page() {
         />
       )}
 
-    </div>
+      </div>
+    </AntigravityIdeLayout>
   );
 }

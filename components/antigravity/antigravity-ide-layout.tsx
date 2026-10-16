@@ -29,17 +29,19 @@ import { AntigravityEditor, type EditorTab } from "./antigravity-editor";
 
 interface AntigravityIdeLayoutProps {
   children?: React.ReactNode; // Right agent chat pane or custom child
+  sessionSidebar?: React.ReactNode; // Sessions / chat history sidebar
   workspaceName?: string;
   onRunTerminalCommand?: (cmd: string) => void;
 }
 
 export function AntigravityIdeLayout({
   children,
+  sessionSidebar,
   workspaceName = "dna-workspace",
   onRunTerminalCommand,
 }: AntigravityIdeLayoutProps) {
   // Navigation & View Modes
-  const [activeActivity, setActiveActivity] = useState<"explorer" | "agent" | "search" | "git" | "skills">("explorer");
+  const [activeActivity, setActiveActivity] = useState<"explorer" | "agent" | "search" | "git" | "skills">("agent");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -216,6 +218,54 @@ Selamat datang di **DNA AI Antigravity Platform**, lingkungan pengembangan otono
       }, 50);
     }
   };
+
+  // Listen to global Antigravity events (e.g. from Agent Chat or Tools)
+  useEffect(() => {
+    const handleRunTerminalEvent = (e: any) => {
+      const cmd = e.detail?.command;
+      if (cmd) {
+        setIsTerminalOpen(true);
+        handleExecuteTerminal(cmd);
+      }
+    };
+
+    const handleOpenArtifactEvent = (e: any) => {
+      const art = e.detail;
+      if (art) {
+        const id = art.id || `artifact-${Date.now()}`;
+        const existing = tabs.find(
+          (t) => t.id === id || (art.filePath && t.filePath === art.filePath)
+        );
+        if (existing) {
+          setActiveTabId(existing.id);
+        } else {
+          const newTab: EditorTab = {
+            id,
+            title: art.title || "Artifact",
+            content: art.content || "",
+            type: art.type || "artifact",
+            filePath: art.filePath,
+          };
+          setTabs((prev) => [...prev, newTab]);
+          setActiveTabId(id);
+        }
+      }
+    };
+
+    const handleToggleTerminalEvent = () => {
+      setIsTerminalOpen((v) => !v);
+    };
+
+    window.addEventListener("antigravity:run-terminal", handleRunTerminalEvent);
+    window.addEventListener("antigravity:open-artifact", handleOpenArtifactEvent);
+    window.addEventListener("antigravity:toggle-terminal", handleToggleTerminalEvent);
+
+    return () => {
+      window.removeEventListener("antigravity:run-terminal", handleRunTerminalEvent);
+      window.removeEventListener("antigravity:open-artifact", handleOpenArtifactEvent);
+      window.removeEventListener("antigravity:toggle-terminal", handleToggleTerminalEvent);
+    };
+  }, [tabs]);
 
   return (
     <div className="flex h-screen w-screen flex-col bg-[#070a12] text-slate-200 overflow-hidden font-sans select-none">
@@ -407,13 +457,17 @@ Selamat datang di **DNA AI Antigravity Platform**, lingkungan pengembangan otono
             )}
 
             {activeActivity === "agent" && (
-              <div className="flex flex-col h-full bg-[#0d131f] text-xs p-3 space-y-2">
-                <span className="font-bold uppercase tracking-wider text-[11px] text-slate-400">
-                  Antigravity Sessions
-                </span>
-                <p className="text-[11px] text-slate-400">
-                  Gunakan jendela Agent di sebelah kanan untuk memulai sesi otonom baru atau memilih subagent.
-                </p>
+              <div className="flex flex-col h-full overflow-hidden">
+                {sessionSidebar || (
+                  <div className="flex flex-col h-full bg-[#0d131f] text-xs p-3 space-y-2">
+                    <span className="font-bold uppercase tracking-wider text-[11px] text-slate-400">
+                      Antigravity Sessions
+                    </span>
+                    <p className="text-[11px] text-slate-400">
+                      Gunakan panel di sebelah kanan untuk memulai sesi otonom baru atau memilih subagent.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </aside>
@@ -588,7 +642,7 @@ Selamat datang di **DNA AI Antigravity Platform**, lingkungan pengembangan otono
           </div>
 
           {/* RIGHT: ANTIGRAVITY AGENT PAIR-PROGRAMMER (CHILDREN) */}
-          <div className="flex h-full w-full max-w-[420px] lg:max-w-[460px] xl:max-w-[500px] shrink-0 border-l border-[#1a2336] bg-[#090d16] overflow-hidden">
+          <div className="flex flex-col h-full w-[420px] lg:w-[480px] xl:w-[540px] shrink-0 border-l border-[#1a2336] bg-[#090d16] overflow-hidden">
             {children}
           </div>
         </div>

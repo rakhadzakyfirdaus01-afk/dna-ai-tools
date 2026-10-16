@@ -49,7 +49,6 @@ import remarkGfm from "remark-gfm";
 
 import { AntigravitySlashMenu } from "@/components/antigravity/antigravity-slash-menu";
 import { AntigravityMessageContent } from "@/components/antigravity/antigravity-message-content";
-import { AntigravityAuxiliaryPane } from "@/components/antigravity/antigravity-auxiliary-pane";
 import { AntigravityIdeLayout } from "@/components/antigravity/antigravity-ide-layout";
 import {
   ANTIGRAVITY_SLASH_COMMANDS,
@@ -252,11 +251,7 @@ export default function Page() {
     setSlashMenuOpen(false);
   }
 
-  // Antigravity Auxiliary Pane State (Terminal Sandbox, Artifacts, Subagents)
-  const [auxiliaryPaneOpen, setAuxiliaryPaneOpen] = useState(false);
-  const [auxiliaryTab, setAuxiliaryTab] = useState<"terminal" | "artifacts" | "subagents">("terminal");
-  const [activeArtifact, setActiveArtifact] = useState("");
-  const [activeArtifactTitle, setActiveArtifactTitle] = useState("Antigravity Artifact");
+  // Antigravity Terminal & Execution State
   const [pendingTerminalCommand, setPendingTerminalCommand] = useState("");
 
   useEffect(() => {
@@ -399,6 +394,20 @@ export default function Page() {
         localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(remaining));
       } catch {}
       return remaining;
+    });
+  }
+
+  function handleClearChat() {
+    stopAiSpeaking();
+    setMessages([]);
+    setSessions((prev) => {
+      const next = prev.map((s) =>
+        s.id === activeSessionId ? { ...s, messages: [], updatedAt: Date.now() } : s
+      );
+      try {
+        localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
     });
   }
 
@@ -2175,300 +2184,208 @@ export default function Page() {
   return (
     <AntigravityIdeLayout
       workspaceName="dna-workspace"
+      sessionSidebar={renderSidebarContent()}
       onRunTerminalCommand={(cmd) => {
         setPendingTerminalCommand(cmd);
       }}
     >
       <div className="flex flex-1 flex-col h-full w-full overflow-hidden bg-[#090d16]">
-
-      {/* CAMERA MODAL */}
-
-      {cameraOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
-
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-
-              <div className="flex items-center gap-3">
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600">
-
-                  <Camera
-                    size={20}
-                    className="text-white"
-                  />
-
+        {/* CAMERA MODAL */}
+        {cameraOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600">
+                    <Camera size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-foreground">{ui.camera}</h2>
+                    <p className="text-xs text-muted-foreground">{ui.cameraDescription}</p>
+                  </div>
                 </div>
-
-                <div>
-
-                  <h2 className="font-semibold text-foreground">
-                    {ui.camera}
-                  </h2>
-
-                  <p className="text-xs text-muted-foreground">
-                    {ui.cameraDescription}
-                  </p>
-
-                </div>
-
+                <button
+                  type="button"
+                  onClick={closeCamera}
+                  className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
               </div>
 
-              <button
-                type="button"
-                onClick={closeCamera}
-                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
-              >
-                <X size={20} />
-              </button>
+              <div className="bg-black">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  controls={false}
+                  disablePictureInPicture
+                  className="block min-h-[280px] max-h-[65vh] w-full object-contain"
+                />
+              </div>
 
-            </div>
-
-
-            <div className="bg-black">
-
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                controls={false}
-                disablePictureInPicture
-                className="block min-h-[280px] max-h-[65vh] w-full object-contain"
-              />
-
-            </div>
-
-
-            <div className="flex items-center justify-center gap-4 px-5 py-5">
-
-              <button
-                type="button"
-                onClick={closeCamera}
-                className="rounded-2xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
-              >
-                {ui.cancel}
-              </button>
-
-
-              <button
-                type="button"
-                onClick={capturePhoto}
-                className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-slate-950 shadow-lg transition hover:scale-105"
-                aria-label={ui.takePhoto}
-              >
-
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-slate-900">
-
-                  <Camera size={22} />
-
-                </div>
-
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-
-      {/* HEADER */}
-
-      <div className="mb-6 flex items-center justify-between gap-3">
-
-        <div className="flex items-center gap-3">
-
-          <div className="flex h-11 w-11 items-center justify-center">
-            <Image
-              src="/logo-dna.png"
-              alt="DNA AI"
-              width={44}
-              height={44}
-              priority
-              className="object-contain"
-            />
-          </div>
-
-          <div>
-
-            <h1 className="text-2xl font-bold text-foreground">
-              {ui.title}
-            </h1>
-
-            <p className="text-sm text-muted-foreground">
-              {ui.subtitle}
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      {/* MAIN CONTAINER: SIDEBAR + CHAT AREA */}
-      <div className="relative flex flex-1 gap-4 overflow-hidden min-h-[620px]">
-        {/* DESKTOP SIDEBAR */}
-        {sidebarOpen && (
-          <aside className="hidden md:flex w-72 lg:w-80 shrink-0 flex-col rounded-3xl border border-border bg-card/95 backdrop-blur shadow-xl overflow-hidden transition-all duration-300">
-            {renderSidebarContent()}
-          </aside>
-        )}
-
-        {/* MOBILE DRAWER OVERLAY */}
-        {mobileSidebarOpen && (
-          <div
-            className="fixed inset-0 z-50 flex md:hidden bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => setMobileSidebarOpen(false)}
-          >
-            <div
-              className="w-80 max-w-[85vw] h-full flex flex-col bg-slate-950 border-r border-border shadow-2xl animate-in slide-in-from-left duration-200"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {renderSidebarContent()}
+              <div className="flex items-center justify-center gap-4 px-5 py-5">
+                <button
+                  type="button"
+                  onClick={closeCamera}
+                  className="rounded-2xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                >
+                  {ui.cancel}
+                </button>
+                <button
+                  type="button"
+                  onClick={capturePhoto}
+                  className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-slate-950 shadow-lg transition hover:scale-105"
+                  aria-label={ui.takePhoto}
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-slate-900">
+                    <Camera size={22} />
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* CHAT AREA */}
-        <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xl min-w-0">
-          {/* TOP MINI BAR: Toggle Sidebar, Active Session Title, Folder Tag, New Chat */}
-          <div className="flex items-center justify-between border-b border-border/60 bg-slate-950/40 px-4 py-2.5 backdrop-blur gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setSidebarOpen((prev) => !prev);
-                  setMobileSidebarOpen((prev) => !prev);
+        {/* TOP AGENT HEADER BAR */}
+        <div className="flex items-center justify-between border-b border-[#1a2336] bg-[#090d16] px-3 py-2 shrink-0 gap-2 select-none z-10">
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Active Category Badge */}
+            <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium border ${activeCategoryMeta.badgeColor}`}>
+              <span>{activeCategoryMeta.icon}</span>
+              <span className="hidden sm:inline">{isEnglish ? activeCategoryMeta.labelEn : activeCategoryMeta.labelId}</span>
+            </span>
+
+            {/* Editable Session Title */}
+            {editingSessionId === activeSessionId ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveRename(activeSessionId);
                 }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-slate-300 transition hover:bg-slate-800 hover:text-white"
-                title={sidebarOpen ? (isEnglish ? "Hide Chat List" : "Sembunyikan Obrolan") : (isEnglish ? "Show Chat List" : "Tampilkan Obrolan")}
-                aria-label="Toggle Chat Sidebar"
+                className="flex items-center gap-1"
               >
-                <PanelLeft size={18} />
-              </button>
-
-              <div className="flex items-center gap-2 min-w-0">
-                <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium border ${activeCategoryMeta.badgeColor}`}>
-                  <span>{activeCategoryMeta.icon}</span>
-                  <span className="hidden sm:inline">{isEnglish ? activeCategoryMeta.labelEn : activeCategoryMeta.labelId}</span>
-                </span>
-
-                {editingSessionId === activeSessionId ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleSaveRename(activeSessionId);
-                    }}
-                    className="flex items-center gap-1"
-                  >
-                    <input
-                      type="text"
-                      value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
-                      onBlur={() => handleSaveRename(activeSessionId)}
-                      autoFocus
-                      className="rounded-lg border border-cyan-500/50 bg-slate-900 px-2 py-0.5 text-xs text-white outline-none"
-                    />
-                    <button type="submit" className="text-cyan-400 hover:text-white">
-                      <Check size={14} />
-                    </button>
-                  </form>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => handleStartRename(currentSession, e)}
-                    className="flex items-center gap-1.5 truncate text-left text-xs sm:text-sm font-semibold text-foreground hover:text-cyan-400 transition"
-                    title={isEnglish ? "Click to rename chat" : "Klik untuk mengubah judul chat"}
-                  >
-                    <span className="truncate max-w-[130px] sm:max-w-xs">{currentSession?.title || (isEnglish ? "New Chat" : "Chat Baru")}</span>
-                    <Edit3 size={12} className="opacity-40 hover:opacity-100 shrink-0" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              {/* Antigravity Auxiliary Pane Controls */}
-              <div className="hidden sm:flex items-center gap-1 bg-slate-900/80 p-0.5 rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (auxiliaryPaneOpen && auxiliaryTab === "terminal") {
-                      setAuxiliaryPaneOpen(false);
-                    } else {
-                      setAuxiliaryTab("terminal");
-                      setAuxiliaryPaneOpen(true);
-                    }
-                  }}
-                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition ${
-                    auxiliaryPaneOpen && auxiliaryTab === "terminal"
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                  }`}
-                  title="Antigravity Live Terminal Sandbox"
-                >
-                  <Terminal size={14} className={auxiliaryPaneOpen && auxiliaryTab === "terminal" ? "text-cyan-400" : "text-slate-400"} />
-                  <span>Terminal</span>
+                <input
+                  type="text"
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onBlur={() => handleSaveRename(activeSessionId)}
+                  autoFocus
+                  className="rounded-lg border border-cyan-500/50 bg-slate-900 px-2 py-0.5 text-xs text-white outline-none"
+                />
+                <button type="submit" className="text-cyan-400 hover:text-white">
+                  <Check size={14} />
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (auxiliaryPaneOpen && auxiliaryTab === "artifacts") {
-                      setAuxiliaryPaneOpen(false);
-                    } else {
-                      setAuxiliaryTab("artifacts");
-                      setAuxiliaryPaneOpen(true);
-                    }
-                  }}
-                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition ${
-                    auxiliaryPaneOpen && auxiliaryTab === "artifacts"
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                  }`}
-                  title="Antigravity Artifacts & Canvas"
-                >
-                  <Layout size={14} className={auxiliaryPaneOpen && auxiliaryTab === "artifacts" ? "text-cyan-400" : "text-slate-400"} />
-                  <span>Artifacts</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (auxiliaryPaneOpen && auxiliaryTab === "subagents") {
-                      setAuxiliaryPaneOpen(false);
-                    } else {
-                      setAuxiliaryTab("subagents");
-                      setAuxiliaryPaneOpen(true);
-                    }
-                  }}
-                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition ${
-                    auxiliaryPaneOpen && auxiliaryTab === "subagents"
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                  }`}
-                  title="Antigravity Subagents Orchestration"
-                >
-                  <Bot size={14} className={auxiliaryPaneOpen && auxiliaryTab === "subagents" ? "text-cyan-400" : "text-slate-400"} />
-                  <span>Subagents</span>
-                </button>
-              </div>
-
+              </form>
+            ) : (
               <button
                 type="button"
-                onClick={() => handleCreateNewChat()}
-                className="flex h-8 sm:h-9 items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 text-xs font-semibold text-white shadow transition hover:opacity-90 active:scale-95"
-                title={isEnglish ? "New Chat" : "Chat Baru"}
+                onClick={(e) => handleStartRename(currentSession, e)}
+                className="flex items-center gap-1.5 truncate text-left text-xs font-semibold text-slate-200 hover:text-cyan-400 transition"
+                title={isEnglish ? "Click to rename chat" : "Klik untuk mengubah judul chat"}
               >
-                <Plus size={15} />
-                <span className="hidden md:inline">{isEnglish ? "New Chat" : "Chat Baru"}</span>
+                <span className="truncate max-w-[140px] sm:max-w-xs">{currentSession?.title || (isEnglish ? "New Chat" : "Chat Baru")}</span>
+                <Edit3 size={11} className="opacity-40 hover:opacity-100 shrink-0" />
               </button>
-            </div>
+            )}
           </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Model Selector Pill */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setModelMenuOpen((v) => !v)}
+                className="flex h-7 items-center gap-1 rounded-md bg-slate-900/90 border border-slate-800 px-2 text-[11px] font-medium text-slate-300 hover:text-cyan-400 hover:border-cyan-500/40 transition"
+                title="Pilih Model AI"
+              >
+                <Sparkles size={11} className="text-cyan-400" />
+                <span className="truncate max-w-[80px]">
+                  {MODEL_OPTIONS.find((m) => m.id === selectedModel)?.name.split(" ")[0] || "Auto"}
+                </span>
+                <ChevronDown size={11} />
+              </button>
+
+              {modelMenuOpen && (
+                <div
+                  className="absolute right-0 top-full mt-1 w-52 rounded-xl border border-slate-800 bg-[#0d1322] p-1 shadow-2xl z-50 text-slate-300 text-xs"
+                  onMouseLeave={() => setModelMenuOpen(false)}
+                >
+                  {MODEL_OPTIONS.map((model) => (
+                    <button
+                      key={model.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedModel(model.id);
+                        setModelMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition ${
+                        selectedModel === model.id
+                          ? "bg-cyan-500/20 text-cyan-300"
+                          : "hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <div className="truncate">
+                        <p className="font-semibold">{model.name}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{model.description}</p>
+                      </div>
+                      {selectedModel === model.id && <Check size={12} className="text-cyan-400 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Terminal Drawer Toggle Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("antigravity:toggle-terminal"));
+                }
+              }}
+              className="flex h-7 items-center gap-1 rounded-md bg-slate-900/90 border border-slate-800 px-2 text-xs font-medium text-slate-300 hover:text-cyan-400 hover:border-cyan-500/40 transition"
+              title="Toggle Sandbox Terminal (Ctrl+`)"
+            >
+              <Terminal size={12} className="text-cyan-400" />
+              <span className="hidden sm:inline">Terminal</span>
+            </button>
+
+            {/* Voice Mode */}
+            <button
+              type="button"
+              onClick={handleOpenVoiceMode}
+              className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900/90 border border-slate-800 text-slate-300 hover:text-cyan-400 transition"
+              title={isEnglish ? "ChatGPT Voice Mode" : "Mode Suara"}
+            >
+              <Mic size={13} />
+            </button>
+
+            {/* Clear Chat */}
+            {messages.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearChat}
+                className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900/90 border border-slate-800 text-slate-400 hover:text-red-400 hover:border-red-500/40 transition"
+                title={isEnglish ? "Clear messages" : "Hapus pesan"}
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+
+            {/* + New Chat Button */}
+            <button
+              type="button"
+              onClick={() => handleCreateNewChat()}
+              className="flex h-7 items-center gap-1 rounded-md bg-gradient-to-r from-cyan-500 to-blue-600 px-2 text-xs font-semibold text-white shadow transition hover:opacity-90 active:scale-95"
+              title={isEnglish ? "New Chat" : "Chat Baru"}
+            >
+              <Plus size={13} />
+              <span>{isEnglish ? "New" : "Baru"}</span>
+            </button>
+          </div>
+        </div>
 
           {/* MESSAGES */}
 
@@ -2664,8 +2581,13 @@ export default function Page() {
                           onSelectOption={(opt) => sendMessage(opt)}
                           onExecuteCommand={(cmd) => {
                             setPendingTerminalCommand(cmd);
-                            setAuxiliaryTab("terminal");
-                            setAuxiliaryPaneOpen(true);
+                            if (typeof window !== "undefined") {
+                              window.dispatchEvent(
+                                new CustomEvent("antigravity:run-terminal", {
+                                  detail: { command: cmd },
+                                })
+                              );
+                            }
                           }}
                           isEnglish={isEnglish}
                         />
@@ -3270,47 +3192,29 @@ export default function Page() {
 
             </div>
 
-            <p className="mt-3 text-center text-xs text-slate-500 font-mono">
+            <p className="mt-2 text-center text-[11px] text-slate-500 font-mono">
               {isEnglish
-                ? "Google Antigravity 2.0 • Live Terminal Sandbox • Autonomous Agents Active"
-                : "Google Antigravity 2.0 • Sandbox Terminal Langsung • Agen Otonom Aktif"}
+                ? "DNA AI Antigravity 2.0 • Sandboxed Workspace • Autonomous Multi-Agent"
+                : "DNA AI Antigravity 2.0 • Sandbox Terisolasi • Agen Otonom Multi-Kolaborasi"}
             </p>
-
           </div>
-
         </div>
 
-      </div>
-
-      {/* ANTIGRAVITY AUXILIARY PANE (TERMINAL SANDBOX / ARTIFACTS / SUBAGENTS) */}
-      <AntigravityAuxiliaryPane
-        isOpen={auxiliaryPaneOpen}
-        activeTab={auxiliaryTab}
-        onTabChange={setAuxiliaryTab}
-        onClose={() => setAuxiliaryPaneOpen(false)}
-        activeArtifact={activeArtifact}
-        activeArtifactTitle={activeArtifactTitle}
-        pendingCommand={pendingTerminalCommand}
-      />
-
-    </div>
-
-      {/* ChatGPT-Style Voice Mode Overlay */}
-      {voiceOverlayOpen && (
-        <VoiceModeOverlay
-          isOpen={voiceOverlayOpen}
-          status={voiceModeStatus}
-          voiceLevel={voiceLevel}
-          isPaused={isVoicePaused}
-          latestReply={latestVoiceReply}
-          onClose={handleCloseVoiceMode}
-          onTogglePause={handleTogglePauseVoice}
-          onSendNow={handleSendNowVoice}
-          onStopSpeaking={stopAiSpeaking}
-          locale={locale === "en" ? "en" : "id"}
-        />
-      )}
-
+        {/* ChatGPT-Style Voice Mode Overlay */}
+        {voiceOverlayOpen && (
+          <VoiceModeOverlay
+            isOpen={voiceOverlayOpen}
+            status={voiceModeStatus}
+            voiceLevel={voiceLevel}
+            isPaused={isVoicePaused}
+            latestReply={latestVoiceReply}
+            onClose={handleCloseVoiceMode}
+            onTogglePause={handleTogglePauseVoice}
+            onSendNow={handleSendNowVoice}
+            onStopSpeaking={stopAiSpeaking}
+            locale={locale === "en" ? "en" : "id"}
+          />
+        )}
       </div>
     </AntigravityIdeLayout>
   );

@@ -8,6 +8,16 @@
   ],
   "recentDecisions": [
     {
+      "id": "dec-1794298615773",
+      "timestamp": 1794298615773,
+      "topic": "Unit Test Verification",
+      "decision": "All security checks automated",
+      "rationale": "Ensuring zero regression",
+      "filesAffected": [
+        "lib/antigravity/security-gate.ts"
+      ]
+    },
+    {
       "id": "dec-1792119486148",
       "timestamp": 1792119486148,
       "topic": "Unit Test Verification",

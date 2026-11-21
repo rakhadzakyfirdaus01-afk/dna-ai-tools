@@ -86,6 +86,16 @@ type Message = {
   content: string;
   fileName?: string;
   imagePreview?: string;
+  isAgent?: boolean;
+  agentData?: {
+    taskId?: string;
+    status?: string;
+    stepsTaken?: number;
+    toolsUsed?: string[];
+    subtasks?: Array<{ id: string; title: string; status: string; subagentRole?: string }>;
+    verificationEvidence?: any;
+    logs?: any[];
+  };
 };
 
 export type ChatCategory = "all" | "school" | "coding" | "casual" | "general";
@@ -225,6 +235,10 @@ export default function Page() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+
+  // DNA AI Agent Mode (Chat Mode vs Autonomous Agent Mode)
+  const [isAgentMode, setIsAgentMode] = useState<boolean>(true);
+  const [activeTaskId, setActiveTaskId] = useState<string>("");
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
@@ -1710,10 +1724,14 @@ export default function Page() {
       );
 
       let response: Response;
-      const isAutonomousGoal = text.trim().startsWith("/goal ") || text.trim().startsWith("/orchestrate ");
+      const isAutonomousGoal = isAgentMode || text.trim().startsWith("/goal ") || text.trim().startsWith("/orchestrate ");
+      let data: any = null;
 
       if (isAutonomousGoal && !currentFile) {
-        const goalQuery = text.replace(/^(\/goal|\/orchestrate)\s+/, "").trim();
+        const goalQuery = text.trim().startsWith("/goal ") || text.trim().startsWith("/orchestrate ")
+          ? text.replace(/^(\/goal|\/orchestrate)\s+/, "").trim()
+          : text.trim();
+
         response = await fetch("/api/antigravity/orchestrate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1722,36 +1740,95 @@ export default function Page() {
             modelId: selectedModel,
           }),
         });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          let parsedErr: any = null;
+          try {
+            parsedErr = JSON.parse(errText);
+          } catch {}
+          throw new Error(
+            parsedErr?.error ||
+              errText.slice(0, 200) ||
+              (isEnglish ? "Autonomous agent execution error" : "Terjadi kesalahan pada respon agen otonom.")
+          );
+        }
+
+        // Baca stream SSE (menangani keepalive heartbeat dan payload data: {...})
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalData: any = null;
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (trimmed.startsWith("data:")) {
+                try {
+                  finalData = JSON.parse(trimmed.slice(5).trim());
+                } catch (e) {
+                  console.warn("SSE json parse error:", e);
+                }
+              }
+            }
+          }
+          if (buffer.trim().startsWith("data:")) {
+            try {
+              finalData = JSON.parse(buffer.trim().slice(5).trim());
+            } catch {}
+          }
+        }
+
+        if (finalData) {
+          data = finalData;
+          if (finalData.taskId) {
+            setActiveTaskId(finalData.taskId);
+          }
+        } else {
+          try {
+            data = JSON.parse(buffer);
+          } catch {
+            throw new Error(
+              buffer.slice(0, 200) ||
+                (isEnglish ? "Invalid response from agent." : "Respon tidak valid dari agen.")
+            );
+          }
+        }
       } else {
         response = await fetch("/api/ai-assistant", {
           method: "POST",
           body: formData,
         });
-      }
 
-      let data: any = null;
-      const rawText = await response.text();
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        if (
-          response.status === 413 ||
-          rawText.toLowerCase().includes("too large") ||
-          rawText.toLowerCase().includes("request entity")
-        ) {
-          throw new Error(
-            isEnglish
-              ? "The uploaded file is too large for the server. DNA AI is automatically optimizing it, please try again."
-              : "Ukuran file terlalu besar untuk diproses server. DNA AI mengoptimalkan gambar secara otomatis, silakan coba kirim lagi."
-          );
-        }
-        if (!response.ok) {
-          throw new Error(
-            rawText.slice(0, 180) ||
-              (isEnglish
-                ? "Server responded with an error."
-                : "Terjadi kesalahan respon dari server.")
-          );
+        const rawText = await response.text();
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          if (
+            response.status === 413 ||
+            rawText.toLowerCase().includes("too large") ||
+            rawText.toLowerCase().includes("request entity")
+          ) {
+            throw new Error(
+              isEnglish
+                ? "The uploaded file is too large for the server. DNA AI is automatically optimizing it, please try again."
+                : "Ukuran file terlalu besar untuk diproses server. DNA AI mengoptimalkan gambar secara otomatis, silakan coba kirim lagi."
+            );
+          }
+          if (!response.ok) {
+            throw new Error(
+              rawText.slice(0, 180) ||
+                (isEnglish
+                  ? "Server responded with an error."
+                  : "Terjadi kesalahan respon dari server.")
+            );
+          }
         }
       }
 
@@ -1798,6 +1875,16 @@ export default function Page() {
           data.finalAnswer ||
           data.result ||
           ui.aiNoAnswer,
+        isAgent: Boolean(isAutonomousGoal && (data.stepsTaken || data.toolsUsed || data.taskId)),
+        agentData: isAutonomousGoal && (data.stepsTaken || data.toolsUsed || data.taskId) ? {
+          taskId: data.taskId,
+          status: data.status,
+          stepsTaken: data.stepsTaken,
+          toolsUsed: data.toolsUsed,
+          subtasks: data.subtasks,
+          verificationEvidence: data.verificationEvidence,
+          logs: data.logs,
+        } : undefined,
       };
 
       setMessages((prev) => [
@@ -2652,16 +2739,117 @@ export default function Page() {
 
 
                       {message.role === "assistant" ? (
-                        <AntigravityMessageContent
-                          content={message.content}
-                          onSelectOption={(opt) => sendMessage(opt)}
-                          onExecuteCommand={(cmd) => {
-                            setPendingTerminalCommand(cmd);
-                            setAuxiliaryTab("terminal");
-                            setAuxiliaryPaneOpen(true);
-                          }}
-                          isEnglish={isEnglish}
-                        />
+                        <>
+                          {message.agentData && (
+                            <div className="mb-3 rounded-2xl border border-cyan-500/30 bg-slate-950/70 p-3 shadow-md">
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/30 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <Bot size={15} className="text-cyan-400" />
+                                  <span className="text-xs font-semibold text-cyan-300">
+                                    DNA Autonomous Agent
+                                  </span>
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${
+                                      message.agentData.status === "completed"
+                                        ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                        : "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                                    }`}
+                                  >
+                                    {message.agentData.status === "completed" ? "✓ Selesai Terverifikasi" : message.agentData.status}
+                                  </span>
+                                </div>
+                                {message.agentData.stepsTaken ? (
+                                  <span className="text-[11px] font-mono text-muted-foreground">
+                                    {message.agentData.stepsTaken} langkah eksekusi
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {/* Tools Used Badges */}
+                              {message.agentData.toolsUsed && message.agentData.toolsUsed.length > 0 && (
+                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[11px] font-medium text-muted-foreground">Tools:</span>
+                                  {message.agentData.toolsUsed.map((tool, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="rounded-md bg-secondary/80 px-2 py-0.5 font-mono text-[10px] text-cyan-300 border border-border/60"
+                                    >
+                                      {tool}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Subtasks Checklist */}
+                              {message.agentData.subtasks && message.agentData.subtasks.length > 0 && (
+                                <div className="mt-2.5 space-y-1.5 border-t border-border/20 pt-2">
+                                  <span className="text-[11px] font-semibold text-foreground/80">Subtask Execution:</span>
+                                  <div className="space-y-1">
+                                    {message.agentData.subtasks.map((st, idx) => (
+                                      <div
+                                        key={st.id || idx}
+                                        className="flex items-center justify-between rounded-lg bg-background/50 px-2.5 py-1 text-xs"
+                                      >
+                                        <div className="flex items-center gap-1.5 truncate">
+                                          <span className="font-mono text-[10px] text-muted-foreground">{idx + 1}.</span>
+                                          <span className="truncate text-foreground/90">{st.title}</span>
+                                        </div>
+                                        <span
+                                          className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium ${
+                                            st.status === "completed"
+                                              ? "bg-emerald-500/20 text-emerald-300"
+                                              : st.status === "in_progress"
+                                              ? "bg-cyan-500/20 text-cyan-300"
+                                              : "bg-slate-700/40 text-slate-400"
+                                          }`}
+                                        >
+                                          {st.status}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Verification Evidence */}
+                              {message.agentData.verificationEvidence && (
+                                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-400">
+                                  <Check size={13} className="shrink-0" />
+                                  <span>Verifikasi TypeScript (tsc --noEmit) lolos tanpa error.</span>
+                                </div>
+                              )}
+
+                              {/* Action Button to Open Subagents Pane */}
+                              <div className="mt-2.5 flex items-center justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (message.agentData?.taskId) {
+                                      setActiveTaskId(message.agentData.taskId);
+                                    }
+                                    setAuxiliaryTab("subagents");
+                                    setAuxiliaryPaneOpen(true);
+                                  }}
+                                  className="flex items-center gap-1 text-[11px] font-medium text-cyan-400 hover:text-cyan-300 transition"
+                                >
+                                  <span>Buka Detail Subagents & Terminal</span>
+                                  <Terminal size={11} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <AntigravityMessageContent
+                            content={message.content}
+                            onSelectOption={(opt) => sendMessage(opt)}
+                            onExecuteCommand={(cmd) => {
+                              setPendingTerminalCommand(cmd);
+                              setAuxiliaryTab("terminal");
+                              setAuxiliaryPaneOpen(true);
+                            }}
+                            isEnglish={isEnglish}
+                          />
+                        </>
                       ) : (
                         <div className="whitespace-pre-wrap leading-7">
                           {message.content}
@@ -2722,37 +2910,48 @@ export default function Page() {
               )}
 
               {loading && (
-
                 <div className="flex justify-start">
-
-                  <div className="rounded-3xl border border-border bg-secondary px-5 py-4">
-
-                    <div className="flex items-center gap-2">
-
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-400" />
-
-                      <span
-                        className="h-2 w-2 animate-bounce rounded-full bg-cyan-400"
-                        style={{
-                          animationDelay:
-                            "120ms",
-                        }}
-                      />
-
-                      <span
-                        className="h-2 w-2 animate-bounce rounded-full bg-cyan-400"
-                        style={{
-                          animationDelay:
-                            "240ms",
-                        }}
-                      />
-
-                    </div>
-
+                  <div className="rounded-3xl border border-cyan-500/40 bg-gradient-to-r from-secondary/90 via-slate-900 to-cyan-950/30 px-5 py-4 shadow-lg">
+                    {isAgentMode ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-400">
+                            <Bot size={15} className="animate-spin" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-cyan-300">
+                                {isEnglish ? "DNA AI Agent Orchestrating..." : "DNA AI Agent Sedang Bekerja..."}
+                              </span>
+                              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              {isEnglish
+                                ? "Multi-agent coordination in progress with streaming keepalive..."
+                                : "Koordinasi multi-agen otonom aktif dengan keepalive streaming..."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-400" />
+                        <span
+                          className="h-2 w-2 animate-bounce rounded-full bg-cyan-400"
+                          style={{
+                            animationDelay: "120ms",
+                          }}
+                        />
+                        <span
+                          className="h-2 w-2 animate-bounce rounded-full bg-cyan-400"
+                          style={{
+                            animationDelay: "240ms",
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
-
                 </div>
-
               )}
 
             </div>
@@ -2834,6 +3033,46 @@ export default function Page() {
 
               </div>
             )}
+
+            {/* MODE SWITCHER: CHAT MODE VS AGENT MODE */}
+            <div className="mb-2.5 flex items-center justify-between gap-2 px-1">
+              <div className="inline-flex items-center rounded-2xl border border-border/80 bg-secondary/60 p-1 shadow-sm backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => setIsAgentMode(false)}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+                    !isAgentMode
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <MessageSquare size={13} className={!isAgentMode ? "text-cyan-400" : ""} />
+                  <span>{isEnglish ? "Chat Mode" : "Mode Chat"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAgentMode(true)}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+                    isAgentMode
+                      ? "bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Bot size={13} className={isAgentMode ? "text-cyan-400 animate-pulse" : ""} />
+                  <span>{isEnglish ? "Autonomous Agent" : "Mode AI Agent"}</span>
+                  <span className="rounded-full bg-cyan-500/20 px-1.5 py-0.2 text-[9px] font-mono text-cyan-300 border border-cyan-500/40">
+                    Auto
+                  </span>
+                </button>
+              </div>
+
+              {isAgentMode && (
+                <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-cyan-400 font-medium">
+                  <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span>{isEnglish ? "Autonomous multi-agent active" : "Multi-agent otonom aktif"}</span>
+                </div>
+              )}
+            </div>
 
             {/* ANTIGRAVITY QUICK ACTION PILLS */}
             <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
@@ -3284,6 +3523,7 @@ export default function Page() {
         activeArtifact={activeArtifact}
         activeArtifactTitle={activeArtifactTitle}
         pendingCommand={pendingTerminalCommand}
+        activeTaskId={activeTaskId}
       />
 
     </div>

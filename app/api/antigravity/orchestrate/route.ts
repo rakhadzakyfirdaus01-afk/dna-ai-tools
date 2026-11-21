@@ -115,27 +115,66 @@ export async function POST(req: Request) {
       );
     }
 
-    // Jalankan siklus orkestrasi otonom Antigravity
-    const result = await AntigravityOrchestrator.executeAutonomousGoal(
-      goal,
-      modelId,
-      userId,
-      grantedPermissions
-    );
+    // Jalankan siklus orkestrasi otonom Antigravity (Streaming SSE)
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        // Kirim keepalive setiap 4 detik agar Vercel tidak timeout
+        const keepalive = setInterval(() => {
+          try {
+            controller.enqueue(encoder.encode(": keepalive\n\n"));
+          } catch {
+            clearInterval(keepalive);
+          }
+        }, 4000);
 
-    const taskDetails = await TaskStateManager.getTask(result.taskId);
+        try {
+          const result = await AntigravityOrchestrator.executeAutonomousGoal(
+            goal,
+            modelId,
+            userId,
+            grantedPermissions
+          );
 
-    return NextResponse.json({
-      success: result.success,
-      taskId: result.taskId,
-      status: taskDetails?.status || (result.success ? "completed" : "failed"),
-      finalAnswer: result.finalAnswer,
-      stepsTaken: result.stepsTaken,
-      toolsUsed: result.toolsUsed,
-      subtasks: taskDetails?.subtasks || [],
-      verificationEvidence: taskDetails?.verificationEvidence,
-      pendingPermission: result.pendingPermission,
-      logs: taskDetails?.logs || [],
+          const taskDetails = await TaskStateManager.getTask(result.taskId);
+
+          const payload = {
+            success: result.success,
+            taskId: result.taskId,
+            status: taskDetails?.status || (result.success ? "completed" : "failed"),
+            finalAnswer: result.finalAnswer,
+            stepsTaken: result.stepsTaken,
+            toolsUsed: result.toolsUsed,
+            subtasks: taskDetails?.subtasks || [],
+            verificationEvidence: taskDetails?.verificationEvidence,
+            pendingPermission: result.pendingPermission,
+            logs: taskDetails?.logs || [],
+          };
+
+          controller.enqueue(
+            encoder.encode("data: " + JSON.stringify(payload) + "\n\n")
+          );
+        } catch (e: any) {
+          const errPayload = {
+            success: false,
+            error: "Orchestrator error: " + e.message,
+          };
+          controller.enqueue(
+            encoder.encode("data: " + JSON.stringify(errPayload) + "\n\n")
+          );
+        } finally {
+          clearInterval(keepalive);
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+      },
     });
   } catch (err) {
     console.error("[Antigravity Orchestration API Error]:", err);

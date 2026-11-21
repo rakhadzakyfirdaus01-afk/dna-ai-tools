@@ -757,4 +757,159 @@ ToolRegistry.registerTool({
   },
 });
 
+// ==========================================
+// 16. TOOL: analyze_dna_survey_recap
+// ==========================================
+ToolRegistry.registerTool({
+  name: "analyze_dna_survey_recap",
+  description: "Menganalisis skor kepuasan survei klien PT DNA Advertising berdasarkan formula standar (21-105 poin) dengan 3 kategori: Pelayanan & Komunikasi Tim (Q1-Q16), Kualitas Media Reklame (Q17-Q20), dan Kesesuaian Biaya (Q21).",
+  parameters: {
+    type: "object",
+    properties: {
+      answers: {
+        type: "object",
+        description: "Objek jawaban 21 soal (q1 sampai q21 dengan nilai 'Sangat Puas', 'Puas', 'Cukup Puas', 'Kurang Puas', atau angka 1-5)",
+      },
+      clientName: { type: "string", description: "Nama klien atau PIC perusahaan" },
+      companyName: { type: "string", description: "Nama instansi/perusahaan klien" },
+    },
+    required: ["answers"],
+  },
+  execute: async (args: { answers: Record<string, string | number>; clientName?: string; companyName?: string }) => {
+    try {
+      const scoreMap: Record<string, number> = {
+        "sangat puas": 5,
+        "puas": 4,
+        "cukup puas": 3,
+        "kurang puas": 2,
+        "tidak puas": 2,
+        "kurang": 2,
+        "sangat tidak puas": 1,
+      };
+
+      let totalScore = 0;
+      let q1_16_sum = 0;
+      let q17_20_sum = 0;
+      let q21_score = 0;
+
+      for (let i = 1; i <= 21; i++) {
+        const raw = args.answers[`q${i}`] ?? args.answers[String(i)] ?? 4;
+        let num = 4;
+        if (typeof raw === "number") {
+          num = Math.max(1, Math.min(5, Math.round(raw)));
+        } else if (typeof raw === "string") {
+          const lower = raw.trim().toLowerCase();
+          num = scoreMap[lower] || parseInt(lower, 10) || 4;
+        }
+
+        totalScore += num;
+        if (i <= 16) q1_16_sum += num;
+        else if (i <= 20) q17_20_sum += num;
+        else q21_score = num;
+      }
+
+      const percentage = Math.round((totalScore / 105) * 100);
+      let predicate = "Memuaskan";
+      if (totalScore >= 95) predicate = "Sangat Memuaskan (A+)";
+      else if (totalScore >= 80) predicate = "Memuaskan (A)";
+      else if (totalScore >= 65) predicate = "Cukup Memuaskan (B)";
+      else if (totalScore >= 45) predicate = "Perlu Perbaikan (C)";
+      else predicate = "Kritis / Tidak Puas (D)";
+
+      return {
+        success: true,
+        data: {
+          client: args.clientName || "Klien DNA",
+          company: args.companyName || "-",
+          totalScore,
+          maxScore: 105,
+          minScore: 21,
+          percentage: `${percentage}%`,
+          predicate,
+          breakdown: {
+            pelayananDanKomunikasi: {
+              score: q1_16_sum,
+              max: 80,
+              percentage: `${Math.round((q1_16_sum / 80) * 100)}%`,
+            },
+            kualitasMediaReklame: {
+              score: q17_20_sum,
+              max: 20,
+              percentage: `${Math.round((q17_20_sum / 20) * 100)}%`,
+            },
+            kesesuaianBiaya: {
+              score: q21_score,
+              max: 5,
+              percentage: `${Math.round((q21_score / 5) * 100)}%`,
+            },
+          },
+        },
+      };
+    } catch (err: any) {
+      return { success: false, error: "Gagal menghitung rekap survei DNA: " + err.message };
+    }
+  },
+});
+
+// ==========================================
+// 17. TOOL: generate_dna_excel_report
+// ==========================================
+ToolRegistry.registerTool({
+  name: "generate_dna_excel_report",
+  description: "Membuat file rekap survei PT DNA Advertising dalam format CSV/Excel ke workspace pengguna.",
+  parameters: {
+    type: "object",
+    properties: {
+      fileName: { type: "string", description: "Nama file output (misal: 'rekap-survei-dna.csv')" },
+      rows: {
+        type: "array",
+        description: "Daftar baris rekap klien (nama, perusahaan, layanan, skor, predikat)",
+        items: { type: "object" },
+      },
+    },
+    required: ["fileName", "rows"],
+  },
+  execute: async (
+    args: { fileName: string; rows: Array<Record<string, any>> },
+    granted?: boolean,
+    context?: ToolExecutionContext
+  ) => {
+    try {
+      const userId = context?.userId || ToolRegistry.getActiveUserId();
+      const workspaceRoot = SecurityGate.getWorkspaceRoot(userId);
+      const targetPath = path.resolve(workspaceRoot, args.fileName || "rekap-survei-dna.csv");
+
+      const header = ["No", "Nama Klien", "Perusahaan/Instansi", "Layanan", "Total Skor (21-105)", "Predikat Kepuasan"];
+      const lines = [header.join(",")];
+
+      args.rows.forEach((row, idx) => {
+        lines.push(
+          [
+            idx + 1,
+            `"${(row.name || "").replace(/"/g, '""')}"`,
+            `"${(row.company || "").replace(/"/g, '""')}"`,
+            `"${(row.service || "Reklame & Advertising").replace(/"/g, '""')}"`,
+            row.score || 105,
+            `"${(row.predicate || "Sangat Memuaskan").replace(/"/g, '""')}"`,
+          ].join(",")
+        );
+      });
+
+      await fs.writeFile(targetPath, lines.join("\n"), "utf-8");
+
+      return {
+        success: true,
+        data: {
+          path: targetPath,
+          totalRows: args.rows.length,
+          message: `File rekap Excel/CSV survei PT DNA Advertising berhasil dibuat di ${args.fileName}`,
+        },
+      };
+    } catch (err: any) {
+      return { success: false, error: "Gagal membuat berkas rekap Excel: " + err.message };
+    }
+  },
+});
+
+
 

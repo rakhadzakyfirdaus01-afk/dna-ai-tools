@@ -28,7 +28,7 @@ export default function Sidebar({
 
   const menus = [
     {
-      title: "Google Antigravity",
+      title: "Google Antigravity Agent",
       href: "/ai-assistant",
       icon: Terminal,
     },

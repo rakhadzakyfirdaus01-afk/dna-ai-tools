@@ -43,13 +43,13 @@ import {
   Terminal,
   Layout,
   Bot,
+  Settings,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { AntigravitySlashMenu } from "@/components/antigravity/antigravity-slash-menu";
 import { AntigravityMessageContent } from "@/components/antigravity/antigravity-message-content";
-import { AntigravityAuxiliaryPane } from "@/components/antigravity/antigravity-auxiliary-pane";
 import {
   ANTIGRAVITY_SLASH_COMMANDS,
   type SlashCommand,
@@ -265,12 +265,7 @@ export default function Page() {
     setSlashMenuOpen(false);
   }
 
-  // Antigravity Auxiliary Pane State (Terminal Sandbox, Artifacts, Subagents)
-  const [auxiliaryPaneOpen, setAuxiliaryPaneOpen] = useState(false);
-  const [auxiliaryTab, setAuxiliaryTab] = useState<"terminal" | "artifacts" | "subagents">("terminal");
-  const [activeArtifact, setActiveArtifact] = useState("");
-  const [activeArtifactTitle, setActiveArtifactTitle] = useState("Antigravity Artifact");
-  const [pendingTerminalCommand, setPendingTerminalCommand] = useState("");
+
 
   useEffect(() => {
     const checkMobileOrTablet = () => {
@@ -2090,15 +2085,8 @@ export default function Page() {
         )}
       </div>
 
-      {/* ANTIGRAVITY WORKSPACE & SESSION FILTER */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between rounded-xl border border-cyan-500/20 bg-cyan-950/20 px-2.5 py-1.5 text-[11px] text-cyan-300">
-          <span className="font-mono flex items-center gap-1.5 font-medium">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            ~/workspace/antigravity
-          </span>
-          <span className="text-[10px] uppercase tracking-wider text-cyan-400/80 font-bold">LIVE</span>
-        </div>
+      {/* SESSION FILTER */}
+      <div className="space-y-1">
         <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar">
           {CHAT_CATEGORIES.map((cat) => {
             const isActive = selectedCategory === cat.id;
@@ -2255,11 +2243,32 @@ export default function Page() {
           })
         )}
       </div>
+
+      {/* SIDEBAR FOOTER: BACK TO DASHBOARD & SETTINGS */}
+      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 shrink-0">
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-slate-800 hover:text-white transition"
+          title="Kembali ke Dashboard Utama"
+        >
+          <Image src="/logo-dna.png" alt="DNA" width={16} height={16} className="object-contain" />
+          <span className="font-medium text-slate-300">DNA Platform</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push("/settings")}
+          className="p-1.5 rounded-lg hover:bg-slate-800 hover:text-white transition"
+          title="Pengaturan Akun"
+        >
+          <Settings size={15} />
+        </button>
+      </div>
     </div>
   );
 
   return (
-    <div className="flex min-h-[calc(100vh-2rem)] flex-col">
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
 
       {/* CAMERA MODAL */}
 
@@ -2355,45 +2364,11 @@ export default function Page() {
       )}
 
 
-      {/* HEADER */}
-
-      <div className="mb-6 flex items-center justify-between gap-3">
-
-        <div className="flex items-center gap-3">
-
-          <div className="flex h-11 w-11 items-center justify-center">
-            <Image
-              src="/logo-dna.png"
-              alt="DNA AI"
-              width={44}
-              height={44}
-              priority
-              className="object-contain"
-            />
-          </div>
-
-          <div>
-
-            <h1 className="text-2xl font-bold text-foreground">
-              {ui.title}
-            </h1>
-
-            <p className="text-sm text-muted-foreground">
-              {ui.subtitle}
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
       {/* MAIN CONTAINER: SIDEBAR + CHAT AREA */}
-      <div className="relative flex flex-1 gap-4 overflow-hidden min-h-[620px]">
+      <div className="relative flex flex-1 gap-0 overflow-hidden h-full">
         {/* DESKTOP SIDEBAR */}
         {sidebarOpen && (
-          <aside className="hidden md:flex w-72 lg:w-80 shrink-0 flex-col rounded-3xl border border-border bg-card/95 backdrop-blur shadow-xl overflow-hidden transition-all duration-300">
+          <aside className="hidden md:flex w-72 lg:w-80 shrink-0 flex-col border-r border-border/80 bg-slate-950/95 backdrop-blur overflow-hidden transition-all duration-300">
             {renderSidebarContent()}
           </aside>
         )}
@@ -2414,10 +2389,10 @@ export default function Page() {
         )}
 
         {/* CHAT AREA */}
-        <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xl min-w-0">
-          {/* TOP MINI BAR: Toggle Sidebar, Active Session Title, Folder Tag, New Chat */}
-          <div className="flex items-center justify-between border-b border-border/60 bg-slate-950/40 px-4 py-2.5 backdrop-blur gap-2">
-            <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-1 flex-col overflow-hidden bg-background min-w-0">
+          {/* TOP MINI BAR: Toggle Sidebar, Model Selector, Active Session Title, New Chat */}
+          <div className="flex items-center justify-between border-b border-border/60 bg-background/95 px-4 py-3 backdrop-blur gap-2 z-20">
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 type="button"
                 onClick={() => {
@@ -2431,12 +2406,54 @@ export default function Page() {
                 <PanelLeft size={18} />
               </button>
 
-              <div className="flex items-center gap-2 min-w-0">
-                <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium border ${activeCategoryMeta.badgeColor}`}>
-                  <span>{activeCategoryMeta.icon}</span>
-                  <span className="hidden sm:inline">{isEnglish ? activeCategoryMeta.labelEn : activeCategoryMeta.labelId}</span>
-                </span>
+              {/* Model Selector Dropdown (ChatGPT-Style in Top Bar) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setModelMenuOpen((prev) => !prev)}
+                  disabled={loading}
+                  className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-slate-800 transition"
+                >
+                  <Sparkles size={14} className="text-cyan-400" />
+                  <span className="font-bold">
+                    {MODEL_OPTIONS.find((option) => option.id === selectedModel)?.name.split(" ")[0] ?? "DNA AI"}
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    className={`text-slate-400 transition-transform ${modelMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
 
+                {modelMenuOpen && (
+                  <div className="absolute top-full left-0 z-50 mt-1 w-[280px] overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/98 p-1.5 shadow-2xl backdrop-blur-md">
+                    {MODEL_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedModel(option.id);
+                          setModelMenuOpen(false);
+                        }}
+                        className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition ${
+                          selectedModel === option.id
+                            ? "bg-cyan-500/15 border border-cyan-500/30 text-cyan-300"
+                            : "hover:bg-slate-800 text-slate-200"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold">{option.name}</span>
+                          </div>
+                          <p className="mt-0.5 text-[11px] text-slate-400 truncate">{option.description}</p>
+                        </div>
+                        {selectedModel === option.id && <Check size={14} className="mt-0.5 shrink-0 text-cyan-400" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 min-w-0">
                 {editingSessionId === activeSessionId ? (
                   <form
                     onSubmit={(e) => {
@@ -2461,83 +2478,36 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={(e) => handleStartRename(currentSession, e)}
-                    className="flex items-center gap-1.5 truncate text-left text-xs sm:text-sm font-semibold text-foreground hover:text-cyan-400 transition"
+                    className="flex items-center gap-1.5 truncate text-left text-xs font-medium text-slate-400 hover:text-cyan-400 transition"
                     title={isEnglish ? "Click to rename chat" : "Klik untuk mengubah judul chat"}
                   >
-                    <span className="truncate max-w-[130px] sm:max-w-xs">{currentSession?.title || (isEnglish ? "New Chat" : "Chat Baru")}</span>
-                    <Edit3 size={12} className="opacity-40 hover:opacity-100 shrink-0" />
+                    <span className="truncate max-w-[120px] sm:max-w-xs">{currentSession?.title || (isEnglish ? "New Chat" : "Chat Baru")}</span>
+                    <Edit3 size={11} className="opacity-40 hover:opacity-100 shrink-0" />
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              {/* Antigravity Auxiliary Pane Controls */}
-              <div className="hidden sm:flex items-center gap-1 bg-slate-900/80 p-0.5 rounded-xl border border-slate-800">
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Clear Messages */}
+              {messages.length > 0 && (
                 <button
                   type="button"
                   onClick={() => {
-                    if (auxiliaryPaneOpen && auxiliaryTab === "terminal") {
-                      setAuxiliaryPaneOpen(false);
-                    } else {
-                      setAuxiliaryTab("terminal");
-                      setAuxiliaryPaneOpen(true);
-                    }
+                    stopAiSpeaking();
+                    setMessages([]);
+                    setSessions((prev) =>
+                      prev.map((s) => (s.id === activeSessionId ? { ...s, messages: [], updatedAt: Date.now() } : s))
+                    );
                   }}
-                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition ${
-                    auxiliaryPaneOpen && auxiliaryTab === "terminal"
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                  }`}
-                  title="Antigravity Live Terminal Sandbox"
+                  className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-red-400 transition"
+                  title={isEnglish ? "Clear messages" : "Hapus pesan"}
                 >
-                  <Terminal size={14} className={auxiliaryPaneOpen && auxiliaryTab === "terminal" ? "text-cyan-400" : "text-slate-400"} />
-                  <span>Terminal</span>
+                  <Trash2 size={15} />
                 </button>
+              )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (auxiliaryPaneOpen && auxiliaryTab === "artifacts") {
-                      setAuxiliaryPaneOpen(false);
-                    } else {
-                      setAuxiliaryTab("artifacts");
-                      setAuxiliaryPaneOpen(true);
-                    }
-                  }}
-                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition ${
-                    auxiliaryPaneOpen && auxiliaryTab === "artifacts"
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                  }`}
-                  title="Antigravity Artifacts & Canvas"
-                >
-                  <Layout size={14} className={auxiliaryPaneOpen && auxiliaryTab === "artifacts" ? "text-cyan-400" : "text-slate-400"} />
-                  <span>Artifacts</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (auxiliaryPaneOpen && auxiliaryTab === "subagents") {
-                      setAuxiliaryPaneOpen(false);
-                    } else {
-                      setAuxiliaryTab("subagents");
-                      setAuxiliaryPaneOpen(true);
-                    }
-                  }}
-                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition ${
-                    auxiliaryPaneOpen && auxiliaryTab === "subagents"
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                  }`}
-                  title="Antigravity Subagents Orchestration"
-                >
-                  <Bot size={14} className={auxiliaryPaneOpen && auxiliaryTab === "subagents" ? "text-cyan-400" : "text-slate-400"} />
-                  <span>Subagents</span>
-                </button>
-              </div>
-
+              {/* + New Chat Button */}
               <button
                 type="button"
                 onClick={() => handleCreateNewChat()}
@@ -2545,7 +2515,7 @@ export default function Page() {
                 title={isEnglish ? "New Chat" : "Chat Baru"}
               >
                 <Plus size={15} />
-                <span className="hidden md:inline">{isEnglish ? "New Chat" : "Chat Baru"}</span>
+                <span className="hidden sm:inline">{isEnglish ? "New Chat" : "Chat Baru"}</span>
               </button>
             </div>
           </div>
@@ -2815,38 +2785,16 @@ export default function Page() {
                               {message.agentData.verificationEvidence && (
                                 <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-400">
                                   <Check size={13} className="shrink-0" />
-                                  <span>Verifikasi TypeScript (tsc --noEmit) lolos tanpa error.</span>
+                                  <span>Verifikasi otomatis lolos tanpa error.</span>
                                 </div>
                               )}
-
-                              {/* Action Button to Open Subagents Pane */}
-                              <div className="mt-2.5 flex items-center justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (message.agentData?.taskId) {
-                                      setActiveTaskId(message.agentData.taskId);
-                                    }
-                                    setAuxiliaryTab("subagents");
-                                    setAuxiliaryPaneOpen(true);
-                                  }}
-                                  className="flex items-center gap-1 text-[11px] font-medium text-cyan-400 hover:text-cyan-300 transition"
-                                >
-                                  <span>Buka Detail Subagents & Terminal</span>
-                                  <Terminal size={11} />
-                                </button>
-                              </div>
                             </div>
                           )}
 
                           <AntigravityMessageContent
                             content={message.content}
                             onSelectOption={(opt) => sendMessage(opt)}
-                            onExecuteCommand={(cmd) => {
-                              setPendingTerminalCommand(cmd);
-                              setAuxiliaryTab("terminal");
-                              setAuxiliaryPaneOpen(true);
-                            }}
+                            onExecuteCommand={(cmd) => sendMessage(cmd)}
                             isEnglish={isEnglish}
                           />
                         </>
@@ -3034,67 +2982,7 @@ export default function Page() {
               </div>
             )}
 
-            {/* MODE SWITCHER: CHAT MODE VS AGENT MODE */}
-            <div className="mb-2.5 flex items-center justify-between gap-2 px-1">
-              <div className="inline-flex items-center rounded-2xl border border-border/80 bg-secondary/60 p-1 shadow-sm backdrop-blur">
-                <button
-                  type="button"
-                  onClick={() => setIsAgentMode(false)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-                    !isAgentMode
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <MessageSquare size={13} className={!isAgentMode ? "text-cyan-400" : ""} />
-                  <span>{isEnglish ? "Chat Mode" : "Mode Chat"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAgentMode(true)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-                    isAgentMode
-                      ? "bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Bot size={13} className={isAgentMode ? "text-cyan-400 animate-pulse" : ""} />
-                  <span>{isEnglish ? "Autonomous Agent" : "Mode AI Agent"}</span>
-                  <span className="rounded-full bg-cyan-500/20 px-1.5 py-0.2 text-[9px] font-mono text-cyan-300 border border-cyan-500/40">
-                    Auto
-                  </span>
-                </button>
-              </div>
 
-              {isAgentMode && (
-                <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-cyan-400 font-medium">
-                  <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-                  <span>{isEnglish ? "Autonomous multi-agent active" : "Multi-agent otonom aktif"}</span>
-                </div>
-              )}
-            </div>
-
-            {/* ANTIGRAVITY QUICK ACTION PILLS */}
-            <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
-              <span className="shrink-0 text-[11px] font-semibold text-muted-foreground flex items-center gap-1 pl-1">
-                <Sparkles size={12} className="text-cyan-400" />
-                <span>Commands:</span>
-              </span>
-              {ANTIGRAVITY_SLASH_COMMANDS.map((cmd) => (
-                <button
-                  key={cmd.command}
-                  type="button"
-                  onClick={() => {
-                    setInput(`${cmd.command} `);
-                  }}
-                  className="shrink-0 flex items-center gap-1 rounded-full border border-border/80 bg-secondary/80 hover:bg-cyan-500/10 hover:border-cyan-500/40 px-2.5 py-1 text-[11px] font-medium text-foreground hover:text-cyan-300 transition active:scale-95 shadow-sm"
-                  title={cmd.description}
-                >
-                  <span className="font-mono text-cyan-400 font-bold">{cmd.command}</span>
-                  <span className="text-muted-foreground text-[10px] hidden sm:inline">{cmd.label}</span>
-                </button>
-              ))}
-            </div>
 
             <div className="relative rounded-3xl border border-border bg-input p-2 shadow-lg focus-within:border-cyan-500">
               {slashMenuOpen && (
@@ -3125,107 +3013,7 @@ export default function Page() {
                 className="w-full resize-none bg-transparent px-4 py-3 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
               />
 
-              <div className="relative mb-2 px-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setModelMenuOpen((prev) => !prev)
-                  }
-                  disabled={loading}
-                  className="flex items-center gap-2 rounded-xl border border-border bg-secondary px-3 py-2 text-left transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold text-foreground">
-                      {
-                        MODEL_OPTIONS.find(
-                          (option) =>
-                            option.id ===
-                            selectedModel
-                        )?.name ?? "Model"
-                      }
-                    </div>
-                    <div className="hidden text-[11px] text-muted-foreground sm:block">
-                      {
-                        selectedModel === AUTO_MODEL
-                          ? (isEnglish
-                              ? "Auto fallback if quota is busy"
-                              : "Fallback otomatis jika kuota habis")
-                          : (isEnglish
-                              ? "Gemini model for AI Assistant"
-                              : "Model Gemini untuk AI Asisten")
-                      }
-                    </div>
-                  </div>
 
-                  <ChevronDown
-                    size={16}
-                    className={`shrink-0 text-slate-500 transition-transform ${
-                      modelMenuOpen
-                        ? "rotate-180"
-                        : ""
-                    }`}
-                  />
-                </button>
-
-                {modelMenuOpen && (
-                  <div className="absolute bottom-full left-2 z-50 mb-2 w-[310px] overflow-hidden rounded-2xl border border-slate-700 bg-[#111827] p-2 shadow-2xl">
-                    {MODEL_OPTIONS.map(
-                      (option) => (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedModel(
-                              option.id
-                            );
-                            setModelMenuOpen(
-                              false
-                            );
-                          }}
-                          className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition ${
-                            selectedModel === option.id
-                              ? "bg-slate-800/80 border border-cyan-500/30"
-                              : "hover:bg-slate-800"
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-sm font-semibold ${
-                                selectedModel === option.id ? "text-cyan-300" : "text-slate-200"
-                              }`}>
-                                {option.name}
-                              </span>
-                              {option.id === AUTO_MODEL && (
-                                <span className="rounded-md bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300">
-                                  AUTO
-                                </span>
-                              )}
-                            </div>
-
-                            <p className="mt-1 text-xs text-slate-500">
-                              {option.id === AUTO_MODEL
-                                ? (isEnglish
-                                    ? "Automatically switch models if quota is exhausted or busy"
-                                    : "Otomatis beralih model jika kuota habis atau sibuk")
-                                : (isEnglish
-                                    ? "Gemini model configured for AI Assistant"
-                                    : "Model Gemini yang dikonfigurasi untuk AI Asisten")}
-                            </p>
-                          </div>
-
-                          {selectedModel ===
-                            option.id && (
-                            <Check
-                              size={17}
-                              className="mt-0.5 shrink-0 text-cyan-400"
-                            />
-                          )}
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
 
               <div className="flex items-center justify-between px-2 pb-1">
 
@@ -3502,10 +3290,10 @@ export default function Page() {
 
             </div>
 
-            <p className="mt-3 text-center text-xs text-slate-500 font-mono">
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
               {isEnglish
-                ? "Google Antigravity 2.0 • Live Terminal Sandbox • Autonomous Agents Active"
-                : "Google Antigravity 2.0 • Sandbox Terminal Langsung • Agen Otonom Aktif"}
+                ? "DNA AI can make mistakes. Check important info."
+                : "DNA AI dapat membuat kesalahan. Periksa info penting."}
             </p>
 
           </div>
@@ -3513,18 +3301,6 @@ export default function Page() {
         </div>
 
       </div>
-
-      {/* ANTIGRAVITY AUXILIARY PANE (TERMINAL SANDBOX / ARTIFACTS / SUBAGENTS) */}
-      <AntigravityAuxiliaryPane
-        isOpen={auxiliaryPaneOpen}
-        activeTab={auxiliaryTab}
-        onTabChange={setAuxiliaryTab}
-        onClose={() => setAuxiliaryPaneOpen(false)}
-        activeArtifact={activeArtifact}
-        activeArtifactTitle={activeArtifactTitle}
-        pendingCommand={pendingTerminalCommand}
-        activeTaskId={activeTaskId}
-      />
 
     </div>
 

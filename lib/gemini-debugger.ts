@@ -129,7 +129,7 @@ export async function askAssistantWithWebSearch(
   const ai = new GoogleGenAI({
     apiKey,
     httpOptions: {
-      timeout: 30000,
+      timeout: 12000,
       retryOptions: {
         attempts: 1,
       },

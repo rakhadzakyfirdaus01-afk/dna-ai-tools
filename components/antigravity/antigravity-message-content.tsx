@@ -16,12 +16,26 @@ import {
   Terminal,
   Play,
   ShieldCheck,
+  Eye,
 } from "lucide-react";
+import {
+  GroundedSources,
+  extractSourcesFromMarkdown,
+  type GroundedSourceItem,
+} from "@/components/chat/grounded-sources";
+
+export interface AntigravityArtifactPayload {
+  title: string;
+  code: string;
+  language: string;
+}
 
 interface AntigravityMessageContentProps {
   content: string;
+  sources?: GroundedSourceItem[];
   onSelectOption?: (optionText: string) => void;
   onExecuteCommand?: (command: string) => void;
+  onOpenCanvas?: (artifact: AntigravityArtifactPayload) => void;
   isEnglish?: boolean;
 }
 
@@ -60,8 +74,10 @@ function CopyCodeButton({ text }: { text: string }) {
 
 export function AntigravityMessageContent({
   content,
+  sources: propSources,
   onSelectOption,
   onExecuteCommand,
+  onOpenCanvas,
   isEnglish = false,
 }: AntigravityMessageContentProps) {
   const [thinkingExpanded, setThinkingExpanded] = useState(false);
@@ -128,32 +144,41 @@ export function AntigravityMessageContent({
     cleanContent = cleanContent.replace(actionRegex, "").trim();
   }
 
+  // 5. Ekstrak Web Grounding Sources (dari prop atau markdown fallback)
+  const { cleanText: textWithoutRawSources, sources: extractedSources } =
+    extractSourcesFromMarkdown(cleanContent);
+  const allSources: GroundedSourceItem[] = [
+    ...(propSources || []),
+    ...extractedSources,
+  ];
+
+  cleanContent = textWithoutRawSources;
+
   // Formatter untuk GitHub Alerts (> [!NOTE], > [!TIP], etc)
   const formatAlerts = (text: string) => {
     return text
-      .replace(
-        />\s*\[!NOTE\]\s*(.*)/gi,
-        "> ℹ️ **NOTE:** $1"
-      )
-      .replace(
-        />\s*\[!TIP\]\s*(.*)/gi,
-        "> 💡 **TIP:** $1"
-      )
-      .replace(
-        />\s*\[!IMPORTANT\]\s*(.*)/gi,
-        "> 🟣 **IMPORTANT:** $1"
-      )
-      .replace(
-        />\s*\[!WARNING\]\s*(.*)/gi,
-        "> ⚠️ **WARNING:** $1"
-      )
-      .replace(
-        />\s*\[!CAUTION\]\s*(.*)/gi,
-        "> 🛑 **CAUTION:** $1"
-      );
+      .replace(/>\s*\[!NOTE\]\s*(.*)/gi, "> ℹ️ **NOTE:** $1")
+      .replace(/>\s*\[!TIP\]\s*(.*)/gi, "> 💡 **TIP:** $1")
+      .replace(/>\s*\[!IMPORTANT\]\s*(.*)/gi, "> 🟣 **IMPORTANT:** $1")
+      .replace(/>\s*\[!WARNING\]\s*(.*)/gi, "> ⚠️ **WARNING:** $1")
+      .replace(/>\s*\[!CAUTION\]\s*(.*)/gi, "> 🛑 **CAUTION:** $1");
   };
 
   const processedContent = formatAlerts(cleanContent);
+
+  // Helper untuk mengecek apakah bahasa kode cocok untuk Live Canvas Preview
+  const isPreviewableLanguage = (lang: string, code: string) => {
+    const l = lang.toLowerCase();
+    if (["html", "jsx", "tsx", "svg", "tailwind", "react"].includes(l)) return true;
+    if (["javascript", "js", "typescript", "ts"].includes(l)) {
+      return (
+        code.includes("<") &&
+        code.includes(">") &&
+        (code.includes("return") || code.includes("document.") || code.includes("React"))
+      );
+    }
+    return false;
+  };
 
   return (
     <div className="space-y-3.5">
@@ -193,15 +218,29 @@ export function AntigravityMessageContent({
             <div className="flex items-center gap-2">
               <BrainCircuit size={15} className="text-indigo-400 animate-pulse" />
               <span>
-                {isEnglish ? "Thinking Process & Hypotheses" : "Proses Penalaran & Rencana Eksekusi"}
+                {isEnglish
+                  ? "Thinking Process & Hypotheses"
+                  : "Proses Penalaran & Rencana Eksekusi"}
               </span>
               <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] text-indigo-200 border border-indigo-500/30 font-mono">
                 Deep CoT
               </span>
             </div>
             <div className="flex items-center gap-1 text-[11px] text-indigo-400">
-              <span>{thinkingExpanded ? (isEnglish ? "Sembunyikan" : "Tutup") : (isEnglish ? "Lihat detail" : "Lihat proses")}</span>
-              {thinkingExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              <span>
+                {thinkingExpanded
+                  ? isEnglish
+                    ? "Sembunyikan"
+                    : "Tutup"
+                  : isEnglish
+                  ? "Lihat detail"
+                  : "Lihat proses"}
+              </span>
+              {thinkingExpanded ? (
+                <ChevronUp size={14} />
+              ) : (
+                <ChevronDown size={14} />
+              )}
             </div>
           </button>
 
@@ -214,7 +253,7 @@ export function AntigravityMessageContent({
       )}
 
       {/* ========================================================
-          C. MAIN MARKDOWN RESPONSE WITH CODE COPY & STYLING
+          C. MAIN MARKDOWN RESPONSE WITH CODE COPY & CANVAS PREVIEW
       ======================================================== */}
       <div className="prose prose-invert max-w-none text-sm leading-7 break-words [&>p]:mb-3 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm [&>h1]:font-bold [&>h2]:font-bold [&>h3]:font-semibold [&>h1]:mt-4 [&>h2]:mt-3 [&>h3]:mt-2">
         <ReactMarkdown
@@ -258,6 +297,7 @@ export function AntigravityMessageContent({
 
               const lang = match ? match[1] : "code";
               const codeText = String(children).replace(/\n$/, "");
+              const canPreview = isPreviewableLanguage(lang, codeText);
 
               return (
                 <div>
@@ -266,7 +306,35 @@ export function AntigravityMessageContent({
                       <Code2 size={13} />
                       <span>{lang}</span>
                     </div>
-                    <CopyCodeButton text={codeText} />
+
+                    <div className="flex items-center gap-1.5">
+                      {/* Interactive Artifacts / Live Canvas Button */}
+                      {canPreview && onOpenCanvas && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onOpenCanvas({
+                              title: `${lang.toUpperCase()} Canvas Preview`,
+                              code: codeText,
+                              language: lang,
+                            })
+                          }
+                          className="flex items-center gap-1 rounded-md bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/50 hover:to-blue-600/50 border border-cyan-500/40 px-2 py-0.5 text-[11px] font-medium text-cyan-300 hover:text-white transition shadow-sm"
+                          title={
+                            isEnglish
+                              ? "Open live interactive canvas"
+                              : "Buka pratinjau live di Canvas"
+                          }
+                        >
+                          <Eye size={12} className="text-cyan-400" />
+                          <span>
+                            {isEnglish ? "Live Canvas" : "Buka Canvas"}
+                          </span>
+                        </button>
+                      )}
+
+                      <CopyCodeButton text={codeText} />
+                    </div>
                   </div>
                   <pre className="overflow-x-auto p-4 text-xs font-mono leading-relaxed text-slate-200 custom-scrollbar">
                     <code>{children}</code>
@@ -281,14 +349,25 @@ export function AntigravityMessageContent({
       </div>
 
       {/* ========================================================
-          D. AUTONOMOUS FILE & TERMINAL ACTION COMMANDS (PERMISSION GATE)
+          D. DEEP SEARCH GROUNDED CITATION CARDS
+      ======================================================== */}
+      {allSources.length > 0 && (
+        <GroundedSources sources={allSources} isEnglish={isEnglish} />
+      )}
+
+      {/* ========================================================
+          E. AUTONOMOUS FILE & TERMINAL ACTION COMMANDS (PERMISSION GATE)
       ======================================================== */}
       {actionCommands.length > 0 && (
         <div className="mt-3 rounded-2xl border border-amber-500/40 bg-amber-950/20 p-3.5 shadow-lg space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold text-amber-300">
               <ShieldCheck size={16} className="text-amber-400" />
-              <span>{isEnglish ? "Permission Gate: System Action Execution" : "Persetujuan Izin: Eksekusi Perintah Sistem / File"}</span>
+              <span>
+                {isEnglish
+                  ? "Permission Gate: System Action Execution"
+                  : "Persetujuan Izin: Eksekusi Perintah Sistem / File"}
+              </span>
             </div>
             <span className="text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
               Safe Sandbox
@@ -318,7 +397,9 @@ export function AntigravityMessageContent({
                   className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-cyan-600 px-3 py-1.5 text-xs font-semibold text-white shadow transition hover:opacity-95 active:scale-95"
                 >
                   <Play size={11} fill="currentColor" />
-                  <span>{isEnglish ? "Grant & Run" : "Izinkan & Jalankan"}</span>
+                  <span>
+                    {isEnglish ? "Grant & Run" : "Izinkan & Jalankan"}
+                  </span>
                 </button>
               </div>
             ))}
@@ -327,7 +408,7 @@ export function AntigravityMessageContent({
       )}
 
       {/* ========================================================
-          E. INTERACTIVE DECISION & CLARIFICATION BUTTONS
+          F. INTERACTIVE DECISION & CLARIFICATION BUTTONS
       ======================================================== */}
       {options.length > 0 && (
         <div className="mt-3 rounded-2xl border border-cyan-500/30 bg-slate-950/70 p-3 shadow-inner">

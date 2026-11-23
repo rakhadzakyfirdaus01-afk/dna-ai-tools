@@ -23,6 +23,8 @@ import {
   Download,
   Code2,
   Globe,
+  Eye,
+  Copy,
   PanelLeft,
   PanelLeftClose,
   Trash2,
@@ -67,7 +69,16 @@ import {
 import {
   VoiceModeOverlay,
   type VoiceModeStatus,
+  type VoiceTone,
 } from "@/components/voice/voice-mode-overlay";
+import { ChatCanvas, type CanvasArtifact } from "@/components/chat/chat-canvas";
+import { toast } from "sonner";
+import {
+  exportChatToPdf,
+  exportChatToDocx,
+  copyChatForNotion,
+  downloadChatForNotion,
+} from "@/lib/chat-exporter";
 import {
   compressImageFile,
   createThumbnailDataUrl,
@@ -87,6 +98,7 @@ type Message = {
   fileName?: string;
   imagePreview?: string;
   isAgent?: boolean;
+  sources?: Array<{ title: string; url: string; domain?: string }>;
   agentData?: {
     taskId?: string;
     status?: string;
@@ -478,6 +490,16 @@ export default function Page() {
   const [voiceLevel, setVoiceLevel] = useState(0);
   const [isVoicePaused, setIsVoicePaused] = useState(false);
   const [latestVoiceReply, setLatestVoiceReply] = useState("");
+  const [voiceTone, setVoiceTone] = useState<VoiceTone>("id-casual");
+
+  // Interactive Live Canvas Artifacts State
+  const [canvasArtifact, setCanvasArtifact] = useState<CanvasArtifact | null>(null);
+  const [isCanvasOpen, setIsCanvasOpen] = useState(false);
+
+  // Instant Export States
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportingMessageId, setExportingMessageId] = useState<number | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -1150,8 +1172,8 @@ export default function Page() {
 
             const now = Date.now();
             const SILENCE_THRESHOLD = 12; // Level threshold suara
-            const SILENCE_DURATION = 1500; // 1.5 detik keheningan = user selesai bicara
-            const MIN_SPEECH_DURATION = 800; // Minimal 800ms bicara agar batuk/klik tidak sengaja auto-kirim
+            const SILENCE_DURATION = 1100; // 1.1 detik keheningan = respons cepat tanpa jeda panjang
+            const MIN_SPEECH_DURATION = 700; // Minimal 700ms bicara agar responsif dan akurat
 
             if (average > SILENCE_THRESHOLD) {
               if (!hasSpokenRef.current && now - recordingStartTimeRef.current > 300) {
@@ -1447,6 +1469,11 @@ export default function Page() {
         String(webSearchEnabled)
       );
 
+      formData.append(
+        "voiceTone",
+        voiceTone
+      );
+
       const response =
         await fetch(
           "/api/ai-assistant",
@@ -1524,6 +1551,7 @@ export default function Page() {
           id: Date.now() + 1,
           role: "assistant",
           content: aiReplyText,
+          sources: data.sources || [],
         },
       ]);
 
@@ -1718,6 +1746,11 @@ export default function Page() {
         String(webSearchEnabled)
       );
 
+      formData.append(
+        "voiceTone",
+        voiceTone
+      );
+
       let response: Response;
       const isAutonomousGoal = isAgentMode || text.trim().startsWith("/goal ") || text.trim().startsWith("/orchestrate ");
       let data: any = null;
@@ -1870,6 +1903,7 @@ export default function Page() {
           data.finalAnswer ||
           data.result ||
           ui.aiNoAnswer,
+        sources: data.sources || [],
         isAgent: Boolean(isAutonomousGoal && (data.stepsTaken || data.toolsUsed || data.taskId)),
         agentData: isAutonomousGoal && (data.stepsTaken || data.toolsUsed || data.taskId) ? {
           taskId: data.taskId,
@@ -2489,6 +2523,112 @@ export default function Page() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              {/* Re-open Canvas if an artifact exists */}
+              {canvasArtifact && !isCanvasOpen && (
+                <button
+                  type="button"
+                  onClick={() => setIsCanvasOpen(true)}
+                  className="flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-950/60 px-2.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900 transition shadow-sm"
+                  title={isEnglish ? "Open Canvas" : "Buka Canvas"}
+                >
+                  <Eye size={14} className="text-cyan-400" />
+                  <span className="hidden sm:inline">Canvas</span>
+                </button>
+              )}
+
+              {/* Instant Export Dropdown (1-Click PDF, Word, Notion) */}
+              {messages.length > 0 && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setExportMenuOpen((prev) => !prev)}
+                    className="flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-2.5 text-xs font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                    title={isEnglish ? "Export Chat" : "Ekspor Obrolan"}
+                  >
+                    <Download size={14} className="text-cyan-400" />
+                    <span className="hidden sm:inline">{isEnglish ? "Export" : "Ekspor"}</span>
+                    <ChevronDown size={12} className={`text-slate-400 transition-transform ${exportMenuOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {exportMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1.5 z-50 w-52 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/98 p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+                      <div className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-800">
+                        {isEnglish ? "Instant Export (1-Click)" : "Ekspor Instan (1-Klik)"}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setExportMenuOpen(false);
+                          await exportChatToPdf({
+                            title: currentSession?.title || "DNA AI Chat",
+                            messages,
+                            locale: locale === "en" ? "en" : "id",
+                          });
+                          toast.success(isEnglish ? "PDF downloaded successfully!" : "PDF obrolan berhasil diunduh!");
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs text-slate-200 hover:bg-slate-800 hover:text-cyan-300 transition"
+                      >
+                        <FileText size={15} className="text-rose-400" />
+                        <span>{isEnglish ? "Download PDF (.pdf)" : "Unduh PDF (.pdf)"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setExportMenuOpen(false);
+                          await exportChatToDocx({
+                            title: currentSession?.title || "DNA AI Chat",
+                            messages,
+                            locale: locale === "en" ? "en" : "id",
+                          });
+                          toast.success(isEnglish ? "Word (.docx) downloaded successfully!" : "Word (.docx) obrolan berhasil diunduh!");
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs text-slate-200 hover:bg-slate-800 hover:text-blue-300 transition"
+                      >
+                        <FileText size={15} className="text-blue-400" />
+                        <span>{isEnglish ? "Download Word (.docx)" : "Unduh Word (.docx)"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setExportMenuOpen(false);
+                          const ok = await copyChatForNotion({
+                            title: currentSession?.title || "DNA AI Chat",
+                            messages,
+                            locale: locale === "en" ? "en" : "id",
+                          });
+                          if (ok) {
+                            toast.success(isEnglish ? "Copied Notion format to clipboard!" : "Format Notion berhasil disalin! Silakan paste di Notion.");
+                          }
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs text-slate-200 hover:bg-slate-800 hover:text-amber-300 transition"
+                      >
+                        <Sparkles size={15} className="text-amber-400" />
+                        <span>{isEnglish ? "Copy for Notion" : "Salin untuk Notion"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExportMenuOpen(false);
+                          downloadChatForNotion({
+                            title: currentSession?.title || "DNA AI Chat",
+                            messages,
+                            locale: locale === "en" ? "en" : "id",
+                          });
+                          toast.success(isEnglish ? "Notion Markdown (.md) downloaded!" : "File Notion (.md) berhasil diunduh!");
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs text-slate-200 hover:bg-slate-800 hover:text-emerald-300 transition"
+                      >
+                        <Download size={15} className="text-emerald-400" />
+                        <span>{isEnglish ? "Download Notion (.md)" : "Unduh Notion (.md)"}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Clear Messages */}
               {messages.length > 0 && (
                 <button
@@ -2793,8 +2933,13 @@ export default function Page() {
 
                           <AntigravityMessageContent
                             content={message.content}
+                            sources={message.sources}
                             onSelectOption={(opt) => sendMessage(opt)}
                             onExecuteCommand={(cmd) => sendMessage(cmd)}
+                            onOpenCanvas={(art) => {
+                              setCanvasArtifact(art);
+                              setIsCanvasOpen(true);
+                            }}
                             isEnglish={isEnglish}
                           />
                         </>
@@ -2805,7 +2950,8 @@ export default function Page() {
                       )}
 
                       {message.role === "assistant" && (
-                        <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-2 text-xs text-muted-foreground">
+                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/40 pt-2 text-xs text-muted-foreground">
+                          {/* 1. Listen Voice */}
                           <button
                             type="button"
                             onClick={() => {
@@ -2826,9 +2972,111 @@ export default function Page() {
                                   : "Hentikan"
                                 : isEnglish
                                 ? "Listen"
-                                : "Dengarkan suara"}
+                                : "Dengarkan"}
                             </span>
                           </button>
+
+                          {/* 2. Copy Message */}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(message.content);
+                                setCopiedMessageId(message.id);
+                                setTimeout(() => setCopiedMessageId(null), 2000);
+                                toast.success(isEnglish ? "Message copied!" : "Pesan disalin!");
+                              } catch {}
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 transition hover:bg-black/10 hover:text-cyan-400"
+                            title={isEnglish ? "Copy message text" : "Salin pesan"}
+                          >
+                            {copiedMessageId === message.id ? (
+                              <>
+                                <Check size={13} className="text-emerald-400" />
+                                <span className="text-emerald-400 font-medium">
+                                  {isEnglish ? "Copied" : "Tersalin"}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={13} />
+                                <span>{isEnglish ? "Copy" : "Salin"}</span>
+                              </>
+                            )}
+                          </button>
+
+                          {/* 3. Export Message (PDF, DOCX, Notion) */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExportingMessageId(
+                                  exportingMessageId === message.id ? null : message.id
+                                )
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 transition hover:bg-black/10 hover:text-cyan-400"
+                              title={isEnglish ? "Export this response" : "Ekspor jawaban ini"}
+                            >
+                              <Download size={13} />
+                              <span>{isEnglish ? "Export" : "Ekspor"}</span>
+                            </button>
+
+                            {exportingMessageId === message.id && (
+                              <div className="absolute left-0 bottom-full mb-1.5 z-50 w-48 overflow-hidden rounded-xl border border-slate-700 bg-slate-900/98 p-1 shadow-2xl backdrop-blur-md">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setExportingMessageId(null);
+                                    await exportChatToPdf({
+                                      title: currentSession?.title || "DNA AI Response",
+                                      messages: [],
+                                      singleMessageContent: message.content,
+                                      locale: locale === "en" ? "en" : "id",
+                                    });
+                                    toast.success(isEnglish ? "PDF downloaded!" : "PDF pesan berhasil diunduh!");
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-rose-300 transition"
+                                >
+                                  <FileText size={13} className="text-rose-400" />
+                                  <span>PDF (.pdf)</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setExportingMessageId(null);
+                                    await exportChatToDocx({
+                                      title: currentSession?.title || "DNA AI Response",
+                                      messages: [],
+                                      singleMessageContent: message.content,
+                                      locale: locale === "en" ? "en" : "id",
+                                    });
+                                    toast.success(isEnglish ? "Word (.docx) downloaded!" : "Word (.docx) pesan berhasil diunduh!");
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-blue-300 transition"
+                                >
+                                  <FileText size={13} className="text-blue-400" />
+                                  <span>Word (.docx)</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setExportingMessageId(null);
+                                    const ok = await copyChatForNotion({
+                                      title: currentSession?.title || "DNA AI Response",
+                                      messages: [],
+                                      singleMessageContent: message.content,
+                                      locale: locale === "en" ? "en" : "id",
+                                    });
+                                    if (ok) toast.success(isEnglish ? "Copied Notion format!" : "Format Notion disalin!");
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-amber-300 transition"
+                                >
+                                  <Sparkles size={13} className="text-amber-400" />
+                                  <span>{isEnglish ? "Copy for Notion" : "Salin untuk Notion"}</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -3300,6 +3548,14 @@ export default function Page() {
 
         </div>
 
+        {/* LIVE CANVAS / ARTIFACTS PANEL */}
+        <ChatCanvas
+          isOpen={isCanvasOpen}
+          onClose={() => setIsCanvasOpen(false)}
+          artifact={canvasArtifact}
+          isEnglish={isEnglish}
+        />
+
       </div>
 
     </div>
@@ -3317,6 +3573,8 @@ export default function Page() {
           onSendNow={handleSendNowVoice}
           onStopSpeaking={stopAiSpeaking}
           locale={locale === "en" ? "en" : "id"}
+          voiceTone={voiceTone}
+          onVoiceToneChange={setVoiceTone}
         />
       )}
 

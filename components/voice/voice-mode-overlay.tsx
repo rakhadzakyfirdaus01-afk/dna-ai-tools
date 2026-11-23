@@ -2,9 +2,25 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Mic, MicOff, X, Send, Sparkles, Volume2, ArrowLeft } from "lucide-react";
+import {
+  Mic,
+  MicOff,
+  X,
+  Send,
+  Sparkles,
+  Volume2,
+  ArrowLeft,
+  Languages,
+} from "lucide-react";
 
-export type VoiceModeStatus = "idle" | "listening" | "thinking" | "speaking" | "paused";
+export type VoiceModeStatus =
+  | "idle"
+  | "listening"
+  | "thinking"
+  | "speaking"
+  | "paused";
+
+export type VoiceTone = "id-casual" | "id-formal" | "en";
 
 interface VoiceModeOverlayProps {
   isOpen: boolean;
@@ -19,6 +35,8 @@ interface VoiceModeOverlayProps {
   onManualSend?: () => void;
   onStopSpeaking?: () => void;
   locale?: "id" | "en";
+  voiceTone?: VoiceTone;
+  onVoiceToneChange?: (tone: VoiceTone) => void;
 }
 
 export function VoiceModeOverlay({
@@ -34,8 +52,10 @@ export function VoiceModeOverlay({
   onManualSend,
   onStopSpeaking,
   locale = "id",
+  voiceTone = "id-casual",
+  onVoiceToneChange,
 }: VoiceModeOverlayProps) {
-  const isEnglish = locale === "en";
+  const isEnglish = locale === "en" || voiceTone === "en";
   const replyText = latestReply || latestAssistantText;
   const handleSend = onSendNow || onManualSend || (() => {});
 
@@ -59,25 +79,28 @@ export function VoiceModeOverlay({
       badge: isEnglish ? "Listening..." : "Mendengarkan...",
       badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
       dotColor: "bg-emerald-400 animate-ping",
-      hint: isEnglish
-        ? "Speak naturally. AI answers automatically when you finish."
-        : "Bicaralah dengan santai. AI akan langsung menjawab setelah kamu selesai bicara.",
+      hint:
+        voiceTone === "id-casual"
+          ? "Ngobrol santai aja. DNA AI langsung merespon begitu kamu selesai ngomong!"
+          : isEnglish
+          ? "Speak naturally. AI answers automatically with fast turn-around."
+          : "Bicaralah dengan jelas. DNA AI akan merespon segera setelah selesai bicara.",
     },
     thinking: {
       badge: isEnglish ? "Thinking..." : "Sedang berpikir...",
       badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30",
       dotColor: "bg-purple-400 animate-pulse",
       hint: isEnglish
-        ? "AI is preparing the response..."
-        : "DNA AI sedang menyiapkan jawaban terbaik untukmu...",
+        ? "DNA AI is preparing a fast, smart response..."
+        : "DNA AI sedang merangkai jawaban terbaik untukmu...",
     },
     speaking: {
-      badge: isEnglish ? "AI is speaking..." : "DNA AI sedang berbicara...",
+      badge: isEnglish ? "AI Speaking..." : "DNA AI Berbicara...",
       badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
       dotColor: "bg-cyan-400 animate-pulse",
       hint: isEnglish
-        ? "Listen to the response, or tap the screen to interrupt."
-        : "Dengarkan jawaban AI, atau ketuk tombol untuk menghentikan.",
+        ? "Listening to response. Tap screen to interrupt anytime."
+        : "Mendengarkan respon. Ketuk layar atau tombol untuk memotong kapan saja.",
     },
     paused: {
       badge: isEnglish ? "Paused" : "Dijeda",
@@ -93,12 +116,17 @@ export function VoiceModeOverlay({
       dotColor: "bg-slate-500",
       hint: isEnglish
         ? "Tap the microphone below to begin conversation."
-        : "Ketuk ikon mikrofon di bawah untuk memulai percakapan.",
+        : "Ketuk ikon mikrofon di bawah untuk memulai obrolan suara.",
     },
   }[status];
 
   // Dynamic scale calculation for fluid bubble animation
-  const baseScale = status === "listening" ? 1 + (voiceLevel / 100) * 0.35 : status === "speaking" ? 1.08 : 1;
+  const baseScale =
+    status === "listening"
+      ? 1 + (voiceLevel / 100) * 0.35
+      : status === "speaking"
+      ? 1.08
+      : 1;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-between bg-[#040814] text-white backdrop-blur-2xl transition-all duration-300 animate-in fade-in">
@@ -116,7 +144,7 @@ export function VoiceModeOverlay({
       </div>
 
       {/* TOP BAR */}
-      <header className="relative z-10 flex items-center justify-between p-4 sm:p-6">
+      <header className="relative z-10 flex flex-wrap items-center justify-between gap-3 p-4 sm:p-6">
         <button
           type="button"
           onClick={onClose}
@@ -126,6 +154,45 @@ export function VoiceModeOverlay({
           <span>{isEnglish ? "Back to Chat" : "Kembali ke Chat"}</span>
         </button>
 
+        {/* BILINGUAL & TONE SELECTOR */}
+        {onVoiceToneChange && (
+          <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/5 p-1 backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => onVoiceToneChange("id-casual")}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                voiceTone === "id-casual"
+                  ? "bg-cyan-500 text-slate-950 font-semibold shadow-md"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              🇮🇩 Santai
+            </button>
+            <button
+              type="button"
+              onClick={() => onVoiceToneChange("id-formal")}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                voiceTone === "id-formal"
+                  ? "bg-cyan-500 text-slate-950 font-semibold shadow-md"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              🇮🇩 Formal
+            </button>
+            <button
+              type="button"
+              onClick={() => onVoiceToneChange("en")}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                voiceTone === "en"
+                  ? "bg-cyan-500 text-slate-950 font-semibold shadow-md"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              🇺🇸 English
+            </button>
+          </div>
+        )}
+
         {/* STATUS PILL */}
         <div
           className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold backdrop-blur-md transition-all duration-300 ${statusConfig.badgeColor}`}
@@ -134,19 +201,14 @@ export function VoiceModeOverlay({
           <span>{statusConfig.badge}</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="hidden text-xs font-semibold uppercase tracking-wider text-slate-500 sm:inline">
-            DNA AI Suara
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/15"
-            title="Tutup"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/15"
+          title="Tutup"
+        >
+          <X size={18} />
+        </button>
       </header>
 
       {/* CENTER STAGE: THE CHATGPT-STYLE LIQUID GLOWING ORB WITH LOGO */}
@@ -218,7 +280,9 @@ export function VoiceModeOverlay({
 
         {/* HINT & CAPTION TEXT */}
         <div className="mt-10 max-w-md">
-          <p className="text-sm font-medium text-slate-300">{statusConfig.hint}</p>
+          <p className="text-sm font-medium text-slate-300">
+            {statusConfig.hint}
+          </p>
 
           {/* LATEST AI ANSWER PREVIEW (IF AVAILABLE) */}
           {status === "speaking" && replyText && (
@@ -258,7 +322,7 @@ export function VoiceModeOverlay({
             </button>
           )}
 
-          {/* MANUAL SEND (IF USER DOES NOT WANT TO WAIT 1.5s SILENCE) */}
+          {/* MANUAL SEND (IF USER DOES NOT WANT TO WAIT SILENCE) */}
           {status === "listening" && (
             <button
               type="button"
@@ -283,9 +347,11 @@ export function VoiceModeOverlay({
         </div>
 
         <p className="mt-3 text-[11px] text-slate-500">
-          {isEnglish
-            ? "DNA AI Voice Mode • Auto silence detection enabled"
-            : "Mode Suara DNA AI • Otomatis mendeteksi saat selesai bicara"}
+          {voiceTone === "id-casual"
+            ? "Mode Suara DNA AI • Respon santai dan cepat aktif"
+            : isEnglish
+            ? "DNA AI Voice Mode • Fast-turnaround natural speech active"
+            : "Mode Suara DNA AI • Deteksi henti otomatis & logat natural"}
         </p>
       </footer>
     </div>

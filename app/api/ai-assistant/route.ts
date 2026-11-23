@@ -15,7 +15,7 @@ import {
   resolveModelCandidates,
 } from "@/lib/ai-models";
 
-import { askDebugger } from "@/lib/gemini-debugger";
+import { askDebugger, askAssistantWithWebSearch } from "@/lib/gemini-debugger";
 import { askImagePrompt } from "@/lib/gemini-image";
 import { askDocument } from "@/lib/gemini-document";
 import { askOCR } from "@/lib/gemini-ocr";
@@ -332,6 +332,12 @@ export async function POST(req: Request) {
     const forceWebSearch =
       webSearchValue === "true" || webSearchValue === "1";
 
+    const voiceToneValue =
+      formData.get("voiceTone");
+
+    const voiceTone =
+      typeof voiceToneValue === "string" ? voiceToneValue : "";
+
     const conversationValue =
       formData.get("conversation");
 
@@ -444,7 +450,16 @@ export async function POST(req: Request) {
         file
       );
 
-    const contextualMessage = conversation
+    const voiceToneInstruction =
+      voiceTone === "id-casual"
+        ? "\n\n[GAYA BICARA SUARA: Jawab santai, luwes, akrab seperti teman ngobrol, tidak kaku, ringkas dan cepat tanpa basa-basi berlebih.]"
+        : voiceTone === "id-formal"
+        ? "\n\n[GAYA BICARA SUARA: Jawab secara formal, baku, profesional, dan santun.]"
+        : voiceTone === "en"
+        ? "\n\n[STYLE: Answer in natural, fluent, conversational English.]"
+        : "";
+
+    const contextualMessage = (conversation
       ? `Gunakan konteks percakapan berikut sebagai bagian dari percakapan yang sama.
 Pahami referensi seperti "itu", "yang tadi", "dia", "tapi", "kalau yang ini", dan pertanyaan lanjutan lainnya berdasarkan konteks.
 Tetap jawab sebagai satu AI Assistant umum. Jangan mengubah pertanyaan umum menjadi pertanyaan coding hanya karena kamu juga bisa membantu coding.
@@ -455,13 +470,15 @@ ${conversation}
 
 Pesan terbaru pengguna:
 ${message}`.trim()
-      : message;
+      : message) + voiceToneInstruction;
 
     const fallbackModels =
       resolveModelCandidates(model);
 
     let result = "";
     let successfulModel: ActualAIModelId | null = null;
+    let detectedSources: Array<{ title: string; url: string }> = [];
+    let webSearchUsed = false;
 
     if (
       feature ===
@@ -471,13 +488,17 @@ ${message}`.trim()
 
       for (const candidateModel of fallbackModels) {
         try {
-          result =
-            await askDebugger(
+          const searchRes =
+            await askAssistantWithWebSearch(
               contextualMessage,
               locale,
               candidateModel,
               forceWebSearch
             );
+
+          result = searchRes.text;
+          detectedSources = searchRes.sources || [];
+          webSearchUsed = searchRes.webSearchUsed;
 
           if (result.trim()) {
             successfulModel = candidateModel;
@@ -792,6 +813,8 @@ ${message}`.trim()
       success: true,
       feature,
       result,
+      sources: detectedSources,
+      webSearchUsed,
       audio,
       voice: Boolean(
         voiceFile
